@@ -58,6 +58,21 @@
   gap: 0.75rem;
 }
 
+.heroBrandLink {
+  position: absolute;
+  top: 2.5rem;
+  left: 2.5rem;
+  z-index: 10;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-block;
+  transition: transform var(--transition-fast);
+}
+
+.heroBrandLink:hover {
+  transform: translateY(-1px);
+}
+
 .heroBrandIcon {
   width: 40px;
   height: 40px;

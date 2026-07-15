@@ -502,13 +502,15 @@ function LoginContent() {
           className={styles.heroImage}
         />
         <div className={styles.heroOverlay} />
-        <div className={styles.heroContent}>
+        <Link href="/" className={styles.heroBrandLink}>
           <div className={styles.heroBrandRow}>
             <div className={styles.heroBrandIcon}>
               <Home size={20} />
             </div>
             <span className={styles.heroBrandName}>{settings.brandName}</span>
           </div>
+        </Link>
+        <div className={styles.heroContent}>
           <h2 className={styles.heroTagline}>
             Find your perfect home, directly from owners across India.
           </h2>
