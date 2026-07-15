@@ -360,4 +360,18 @@ model UserActivityLog {
   @@map("user_activity_log")
 }
 
+model EmailLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  to        String
+  from      String
+  subject   String
+  body      String
+  status    String   // e.g., "SENT", "FAILED"
+  error     String?  // error message if failed
+  metadata  Json?    // e.g., { type: 'WELCOME_EMAIL', trigger: 'SIGNUP' }
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("email_logs")
+}
+
 

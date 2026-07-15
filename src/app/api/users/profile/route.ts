@@ -43,6 +43,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const existingProfile = await prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { id: true },
+    });
+
     const profile = await prisma.profile.upsert({
       where: { id: user.id },
       update: {
@@ -59,6 +64,20 @@ export async function POST(request: NextRequest) {
         phoneVerified: true,
       },
     });
+
+    if (!existingProfile) {
+      const { sendEmail } = await import('@/lib/email');
+      try {
+        await sendEmail({
+          to: email,
+          subject: `Welcome to ${process.env.SMTP_FROM?.split('<')[0]?.trim() || 'ListMe'}!`,
+          text: `Hi ${name},\n\nWelcome to ListMe! Your account has been successfully created.\n\nNow you can explore properties, list yours for free, and connect directly with verified owners with no middlemen and no brokerage fees.\n\nHappy searching,\nThe ListMe Team`,
+          metadata: { type: 'WELCOME_EMAIL', trigger: 'SIGNUP_FORM' },
+        });
+      } catch (emailErr) {
+        console.error('Failed to send welcome email upon signup:', emailErr);
+      }
+    }
 
     return NextResponse.json({
       message: 'Profile created successfully',

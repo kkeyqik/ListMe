@@ -50,6 +50,20 @@ export async function GET(
           role: finalRole as any,
         },
       });
+
+      if (metaEmail) {
+        const { sendEmail } = await import('@/lib/email');
+        try {
+          await sendEmail({
+            to: metaEmail,
+            subject: `Welcome to ${process.env.SMTP_FROM?.split('<')[0]?.trim() || 'ListMe'}!`,
+            text: `Hi ${metaName},\n\nWelcome to ListMe! Your account has been successfully created.\n\nNow you can explore properties, list yours for free, and connect directly with verified owners with no middlemen and no brokerage fees.\n\nHappy searching,\nThe ListMe Team`,
+            metadata: { type: 'WELCOME_EMAIL', trigger: 'OAUTH_AUTO_CREATE' },
+          });
+        } catch (emailErr) {
+          console.error('Failed to send welcome email upon OAuth signup:', emailErr);
+        }
+      }
     }
 
     if (!profile) {

@@ -214,6 +214,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
       setEmail(val);
       setLoading(true);
+
+      // Track OTP request in DB
+      fetch('/api/auth/log-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REQUEST_OTP_EMAIL',
+          metadata: { email: val },
+        }),
+      }).catch((e) => console.warn('Activity logging error:', e));
+
       const { error } = await signInWithEmail(val);
       setLoading(false);
       if (error) {
@@ -232,6 +243,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const formattedPhone = countryCode + formattedPhoneNum;
       setPhone(formattedPhone); // Store full phone with country code for sync & verification
       setLoading(true);
+
+      // Track OTP request in DB
+      fetch('/api/auth/log-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REQUEST_OTP_PHONE',
+          metadata: { phone: formattedPhone, countryCode },
+        }),
+      }).catch((e) => console.warn('Activity logging error:', e));
 
       const testPhones = ['7777777777', '9999999999', '8888888888'];
       if (testPhones.includes(formattedPhoneNum)) {

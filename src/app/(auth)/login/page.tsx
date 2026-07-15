@@ -152,6 +152,17 @@ function LoginContent() {
       }
       setEmail(val);
       setLoading(true);
+
+      // Track OTP request in DB
+      fetch('/api/auth/log-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REQUEST_OTP_EMAIL',
+          metadata: { email: val },
+        }),
+      }).catch((e) => console.warn('Activity logging error:', e));
+
       const { error } = await signInWithEmail(val);
       setLoading(false);
 
@@ -172,6 +183,16 @@ function LoginContent() {
       const formattedPhone = countryCode + localNum;
       setPhone(formattedPhone); // Store full phone with country code for verifyOtp
       setLoading(true);
+
+      // Track OTP request in DB
+      fetch('/api/auth/log-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REQUEST_OTP_PHONE',
+          metadata: { phone: formattedPhone, countryCode },
+        }),
+      }).catch((e) => console.warn('Activity logging error:', e));
 
       if (localNum === '7777777777' || localNum === '9999999999' || localNum === '8888888888') {
         setStep('otp');
