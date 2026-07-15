@@ -11,9 +11,11 @@ import {
   ShieldCheck,
   CheckCircle,
   Building,
+  Home,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
+import { useSettings } from '@/context/SettingsContext';
 import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -37,6 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const { signInWithGoogle, signInWithEmail, verifyEmailOtp, refreshProfile, loginMockUser } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+  const { settings } = useSettings();
 
   const [mounted, setMounted] = useState(false);
   const [view, setView] = useState<AuthView>('main');
@@ -450,7 +453,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className={styles.content}>
             <div className={styles.headerContainer}>
               <div className={styles.blueLogoSquare}>
-                <Building size={22} color="#ffffff" strokeWidth={2.5} />
+                <Home size={22} color="#ffffff" strokeWidth={2.5} />
               </div>
               <h2 className={styles.welcomeBackTitle}>Welcome back. Enter the OTP sent to your phone number</h2>
               <div className={styles.phoneChangeRow}>
@@ -549,7 +552,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className={styles.content}>
             <div className={styles.headerContainer}>
               <div className={styles.blueLogoSquare}>
-                <Mail size={22} color="#ffffff" strokeWidth={2.5} />
+                <Home size={22} color="#ffffff" strokeWidth={2.5} />
               </div>
               <h2 className={styles.welcomeBackTitle}>Welcome back. Enter the OTP sent to your email address</h2>
               <div className={styles.phoneChangeRow}>

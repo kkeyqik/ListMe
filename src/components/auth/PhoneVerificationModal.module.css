@@ -18,8 +18,9 @@
 
 .timerBar {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  gap: 6px;
   font-size: 0.875rem;
   color: var(--color-text-secondary);
 }

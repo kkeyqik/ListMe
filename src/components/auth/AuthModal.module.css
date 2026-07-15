@@ -372,7 +372,7 @@
 
 .otpFooter {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   width: 100%;
   margin-top: 4px;
 }
