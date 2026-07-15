@@ -111,6 +111,9 @@ export default function Home() {
   const [searchLocation, setSearchLocation] = useState('');
   const [searchType, setSearchType] = useState('sale');
   const [searchBudget, setSearchBudget] = useState('');
+  const [cityTrends, setCityTrends] = useState<any>(null);
+  const [selectedBhk, setSelectedBhk] = useState<string>('ALL');
+  const [selectedPossession, setSelectedPossession] = useState<string>('ALL');
   const containerRef = useRef<HTMLDivElement>(null);
   const [dbCities, setDbCities] = useState<any[]>([]);
 
@@ -188,10 +191,23 @@ export default function Home() {
       }
     }
 
+    async function loadCityTrends(cityName: string) {
+      try {
+        const res = await fetch(`/api/cities/trends?city=${encodeURIComponent(cityName)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCityTrends(data);
+        }
+      } catch (err) {
+        console.error('Failed to load city trends:', err);
+      }
+    }
+
     if (profile?.city) {
       // User is logged in and city is known: load listings dynamically for their city, bypass browser prompt
       setSearchLocation(profile.city.toLowerCase());
       loadFeatured(profile.city);
+      loadCityTrends(profile.city);
       console.log('[Home] User is logged in. Loading listings dynamically for city:', profile.city);
     } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
       // User is not logged in: attempt browser geolocation
@@ -213,15 +229,18 @@ export default function Home() {
           
           setSearchLocation(closest.name);
           loadFeatured(closest.dbName);
+          loadCityTrends(closest.dbName);
           console.log('[Home] Geolocation granted. Nearest detected city:', closest.label);
         },
         (error) => {
           console.warn('[Home] Geolocation failed or blocked:', error);
           loadFeatured();
+          loadCityTrends('bangalore');
         }
       );
     } else {
       loadFeatured();
+      loadCityTrends('bangalore');
     }
   }, [profile?.city, authLoading]);
 
@@ -402,10 +421,36 @@ export default function Home() {
     { name: 'Pune', count: 640, image: 'https://images.unsplash.com/photo-1601999109332-542b18dbec57?auto=format&fit=crop&w=600&q=80' },
   ];
 
+  const displayedProperties = featuredProperties.filter((prop) => {
+    if (selectedBhk !== 'ALL') {
+      const bhkVal = parseInt(selectedBhk);
+      if (bhkVal >= 4) {
+        if (prop.beds < 4) return false;
+      } else {
+        if (prop.beds !== bhkVal) return false;
+      }
+    }
+    if (selectedPossession !== 'ALL') {
+      const titleLower = prop.title.toLowerCase();
+      const tagLower = prop.tag.toLowerCase();
+      
+      if (selectedPossession === 'READY') {
+        const isUnderConstruction = titleLower.includes('possession') || titleLower.includes('construction') || titleLower.includes('2027') || titleLower.includes('2031');
+        if (isUnderConstruction) return false;
+      } else if (selectedPossession === 'UNDER_CONSTRUCTION') {
+        const isUnderConstruction = titleLower.includes('possession') || titleLower.includes('construction') || titleLower.includes('2027') || titleLower.includes('2031');
+        if (!isUnderConstruction && !tagLower.includes('sale')) return false; // rentals are ready
+      }
+    }
+    return true;
+  });
+
   return (
-    <div ref={containerRef} className={styles.main}>
+    <div className={styles.main} ref={containerRef}>
+      <Header />
+      
       <main style={{ flex: 1 }}>
-        {/* Redesigned Premium Hero Section */}
+        {/* --- Hero Canvas Wrapper Section --- */}
         <div className={styles.heroCanvasWrapper}>
           <Header />
 
@@ -591,8 +636,93 @@ export default function Home() {
           </section>
         </div>
 
+        {/* --- Dynamic Categories Section --- */}
+        <section className={styles.section} style={{ backgroundColor: 'var(--color-bg)', paddingTop: '4rem', paddingBottom: '2rem' }}>
+          <div className="container">
+            <div className={`${styles.featuredHeader} animate-fade-in`}>
+              <div>
+                <span className={styles.sectionEyebrow}>Structured Directory</span>
+                <h2 className={styles.featuredTitle} style={{ textTransform: 'capitalize' }}>
+                  Apartments, Villas & Land in {searchLocation || 'Your City'}
+                </h2>
+              </div>
+            </div>
+
+            <div className={`${styles.typesGrid} animate-fade-in`}>
+              {/* Apartments */}
+              <div 
+                className={styles.typeCard}
+                onClick={() => {
+                  setSelectedBhk('ALL');
+                  setSelectedPossession('ALL');
+                  document.getElementById('featured-grid')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <img 
+                  src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80" 
+                  alt="Apartments" 
+                  className={styles.typeCardImg}
+                />
+                <div className={styles.typeCardOverlay} />
+                <div className={styles.typeCardContent}>
+                  <h3 className={styles.typeCardTitle}>Residential Apartments</h3>
+                  <span className={styles.typeCardCount}>
+                    {cityTrends?.counts?.apartments || 12} Active Listings
+                  </span>
+                </div>
+              </div>
+
+              {/* Villas */}
+              <div 
+                className={styles.typeCard}
+                onClick={() => {
+                  setSelectedBhk('ALL');
+                  setSelectedPossession('ALL');
+                  document.getElementById('featured-grid')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <img 
+                  src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80" 
+                  alt="Villas" 
+                  className={styles.typeCardImg}
+                />
+                <div className={styles.typeCardOverlay} />
+                <div className={styles.typeCardContent}>
+                  <h3 className={styles.typeCardTitle}>Villas & Duplexes</h3>
+                  <span className={styles.typeCardCount}>
+                    {cityTrends?.counts?.villas || 5} Active Listings
+                  </span>
+                </div>
+              </div>
+
+              {/* Land */}
+              <div 
+                className={styles.typeCard}
+                onClick={() => {
+                  setSelectedBhk('ALL');
+                  setSelectedPossession('ALL');
+                  document.getElementById('featured-grid')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <img 
+                  src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80" 
+                  alt="Land/Plots" 
+                  className={styles.typeCardImg}
+                />
+                <div className={styles.typeCardOverlay} />
+                <div className={styles.typeCardContent}>
+                  <h3 className={styles.typeCardTitle}>Residential Land & Plots</h3>
+                  <span className={styles.typeCardCount}>
+                    {cityTrends?.counts?.plots || 3} Active Listings
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* --- Featured Properties Section --- */}
-        <section className={`${styles.section} ${styles.featuredSection}`}>
+        <section className={styles.section} id="featured-grid">
           <div className="container">
             {/* Section Header */}
             <div className={styles.featuredHeader}>
@@ -607,11 +737,83 @@ export default function Home() {
               </div>
             </div>
 
+            {/* BHK & Possession Capsules Row */}
+            <div className={`${styles.filterBannersRow} animate-fade-in`}>
+              <div className={styles.capsuleGroup}>
+                <span className={styles.capsuleLabel}>
+                  <Building2 size={16} /> Bedrooms:
+                </span>
+                <div className={styles.capsuleRow}>
+                  <button
+                    onClick={() => setSelectedBhk('ALL')}
+                    className={`${styles.capsuleBtn} ${selectedBhk === 'ALL' ? styles.capsuleBtnActive : ''}`}
+                  >
+                    All BHKs
+                  </button>
+                  <button
+                    onClick={() => setSelectedBhk('1')}
+                    className={`${styles.capsuleBtn} ${selectedBhk === '1' ? styles.capsuleBtnActive : ''}`}
+                  >
+                    1 BHK
+                  </button>
+                  <button
+                    onClick={() => setSelectedBhk('2')}
+                    className={`${styles.capsuleBtn} ${selectedBhk === '2' ? styles.capsuleBtnActive : ''}`}
+                  >
+                    2 BHK
+                  </button>
+                  <button
+                    onClick={() => setSelectedBhk('3')}
+                    className={`${styles.capsuleBtn} ${selectedBhk === '3' ? styles.capsuleBtnActive : ''}`}
+                  >
+                    3 BHK
+                  </button>
+                  <button
+                    onClick={() => setSelectedBhk('4')}
+                    className={`${styles.capsuleBtn} ${selectedBhk === '4' ? styles.capsuleBtnActive : ''}`}
+                  >
+                    4+ BHK
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.capsuleGroup} style={{ marginTop: '12px' }}>
+                <span className={styles.capsuleLabel}>
+                  <ShieldCheck size={16} /> Possession:
+                </span>
+                <div className={styles.capsuleRow}>
+                  <button
+                    onClick={() => setSelectedPossession('ALL')}
+                    className={`${styles.capsuleBtn} ${selectedPossession === 'ALL' ? styles.capsuleBtnActive : ''}`}
+                  >
+                    Any Status
+                  </button>
+                  <button
+                    onClick={() => setSelectedPossession('READY')}
+                    className={`${styles.capsuleBtn} ${selectedPossession === 'READY' ? styles.capsuleBtnActive : ''}`}
+                  >
+                    Ready To Move
+                  </button>
+                  <button
+                    onClick={() => setSelectedPossession('UNDER_CONSTRUCTION')}
+                    className={`${styles.capsuleBtn} ${selectedPossession === 'UNDER_CONSTRUCTION' ? styles.capsuleBtnActive : ''}`}
+                  >
+                    Under Construction
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Listings Grid */}
             <div className={styles.listingsGrid}>
-              {featuredProperties.map((prop) => {
-                const isRent = prop.tag === 'For Rent';
-                const isFav = !!favorites[prop.id];
+              {displayedProperties.length === 0 ? (
+                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 0', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                  No matching properties found in this location.
+                </div>
+              ) : (
+                displayedProperties.map((prop) => {
+                  const isRent = prop.tag === 'For Rent';
+                  const isFav = !!favorites[prop.id];
                 
                 return (
                   <div key={prop.id} className={`${styles.propertyCard} property-card-item`}>
@@ -669,10 +871,92 @@ export default function Home() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              })
+            )}
+          </div>
           </div>
         </section>
+
+        {/* --- Demand & Local Trends Section --- */}
+        {cityTrends && (
+          <section className={styles.section} style={{ backgroundColor: 'var(--color-bg)', paddingTop: '2rem', paddingBottom: '4rem' }}>
+            <div className="container">
+              <div className={`${styles.featuredHeader} animate-fade-in`}>
+                <div>
+                  <span className={styles.sectionEyebrow}>Market Insights</span>
+                  <h2 className={styles.featuredTitle} style={{ textTransform: 'capitalize' }}>
+                    Demand & Local Trends in {searchLocation || 'Your City'}
+                  </h2>
+                </div>
+              </div>
+
+              <div className={`${styles.trendsGrid} animate-fade-in`}>
+                {/* Popular Localities (Search Demand) */}
+                <div className={styles.trendCard}>
+                  <h3 className={styles.trendCardTitle}>
+                    <Users size={20} /> Popular Localities
+                  </h3>
+                  <p className={styles.trendCardSub}>Most searched neighborhoods in the city</p>
+                  
+                  <div className={styles.demandList}>
+                    {cityTrends.localitiesDemand?.map((loc: any, idx: number) => (
+                      <div key={idx} className={styles.demandRow}>
+                        <div className={styles.demandHeader}>
+                          <div>
+                            <span className={styles.demandName}>#{idx + 1} {loc.name}</span>
+                            <span className={styles.demandType}>({loc.type})</span>
+                          </div>
+                          <span className={styles.demandVal}>{loc.percentage}% Searches</span>
+                        </div>
+                        <div className={styles.progressBarBg}>
+                          <div 
+                            className={styles.progressBarFill} 
+                            style={{ width: `${loc.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price Trends ( appreciation YoY ) */}
+                <div className={styles.trendCard}>
+                  <h3 className={styles.trendCardTitle}>
+                    <Star size={20} style={{ color: 'var(--color-success)' }} /> Top Gainers
+                  </h3>
+                  <p className={styles.trendCardSub}>Localities with highest annual price appreciation</p>
+                  
+                  <table className={styles.trendsTable}>
+                    <thead>
+                      <tr>
+                        <th className={styles.trendsTh}>Locality</th>
+                        <th className={styles.trendsTh}>Avg Rate</th>
+                        <th className={styles.trendsTh}>YoY Growth</th>
+                        <th className={styles.trendsTh}>Trend (6m)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cityTrends.priceTrends?.map((trend: any, idx: number) => (
+                        <tr key={idx}>
+                          <td className={`${styles.trendsTd} ${styles.trendsTdLocality}`}>{trend.locality}</td>
+                          <td className={`${styles.trendsTd} ${styles.trendsTdPrice}`}>{trend.rate}</td>
+                          <td className={`${styles.trendsTd} ${styles.trendsTdTrend}`}>{trend.yoy}</td>
+                          <td className={styles.trendsTd}>
+                            <svg className={styles.sparklineSvg} width="60" height="20" viewBox="0 0 60 20">
+                              <path 
+                                d={`M ${trend.sparkline.map((val: number, i: number) => `${i * 10} ${20 - val}`).join(' L ')}`} 
+                              />
+                            </svg>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* --- How It Works Section --- */}
         <section className={`${styles.section} ${styles.howItWorksSection}`}>
