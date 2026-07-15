@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Settings, Save, Mail, Phone, MapPin, Building2, RotateCcw } from 'lucide-react';
+import { Settings, Save, Mail, Phone, MapPin, Building2, RotateCcw, Share2, DollarSign, Key, Globe, FileText, Image as ImageIcon } from 'lucide-react';
 import { useToast, Button, Card, Input } from '@/components/ui';
 import styles from './settings.module.css';
 import { gsap } from 'gsap';
@@ -15,6 +15,22 @@ export default function AdminSettings() {
     contactEmail: '',
     contactPhone: '',
     officeAddress: '',
+    logoUrl: '',
+    faviconPath: '',
+    companyName: '',
+    copyrightYear: '',
+    privacyPolicyUrl: '',
+    termsOfServiceUrl: '',
+    twitterUrl: '',
+    facebookUrl: '',
+    linkedinUrl: '',
+    instagramUrl: '',
+    commissionPercentage: '',
+    pricingPlanRate: '',
+    promoRibbonText: '',
+    googleAnalyticsId: '',
+    enableIntercom: '',
+    enableRecaptcha: '',
   });
 
   const [loading, setLoading] = useState(true);
@@ -33,6 +49,22 @@ export default function AdminSettings() {
           contactEmail: data.contactEmail || '',
           contactPhone: data.contactPhone || '',
           officeAddress: data.officeAddress || '',
+          logoUrl: data.logoUrl || '',
+          faviconPath: data.faviconPath || '',
+          companyName: data.companyName || '',
+          copyrightYear: data.copyrightYear || '',
+          privacyPolicyUrl: data.privacyPolicyUrl || '',
+          termsOfServiceUrl: data.termsOfServiceUrl || '',
+          twitterUrl: data.twitterUrl || '',
+          facebookUrl: data.facebookUrl || '',
+          linkedinUrl: data.linkedinUrl || '',
+          instagramUrl: data.instagramUrl || '',
+          commissionPercentage: data.commissionPercentage || '',
+          pricingPlanRate: data.pricingPlanRate || '',
+          promoRibbonText: data.promoRibbonText || '',
+          googleAnalyticsId: data.googleAnalyticsId || '',
+          enableIntercom: data.enableIntercom || '',
+          enableRecaptcha: data.enableRecaptcha || '',
         });
         
         if (showResetNotification) {
@@ -76,7 +108,7 @@ export default function AdminSettings() {
     }
   }, [loading]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
@@ -145,7 +177,7 @@ export default function AdminSettings() {
       <div className={styles.header}>
         <h1 className={styles.title}>Admin Settings</h1>
         <p className={styles.subtitle}>
-          Configure and manage global configurations, company contact details, and platform branding assets.
+          Configure and manage global configurations, platform branding assets, legal agreements, social handles, monetization rates, and external script integrations.
         </p>
       </div>
 
@@ -186,16 +218,16 @@ export default function AdminSettings() {
                   Branding Configuration
                 </h2>
                 <p className={styles.sectionDescription}>
-                  Configure name and values used across pages and emails.
+                  Configure name, logos, and values used across pages and emails.
                 </p>
               </div>
 
               <div className={styles.formGrid}>
-                <div className={styles.fullWidthRow}>
+                <div>
                   <Input
                     name="brandName"
                     label="Brand Name"
-                    placeholder="e.g. Listme"
+                    placeholder="e.g. ListMe"
                     value={formData.brandName}
                     onChange={handleInputChange}
                     error={errors.brandName}
@@ -204,20 +236,56 @@ export default function AdminSettings() {
                     required
                   />
                 </div>
+
+                <div>
+                  <Input
+                    name="companyName"
+                    label="Company Name"
+                    placeholder="e.g. ListMe Technologies Private Limited"
+                    value={formData.companyName}
+                    onChange={handleInputChange}
+                    leftIcon={<Building2 size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    name="logoUrl"
+                    label="Logo URL Path"
+                    placeholder="e.g. /images/logo.png"
+                    value={formData.logoUrl}
+                    onChange={handleInputChange}
+                    leftIcon={<ImageIcon size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    name="faviconPath"
+                    label="Favicon File Path"
+                    placeholder="e.g. /favicon.ico"
+                    value={formData.faviconPath}
+                    onChange={handleInputChange}
+                    leftIcon={<Globe size={18} />}
+                    fullWidth
+                  />
+                </div>
               </div>
 
               <div className={styles.sectionDivider} />
 
-              {/* Contact Information Section */}
+              {/* Contact & Legal Section */}
               <div className={styles.sectionHeader}>
                 <h2 className={styles.sectionTitle}>
                   <span className={styles.iconWrapper}>
-                    <Settings size={20} />
+                    <FileText size={20} />
                   </span>
-                  Contact Information
+                  Support & Legal Information
                 </h2>
                 <p className={styles.sectionDescription}>
-                  Provide corporate contact coordinates shown in footer and contact page.
+                  Provide corporate contact coordinates, copyright, and policy page links.
                 </p>
               </div>
 
@@ -226,8 +294,8 @@ export default function AdminSettings() {
                   <Input
                     name="contactEmail"
                     type="email"
-                    label="Contact Email Address"
-                    placeholder="e.g. contact@listme.in"
+                    label="Support Email Address"
+                    placeholder="e.g. support@listme.in"
                     value={formData.contactEmail}
                     onChange={handleInputChange}
                     error={errors.contactEmail}
@@ -241,7 +309,7 @@ export default function AdminSettings() {
                   <Input
                     name="contactPhone"
                     type="tel"
-                    label="Contact Phone Number"
+                    label="Support Phone Number"
                     placeholder="e.g. +91 99999 99999"
                     value={formData.contactPhone}
                     onChange={handleInputChange}
@@ -252,11 +320,23 @@ export default function AdminSettings() {
                   />
                 </div>
 
+                <div>
+                  <Input
+                    name="copyrightYear"
+                    label="Copyright Year"
+                    placeholder="e.g. 2026"
+                    value={formData.copyrightYear}
+                    onChange={handleInputChange}
+                    leftIcon={<FileText size={18} />}
+                    fullWidth
+                  />
+                </div>
+
                 <div className={styles.fullWidthRow}>
                   <Input
                     name="officeAddress"
                     label="Office Address"
-                    placeholder="e.g. Listme Tech Space, Sector 62, Noida"
+                    placeholder="e.g. 80 Feet Road, Indiranagar, Bangalore"
                     value={formData.officeAddress}
                     onChange={handleInputChange}
                     error={errors.officeAddress}
@@ -264,6 +344,245 @@ export default function AdminSettings() {
                     fullWidth
                     required
                   />
+                </div>
+
+                <div>
+                  <Input
+                    name="privacyPolicyUrl"
+                    label="Privacy Policy Link"
+                    placeholder="e.g. /privacy"
+                    value={formData.privacyPolicyUrl}
+                    onChange={handleInputChange}
+                    leftIcon={<Globe size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    name="termsOfServiceUrl"
+                    label="Terms of Service Link"
+                    placeholder="e.g. /terms"
+                    value={formData.termsOfServiceUrl}
+                    onChange={handleInputChange}
+                    leftIcon={<Globe size={18} />}
+                    fullWidth
+                  />
+                </div>
+              </div>
+
+              <div className={styles.sectionDivider} />
+
+              {/* Social links section */}
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>
+                  <span className={styles.iconWrapper}>
+                    <Share2 size={20} />
+                  </span>
+                  Social Media Links
+                </h2>
+                <p className={styles.sectionDescription}>
+                  URLs for your platform's official social profile pages.
+                </p>
+              </div>
+
+              <div className={styles.formGrid}>
+                <div>
+                  <Input
+                    name="twitterUrl"
+                    label="Twitter / X Profile Link"
+                    placeholder="e.g. https://twitter.com/listme"
+                    value={formData.twitterUrl}
+                    onChange={handleInputChange}
+                    leftIcon={<Share2 size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    name="facebookUrl"
+                    label="Facebook Page Link"
+                    placeholder="e.g. https://facebook.com/listme"
+                    value={formData.facebookUrl}
+                    onChange={handleInputChange}
+                    leftIcon={<Share2 size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    name="linkedinUrl"
+                    label="LinkedIn Company Link"
+                    placeholder="e.g. https://linkedin.com/company/listme"
+                    value={formData.linkedinUrl}
+                    onChange={handleInputChange}
+                    leftIcon={<Share2 size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    name="instagramUrl"
+                    label="Instagram Account Link"
+                    placeholder="e.g. https://instagram.com/listme"
+                    value={formData.instagramUrl}
+                    onChange={handleInputChange}
+                    leftIcon={<Share2 size={18} />}
+                    fullWidth
+                  />
+                </div>
+              </div>
+
+              <div className={styles.sectionDivider} />
+
+              {/* Pricing & Monetization Section */}
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>
+                  <span className={styles.iconWrapper}>
+                    <DollarSign size={20} />
+                  </span>
+                  Pricing & Monetization
+                </h2>
+                <p className={styles.sectionDescription}>
+                  Manage platform fee structures, subscription pricing rates, and promos.
+                </p>
+              </div>
+
+              <div className={styles.formGrid}>
+                <div>
+                  <Input
+                    name="commissionPercentage"
+                    label="Commission Rate (%)"
+                    placeholder="e.g. 2"
+                    value={formData.commissionPercentage}
+                    onChange={handleInputChange}
+                    leftIcon={<DollarSign size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div>
+                  <Input
+                    name="pricingPlanRate"
+                    label="Premium Listing Price Rate (INR)"
+                    placeholder="e.g. 0"
+                    value={formData.pricingPlanRate}
+                    onChange={handleInputChange}
+                    leftIcon={<DollarSign size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div className={styles.fullWidthRow}>
+                  <Input
+                    name="promoRibbonText"
+                    label="Promo Ribbon Header Text"
+                    placeholder="e.g. Launch Offer: 100% Free Listing"
+                    value={formData.promoRibbonText}
+                    onChange={handleInputChange}
+                    leftIcon={<FileText size={18} />}
+                    fullWidth
+                  />
+                </div>
+              </div>
+
+              <div className={styles.sectionDivider} />
+
+              {/* External Scripts & Integrations */}
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>
+                  <span className={styles.iconWrapper}>
+                    <Key size={20} />
+                  </span>
+                  Script Integrations & Keys
+                </h2>
+                <p className={styles.sectionDescription}>
+                  Toggle third-party integrations and configure tracker script IDs.
+                </p>
+              </div>
+
+              <div className={styles.formGrid}>
+                <div>
+                  <Input
+                    name="googleAnalyticsId"
+                    label="Google Analytics Measurement ID (G-XXXXX)"
+                    placeholder="e.g. G-123456789"
+                    value={formData.googleAnalyticsId}
+                    onChange={handleInputChange}
+                    leftIcon={<Key size={18} />}
+                    fullWidth
+                  />
+                </div>
+
+                <div>
+                  <label 
+                    style={{ 
+                      fontFamily: 'var(--font-heading)', 
+                      fontSize: '0.875rem', 
+                      fontWeight: 600, 
+                      color: 'var(--color-neutral-700)',
+                      display: 'block',
+                      marginBottom: '0.375rem'
+                    }}
+                  >
+                    Enable Intercom Support Widget
+                  </label>
+                  <select
+                    name="enableIntercom"
+                    value={formData.enableIntercom}
+                    onChange={handleInputChange}
+                    className={styles.customInputField}
+                    style={{ 
+                      width: '100%', 
+                      border: '1.5px solid var(--color-border)', 
+                      borderRadius: 'var(--radius-md)', 
+                      padding: '12px',
+                      outline: 'none',
+                      fontSize: '0.95rem',
+                      background: '#ffffff',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="false">Disabled</option>
+                    <option value="true">Enabled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label 
+                    style={{ 
+                      fontFamily: 'var(--font-heading)', 
+                      fontSize: '0.875rem', 
+                      fontWeight: 600, 
+                      color: 'var(--color-neutral-700)',
+                      display: 'block',
+                      marginBottom: '0.375rem'
+                    }}
+                  >
+                    Enable Google Recaptcha v3
+                  </label>
+                  <select
+                    name="enableRecaptcha"
+                    value={formData.enableRecaptcha}
+                    onChange={handleInputChange}
+                    className={styles.customInputField}
+                    style={{ 
+                      width: '100%', 
+                      border: '1.5px solid var(--color-border)', 
+                      borderRadius: 'var(--radius-md)', 
+                      padding: '12px',
+                      outline: 'none',
+                      fontSize: '0.95rem',
+                      background: '#ffffff',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="false">Disabled</option>
+                    <option value="true">Enabled</option>
+                  </select>
                 </div>
               </div>
 

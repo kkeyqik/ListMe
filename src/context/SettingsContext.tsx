@@ -7,6 +7,22 @@ export interface SystemSettings {
   contactEmail: string;
   contactPhone: string;
   officeAddress: string;
+  logoUrl: string;
+  faviconPath: string;
+  companyName: string;
+  copyrightYear: string;
+  privacyPolicyUrl: string;
+  termsOfServiceUrl: string;
+  twitterUrl: string;
+  facebookUrl: string;
+  linkedinUrl: string;
+  instagramUrl: string;
+  commissionPercentage: string;
+  pricingPlanRate: string;
+  promoRibbonText: string;
+  googleAnalyticsId: string;
+  enableIntercom: string;
+  enableRecaptcha: string;
 }
 
 interface SettingsContextType {
@@ -20,6 +36,22 @@ const defaultSettings: SystemSettings = {
   contactEmail: 'support@listme.in',
   contactPhone: '+91 99999 99999',
   officeAddress: 'ListMe Tech Space, Indiranagar, Bangalore, India',
+  logoUrl: '/images/logo.png',
+  faviconPath: '/favicon.ico',
+  companyName: 'ListMe Technologies Private Limited',
+  copyrightYear: '2026',
+  privacyPolicyUrl: '/privacy',
+  termsOfServiceUrl: '/terms',
+  twitterUrl: 'https://twitter.com',
+  facebookUrl: 'https://facebook.com',
+  linkedinUrl: 'https://linkedin.com',
+  instagramUrl: 'https://instagram.com',
+  commissionPercentage: '2',
+  pricingPlanRate: '0',
+  promoRibbonText: 'Launch Offer: 100% Free Listing',
+  googleAnalyticsId: '',
+  enableIntercom: 'false',
+  enableRecaptcha: 'false',
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -46,6 +78,22 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           contactEmail: data.contactEmail || defaultSettings.contactEmail,
           contactPhone: data.contactPhone || defaultSettings.contactPhone,
           officeAddress: data.officeAddress || defaultSettings.officeAddress,
+          logoUrl: data.logoUrl || defaultSettings.logoUrl,
+          faviconPath: data.faviconPath || defaultSettings.faviconPath,
+          companyName: data.companyName || defaultSettings.companyName,
+          copyrightYear: data.copyrightYear || defaultSettings.copyrightYear,
+          privacyPolicyUrl: data.privacyPolicyUrl || defaultSettings.privacyPolicyUrl,
+          termsOfServiceUrl: data.termsOfServiceUrl || defaultSettings.termsOfServiceUrl,
+          twitterUrl: data.twitterUrl || defaultSettings.twitterUrl,
+          facebookUrl: data.facebookUrl || defaultSettings.facebookUrl,
+          linkedinUrl: data.linkedinUrl || defaultSettings.linkedinUrl,
+          instagramUrl: data.instagramUrl || defaultSettings.instagramUrl,
+          commissionPercentage: data.commissionPercentage || defaultSettings.commissionPercentage,
+          pricingPlanRate: data.pricingPlanRate || defaultSettings.pricingPlanRate,
+          promoRibbonText: data.promoRibbonText || defaultSettings.promoRibbonText,
+          googleAnalyticsId: data.googleAnalyticsId || defaultSettings.googleAnalyticsId,
+          enableIntercom: data.enableIntercom || defaultSettings.enableIntercom,
+          enableRecaptcha: data.enableRecaptcha || defaultSettings.enableRecaptcha,
         });
       }
     } catch (err) {
