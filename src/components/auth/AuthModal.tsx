@@ -47,6 +47,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [otp, setOtp] = useState('');
   const [email, setEmail] = useState('');
   const [identifier, setIdentifier] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
+  const [isPhoneDetected, setIsPhoneDetected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
 
@@ -140,6 +142,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // ─── Handlers ────────────────────────────────
 
+  const handleIdentifierChange = (val: string) => {
+    setIdentifier(val);
+    const clean = val.trim();
+    if (!clean) {
+      setIsPhoneDetected(false);
+      return;
+    }
+
+    const hasLettersOrAt = /[a-zA-Z@]/.test(clean);
+    const startsWithPlusOrDigit = /^[+\d]/.test(clean);
+
+    if (startsWithPlusOrDigit && !hasLettersOrAt) {
+      setIsPhoneDetected(true);
+      // Auto-detect and switch selected country code
+      if (clean.startsWith('+91')) {
+        setCountryCode('+91');
+      } else if (clean.startsWith('+1')) {
+        setCountryCode('+1');
+      } else if (clean.startsWith('91') && clean.length > 10) {
+        setCountryCode('+91');
+      } else if (clean.startsWith('1') && clean.length > 10) {
+        setCountryCode('+1');
+      }
+    } else {
+      setIsPhoneDetected(false);
+    }
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const val = identifier.trim();
@@ -172,7 +202,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
       const formattedPhoneNum = cleanPhone.slice(-10);
-      setPhone(formattedPhoneNum);
+      const formattedPhone = countryCode + formattedPhoneNum;
+      setPhone(formattedPhone); // Store full phone with country code for sync & verification
       setLoading(true);
 
       const testPhones = ['7777777777', '9999999999', '8888888888'];
@@ -184,15 +215,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      const formattedPhone = `+91${formattedPhoneNum}`;
-
       if (isFirebaseConfigured) {
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
           try {
             const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
             setConfirmationResult(result);
-            showToast('OTP Sent', 'Verification code has been sent via Firebase SMS', 'success');
+            showToast('OTP Sent', `Verification code has been sent via Firebase SMS to ${formattedPhone}`, 'success');
             setView('otp');
             setTimer(30);
           } catch (error: any) {
@@ -204,7 +233,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       } else {
         // Mock / Simulated Flow for Development
-        showToast('OTP Sent (Simulated)', 'SMS verification code is 123456', 'success');
+        showToast('OTP Sent (Simulated)', `SMS verification code is 123456 sent to ${formattedPhone}`, 'success');
         setView('otp');
         setTimer(30);
       }
@@ -413,15 +442,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             {/* Unified Email/Phone Form */}
             <form onSubmit={handleSendOtp} className={styles.form}>
-              <Input
-                label="Email or Mobile Number"
-                type="text"
-                placeholder="Enter your email or phone number"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                fullWidth
-                required
-              />
+              <div>
+                <label className={styles.inputLabel}>Email or Mobile Number</label>
+                <div className={styles.customInputContainer}>
+                  {isPhoneDetected && (
+                    <div className={styles.countryCodeSelector}>
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className={styles.countrySelect}
+                        disabled={loading}
+                      >
+                        <option value="+91">🇮🇳 +91</option>
+                        <option value="+1">🇺🇸 +1</option>
+                      </select>
+                      <div className={styles.selectorDivider} />
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => handleIdentifierChange(e.target.value)}
+                    placeholder="Enter your email or phone number"
+                    className={styles.customInputField}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              </div>
               <Button
                 type="submit"
                 variant="primary"

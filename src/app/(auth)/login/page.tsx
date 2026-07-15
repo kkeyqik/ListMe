@@ -44,6 +44,8 @@ function LoginContent() {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [identifier, setIdentifier] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
+  const [isPhoneDetected, setIsPhoneDetected] = useState(false);
   const [step, setStep] = useState<'main' | 'otp' | 'email' | 'email-otp' | 'signup' | 'signup-otp'>('main');
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -90,6 +92,34 @@ function LoginContent() {
   }, [timer]);
 
   // Phone submission handler
+  const handleIdentifierChange = (val: string) => {
+    setIdentifier(val);
+    const clean = val.trim();
+    if (!clean) {
+      setIsPhoneDetected(false);
+      return;
+    }
+
+    const hasLettersOrAt = /[a-zA-Z@]/.test(clean);
+    const startsWithPlusOrDigit = /^[+\d]/.test(clean);
+
+    if (startsWithPlusOrDigit && !hasLettersOrAt) {
+      setIsPhoneDetected(true);
+      // Auto-detect and switch selected country code
+      if (clean.startsWith('+91')) {
+        setCountryCode('+91');
+      } else if (clean.startsWith('+1')) {
+        setCountryCode('+1');
+      } else if (clean.startsWith('91') && clean.length > 10) {
+        setCountryCode('+91');
+      } else if (clean.startsWith('1') && clean.length > 10) {
+        setCountryCode('+1');
+      }
+    } else {
+      setIsPhoneDetected(false);
+    }
+  };
+
   // Unified email/phone submission handler
   const handleIdentifierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,11 +155,12 @@ function LoginContent() {
         return;
       }
       // Keep only the last 10 digits
-      const formattedPhone = cleanPhone.slice(-10);
-      setPhone(formattedPhone);
+      const localNum = cleanPhone.slice(-10);
+      const formattedPhone = countryCode + localNum;
+      setPhone(formattedPhone); // Store full phone with country code for verifyOtp
       setLoading(true);
 
-      if (formattedPhone === '7777777777' || formattedPhone === '9999999999' || formattedPhone === '8888888888') {
+      if (localNum === '7777777777' || localNum === '9999999999' || localNum === '8888888888') {
         showToast('OTP Sent (Bypassed)', 'Test number detected. Use OTP 123456.', 'success');
         setStep('otp');
         setTimer(30);
@@ -143,7 +174,7 @@ function LoginContent() {
       if (error) {
         showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
       } else {
-        showToast('OTP Sent', 'Verification code has been sent to your phone', 'success');
+        showToast('OTP Sent', `Verification code has been sent to ${formattedPhone}`, 'success');
         setStep('otp');
         setTimer(30);
       }
@@ -440,16 +471,34 @@ function LoginContent() {
               </div>
 
               <form onSubmit={handleIdentifierSubmit} className={styles.form}>
-                <Input
-                  label="Email or Mobile Number"
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="Enter your email or phone number"
-                  required
-                  disabled={loading}
-                  fullWidth
-                />
+                <div>
+                  <label className={styles.inputLabel}>Email or Mobile Number</label>
+                  <div className={styles.customInputContainer}>
+                    {isPhoneDetected && (
+                      <div className={styles.countryCodeSelector}>
+                        <select
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value)}
+                          className={styles.countrySelect}
+                          disabled={loading}
+                        >
+                          <option value="+91">🇮🇳 +91</option>
+                          <option value="+1">🇺🇸 +1</option>
+                        </select>
+                        <div className={styles.selectorDivider} />
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={identifier}
+                      onChange={(e) => handleIdentifierChange(e.target.value)}
+                      placeholder="Enter your email or phone number"
+                      className={styles.customInputField}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
                 <Button
                   type="submit"
                   variant="primary"
