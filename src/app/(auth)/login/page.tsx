@@ -333,7 +333,8 @@ function LoginContent() {
       showToast('Error', 'Please enter your name', 'error');
       return;
     }
-    if (!phone || phone.length < 10) {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
       showToast('Error', 'Please enter a valid 10-digit mobile number', 'error');
       return;
     }
@@ -342,9 +343,13 @@ function LoginContent() {
       return;
     }
 
+    const localNum = cleanPhone.slice(-10);
+    const formattedPhone = countryCode + localNum;
+    setPhone(formattedPhone);
+
     setLoading(true);
 
-    if (phone === '7777777777' || phone === '9999999999' || phone === '8888888888') {
+    if (localNum === '7777777777' || localNum === '9999999999' || localNum === '8888888888') {
       showToast('OTP Sent (Bypassed)', 'Test number detected. Use OTP 123456.', 'success');
       setStep('signup-otp');
       setTimer(30);
@@ -352,13 +357,13 @@ function LoginContent() {
       return;
     }
 
-    const { error } = await signUp(name, phone, email);
+    const { error } = await signUp(name, formattedPhone, email);
     setLoading(false);
 
     if (error) {
       showToast('Registration Failed', typeof error === 'string' ? error : error.message || 'Something went wrong', 'error');
     } else {
-      showToast('OTP Sent', 'Verification code has been sent to your phone', 'success');
+      showToast('OTP Sent', `Verification code has been sent to ${formattedPhone}`, 'success');
       setStep('signup-otp');
       setTimer(30);
     }
@@ -728,17 +733,32 @@ function LoginContent() {
                   disabled={loading}
                   fullWidth
                 />
-                <Input
-                  label="Mobile Number"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="Enter 10-digit number"
-                  leftIcon={<Phone size={18} />}
-                  required
-                  disabled={loading}
-                  fullWidth
-                />
+                <div>
+                  <label className={styles.inputLabel}>Mobile Number</label>
+                  <div className={styles.customInputContainer}>
+                    <div className={styles.countryCodeSelector}>
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className={styles.countrySelect}
+                        disabled={loading}
+                      >
+                        <option value="+91">🇮🇳 +91</option>
+                        <option value="+1">🇺🇸 +1</option>
+                      </select>
+                      <div className={styles.selectorDivider} />
+                    </div>
+                    <input
+                      type="tel"
+                      value={phone.replace(/^\+91|^\+1/, '')}
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="Enter 10-digit number"
+                      className={styles.customInputField}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
                 <Input
                   label="Email Address"
                   type="email"
