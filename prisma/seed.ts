@@ -60,6 +60,7 @@ async function main() {
 
   // 2. Seed Cities and Localities
   const citiesData = [
+    // --- Major Featured Cities (with pre-defined localities) ---
     {
       name: 'Mumbai',
       state: 'Maharashtra',
@@ -104,6 +105,152 @@ async function main() {
         { name: 'Wakad', pinCode: '411057', latitude: 18.5987, longitude: 73.7749 },
       ],
     },
+    {
+      name: 'Hyderabad',
+      state: 'Telangana',
+      imageUrl: '/images/cities/hyderabad.jpg',
+      localities: [
+        { name: 'Gachibowli', pinCode: '500032', latitude: 17.4401, longitude: 78.3489 },
+        { name: 'Madhapur', pinCode: '500081', latitude: 17.4483, longitude: 78.3915 },
+        { name: 'Banjara Hills', pinCode: '500034', latitude: 17.4174, longitude: 78.4350 },
+        { name: 'Jubilee Hills', pinCode: '500033', latitude: 17.4325, longitude: 78.4075 },
+      ],
+    },
+    {
+      name: 'Chennai',
+      state: 'Tamil Nadu',
+      imageUrl: '/images/cities/chennai.jpg',
+      localities: [
+        { name: 'Adyar', pinCode: '600020', latitude: 13.0012, longitude: 80.2565 },
+        { name: 'Velachery', pinCode: '600042', latitude: 12.9790, longitude: 80.2185 },
+        { name: 'T Nagar', pinCode: '600017', latitude: 13.0405, longitude: 80.2337 },
+        { name: 'OMR Sholinganallur', pinCode: '600119', latitude: 12.9010, longitude: 80.2269 },
+      ],
+    },
+
+    // --- Andhra Pradesh ---
+    { name: 'Visakhapatnam', state: 'Andhra Pradesh', localities: [] },
+    { name: 'Vijayawada', state: 'Andhra Pradesh', localities: [] },
+    { name: 'Guntur', state: 'Andhra Pradesh', localities: [] },
+    { name: 'Tirupati', state: 'Andhra Pradesh', localities: [] },
+    // --- Arunachal Pradesh ---
+    { name: 'Itanagar', state: 'Arunachal Pradesh', localities: [] },
+    // --- Assam ---
+    { name: 'Guwahati', state: 'Assam', localities: [] },
+    { name: 'Dibrugarh', state: 'Assam', localities: [] },
+    { name: 'Silchar', state: 'Assam', localities: [] },
+    // --- Bihar ---
+    { name: 'Patna', state: 'Bihar', localities: [] },
+    { name: 'Gaya', state: 'Bihar', localities: [] },
+    { name: 'Bhagalpur', state: 'Bihar', localities: [] },
+    { name: 'Muzaffarpur', state: 'Bihar', localities: [] },
+    // --- Chhattisgarh ---
+    { name: 'Raipur', state: 'Chhattisgarh', localities: [] },
+    { name: 'Bhilai', state: 'Chhattisgarh', localities: [] },
+    { name: 'Bilaspur', state: 'Chhattisgarh', localities: [] },
+    // --- Goa ---
+    { name: 'Panaji', state: 'Goa', localities: [] },
+    { name: 'Margao', state: 'Goa', localities: [] },
+    { name: 'Vasco da Gama', state: 'Goa', localities: [] },
+    // --- Gujarat ---
+    { name: 'Ahmedabad', state: 'Gujarat', localities: [] },
+    { name: 'Surat', state: 'Gujarat', localities: [] },
+    { name: 'Vadodara', state: 'Gujarat', localities: [] },
+    { name: 'Rajkot', state: 'Gujarat', localities: [] },
+    { name: 'Gandhinagar', state: 'Gujarat', localities: [] },
+    // --- Haryana ---
+    { name: 'Gurugram', state: 'Haryana', localities: [] },
+    { name: 'Faridabad', state: 'Haryana', localities: [] },
+    { name: 'Panipat', state: 'Haryana', localities: [] },
+    { name: 'Karnal', state: 'Haryana', localities: [] },
+    // --- Himachal Pradesh ---
+    { name: 'Shimla', state: 'Himachal Pradesh', localities: [] },
+    { name: 'Dharamshala', state: 'Himachal Pradesh', localities: [] },
+    // --- Jharkhand ---
+    { name: 'Ranchi', state: 'Jharkhand', localities: [] },
+    { name: 'Jamshedpur', state: 'Jharkhand', localities: [] },
+    { name: 'Dhanbad', state: 'Jharkhand', localities: [] },
+    // --- Karnataka (Additional) ---
+    { name: 'Mysore', state: 'Karnataka', localities: [] },
+    { name: 'Mangalore', state: 'Karnataka', localities: [] },
+    { name: 'Hubli', state: 'Karnataka', localities: [] },
+    // --- Kerala ---
+    { name: 'Kochi', state: 'Kerala', localities: [] },
+    { name: 'Thiruvananthapuram', state: 'Kerala', localities: [] },
+    { name: 'Kozhikode', state: 'Kerala', localities: [] },
+    { name: 'Thrissur', state: 'Kerala', localities: [] },
+    // --- Madhya Pradesh ---
+    { name: 'Indore', state: 'Madhya Pradesh', localities: [] },
+    { name: 'Bhopal', state: 'Madhya Pradesh', localities: [] },
+    { name: 'Jabalpur', state: 'Madhya Pradesh', localities: [] },
+    { name: 'Gwalior', state: 'Madhya Pradesh', localities: [] },
+    // --- Maharashtra (Additional) ---
+    { name: 'Nagpur', state: 'Maharashtra', localities: [] },
+    { name: 'Nashik', state: 'Maharashtra', localities: [] },
+    { name: 'Thane', state: 'Maharashtra', localities: [] },
+    { name: 'Navi Mumbai', state: 'Maharashtra', localities: [] },
+    { name: 'Aurangabad', state: 'Maharashtra', localities: [] },
+    // --- Manipur ---
+    { name: 'Imphal', state: 'Manipur', localities: [] },
+    // --- Meghalaya ---
+    { name: 'Shillong', state: 'Meghalaya', localities: [] },
+    // --- Mizoram ---
+    { name: 'Aizawl', state: 'Mizoram', localities: [] },
+    // --- Nagaland ---
+    { name: 'Kohima', state: 'Nagaland', localities: [] },
+    { name: 'Dimapur', state: 'Nagaland', localities: [] },
+    // --- Odisha ---
+    { name: 'Bhubaneswar', state: 'Odisha', localities: [] },
+    { name: 'Cuttack', state: 'Odisha', localities: [] },
+    { name: 'Rourkela', state: 'Odisha', localities: [] },
+    // --- Punjab ---
+    { name: 'Ludhiana', state: 'Punjab', localities: [] },
+    { name: 'Amritsar', state: 'Punjab', localities: [] },
+    { name: 'Jalandhar', state: 'Punjab', localities: [] },
+    { name: 'Patiala', state: 'Punjab', localities: [] },
+    // --- Rajasthan ---
+    { name: 'Jaipur', state: 'Rajasthan', localities: [] },
+    { name: 'Jodhpur', state: 'Rajasthan', localities: [] },
+    { name: 'Udaipur', state: 'Rajasthan', localities: [] },
+    { name: 'Kota', state: 'Rajasthan', localities: [] },
+    // --- Sikkim ---
+    { name: 'Gangtok', state: 'Sikkim', localities: [] },
+    // --- Tamil Nadu (Additional) ---
+    { name: 'Coimbatore', state: 'Tamil Nadu', localities: [] },
+    { name: 'Madurai', state: 'Tamil Nadu', localities: [] },
+    { name: 'Trichy', state: 'Tamil Nadu', localities: [] },
+    // --- Telangana (Additional) ---
+    { name: 'Warangal', state: 'Telangana', localities: [] },
+    // --- Tripura ---
+    { name: 'Agartala', state: 'Tripura', localities: [] },
+    // --- Uttar Pradesh ---
+    { name: 'Lucknow', state: 'Uttar Pradesh', localities: [] },
+    { name: 'Kanpur', state: 'Uttar Pradesh', localities: [] },
+    { name: 'Noida', state: 'Uttar Pradesh', localities: [] },
+    { name: 'Greater Noida', state: 'Uttar Pradesh', localities: [] },
+    { name: 'Ghaziabad', state: 'Uttar Pradesh', localities: [] },
+    { name: 'Agra', state: 'Uttar Pradesh', localities: [] },
+    { name: 'Varanasi', state: 'Uttar Pradesh', localities: [] },
+    { name: 'Prayagraj', state: 'Uttar Pradesh', localities: [] },
+    // --- Uttarakhand ---
+    { name: 'Dehradun', state: 'Uttarakhand', localities: [] },
+    { name: 'Haridwar', state: 'Uttarakhand', localities: [] },
+    { name: 'Nainital', state: 'Uttarakhand', localities: [] },
+    // --- West Bengal ---
+    { name: 'Kolkata', state: 'West Bengal', localities: [] },
+    { name: 'Howrah', state: 'West Bengal', localities: [] },
+    { name: 'Siliguri', state: 'West Bengal', localities: [] },
+    { name: 'Darjeeling', state: 'West Bengal', localities: [] },
+    
+    // --- Union Territories ---
+    { name: 'Port Blair', state: 'Andaman & Nicobar Islands', localities: [] },
+    { name: 'Chandigarh', state: 'Chandigarh', localities: [] },
+    { name: 'Silvassa', state: 'Dadra and Nagar Haveli and Daman and Diu', localities: [] },
+    { name: 'Jammu', state: 'Jammu & Kashmir', localities: [] },
+    { name: 'Srinagar', state: 'Jammu & Kashmir', localities: [] },
+    { name: 'Leh', state: 'Ladakh', localities: [] },
+    { name: 'Kavaratti', state: 'Lakshadweep', localities: [] },
+    { name: 'Puducherry', state: 'Puducherry', localities: [] }
   ];
 
   console.log('Seeding cities and localities...');
