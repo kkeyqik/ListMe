@@ -14,6 +14,7 @@ model Profile {
   phone         String?            @unique
   phoneVerified Boolean            @default(false) @map("phone_verified")
   avatarUrl     String?            @map("avatar_url")
+  city          String?
   address       String?
   role          Role               @default(USER)
   status        UserStatus         @default(ACTIVE)

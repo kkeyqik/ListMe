@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Phone, ArrowRight, Home, Mail, User } from 'lucide-react';
+import { Phone, ArrowRight, Home, Mail, User, MapPin } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
@@ -49,6 +49,43 @@ function LoginContent() {
   const [step, setStep] = useState<'main' | 'otp' | 'email' | 'email-otp' | 'signup' | 'signup-otp'>('main');
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [citiesList, setCitiesList] = useState<any[]>([]);
+
+  // Load cities list and auto-detect location
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        const res = await fetch('/api/cities');
+        if (res.ok) {
+          const data = await res.json();
+          setCitiesList(data.cities || []);
+          
+          // Attempt silent IP-based city detection
+          try {
+            const ipRes = await fetch('https://ipapi.co/json/');
+            if (ipRes.ok) {
+              const ipData = await ipRes.json();
+              if (ipData.city) {
+                const matched = (data.cities || []).find(
+                  (c: any) => c.name.toLowerCase() === ipData.city.toLowerCase()
+                );
+                if (matched) {
+                  setSelectedCity(matched.name);
+                  console.log('[Location Capture] Auto-detected city:', matched.name);
+                }
+              }
+            }
+          } catch (ipErr) {
+            console.warn('[Location Capture] IP location detection error:', ipErr);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load cities:', err);
+      }
+    };
+    loadCities();
+  }, []);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const redirectPath = searchParams.get('redirect') || '/dashboard';
@@ -372,6 +409,10 @@ function LoginContent() {
       showToast('Error', 'Please enter a valid email address', 'error');
       return;
     }
+    if (!selectedCity) {
+      showToast('Error', 'Please select your preferred city', 'error');
+      return;
+    }
 
     const localNum = cleanPhone.slice(-10);
     const formattedPhone = countryCode + localNum;
@@ -386,7 +427,7 @@ function LoginContent() {
       return;
     }
 
-    const { error } = await signUp(name, formattedPhone, email);
+    const { error } = await signUp(name, formattedPhone, email, selectedCity);
     setLoading(false);
 
     if (error) {
@@ -797,6 +838,40 @@ function LoginContent() {
                   disabled={loading}
                   fullWidth
                 />
+                <div>
+                  <label className={styles.inputLabel}>Preferred City</label>
+                  <div className={styles.customInputContainer} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ paddingLeft: '12px', display: 'flex', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                      <MapPin size={18} />
+                    </div>
+                    <select
+                      value={selectedCity}
+                      onChange={(e) => setSelectedCity(e.target.value)}
+                      className={styles.customInputField}
+                      style={{ 
+                        border: 'none', 
+                        background: 'transparent', 
+                        width: '100%', 
+                        outline: 'none',
+                        color: selectedCity ? 'var(--color-text)' : 'var(--color-text-muted)',
+                        padding: '12px 8px',
+                        cursor: 'pointer',
+                        fontSize: '0.95rem'
+                      }}
+                      required
+                      disabled={loading}
+                    >
+                      <option value="" disabled style={{ color: 'var(--color-text-muted)' }}>
+                        Select preferred city
+                      </option>
+                      {citiesList.map((c) => (
+                        <option key={c.id} value={c.name} style={{ color: 'var(--color-text)' }}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <Button
                   type="submit"
                   variant="primary"

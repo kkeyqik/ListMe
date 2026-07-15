@@ -12,6 +12,8 @@ import {
   CheckCircle,
   Building,
   Home,
+  MapPin,
+  User,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';

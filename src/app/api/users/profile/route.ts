@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, email, phone } = await request.json();
+    const { name, email, phone, city } = await request.json();
 
     if (!name || !email || !phone) {
       return NextResponse.json(
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
         email,
         phone: formattedPhone,
         phoneVerified: true,
+        city: city || null,
       },
       create: {
         id: user.id,
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
         email,
         phone: formattedPhone,
         phoneVerified: true,
+        city: city || null,
       },
     });
 

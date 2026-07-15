@@ -48,6 +48,7 @@ export async function GET(
           phone: metaPhone,
           phoneVerified: !!metaPhone,
           role: finalRole as any,
+          city: user.user_metadata?.city || null,
         },
       });
 

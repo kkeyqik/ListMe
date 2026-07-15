@@ -27,7 +27,7 @@ interface AuthContextType {
   verifyEmailOtp: (email: string, token: string) => Promise<{ error: any }>;
   signInWithGoogle: (redirectPath?: string) => Promise<{ error: any }>;
   signInWithEmail: (email: string) => Promise<{ error: any }>;
-  signUp: (name: string, phone: string, email: string) => Promise<{ error: any }>;
+  signUp: (name: string, phone: string, email: string, city?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   loginMockUser: (userId: string, profileData: DbProfile) => void;
@@ -37,6 +37,7 @@ interface PendingSignup {
   name: string;
   phone: string;
   email: string;
+  city?: string;
 }
 
 const PENDING_SIGNUP_KEY = 'listme_pending_signup';
@@ -345,14 +346,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Sign Up (Pre-registers user in database profile as well)
-  const signUp = async (name: string, phone: string, email: string) => {
+  const signUp = async (name: string, phone: string, email: string, city?: string) => {
     setLoading(true);
     try {
       // Step 1: Pre-register / check in API
       const regResponse = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, email }),
+        body: JSON.stringify({ name, phone, email, city }),
       });
 
       if (!regResponse.ok) {
@@ -362,7 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       window.localStorage.setItem(
         PENDING_SIGNUP_KEY,
-        JSON.stringify({ name, phone, email } satisfies PendingSignup)
+        JSON.stringify({ name, phone, email, city } satisfies PendingSignup)
       );
 
       // Step 2: Request OTP from Supabase to complete auth
