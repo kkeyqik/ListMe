@@ -10,9 +10,10 @@ import {
   ArrowLeft,
   ShieldCheck,
   CheckCircle,
+  Building,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useToast, Button, Input } from '@/components/ui';
+import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -180,9 +181,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleOtpChange = (val: string) => {
+    setOtp(val);
+    if (val.length === 6) {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleVerifyOtp(fakeEvent, val);
+    }
+  };
+
+  const handleEmailOtpChange = (val: string) => {
+    setOtp(val);
+    if (val.length === 6) {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleVerifyEmailOtp(fakeEvent, val);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent, otpVal?: string) => {
     e.preventDefault();
-    if (!otp || otp.length !== 6) {
+    const activeOtp = otpVal || otp;
+    if (!activeOtp || activeOtp.length !== 6) {
       showToast('Error', 'Please enter the 6-digit code', 'error');
       return;
     }
@@ -192,14 +210,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (isFirebaseConfigured && confirmationResult) {
       try {
-        await confirmationResult.confirm(otp);
+        await confirmationResult.confirm(activeOtp);
         verifySuccess = true;
       } catch (error: any) {
         showToast('Failed', error.message || 'Incorrect OTP code', 'error');
       }
     } else {
       // Mock validation
-      if (otp === '123456') {
+      if (activeOtp === '123456') {
         verifySuccess = true;
       } else {
         showToast('Failed', 'Incorrect simulated OTP. Use 123456.', 'error');
@@ -299,14 +317,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleVerifyEmailOtp = async (e: React.FormEvent) => {
+  const handleVerifyEmailOtp = async (e: React.FormEvent, otpVal?: string) => {
     e.preventDefault();
-    if (!otp || otp.length !== 6) {
+    const activeOtp = otpVal || otp;
+    if (!activeOtp || activeOtp.length !== 6) {
       showToast('Error', 'Please enter the 6-digit code', 'error');
       return;
     }
     setLoading(true);
-    const { error } = await verifyEmailOtp(email, otp);
+    const { error } = await verifyEmailOtp(email, activeOtp);
     setLoading(false);
     if (error) {
       showToast('Failed', error.message || 'Incorrect OTP code', 'error');
@@ -429,33 +448,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* ── OTP VERIFICATION VIEW ── */}
         {view === 'otp' && (
           <div className={styles.content}>
-            <div className={styles.header}>
-              <button
-                type="button"
-                className={styles.backBtn}
-                onClick={() => { setView('main'); setOtp(''); }}
-              >
-                <ArrowLeft size={18} />
-                <span>Back</span>
-              </button>
-              <h2 className={styles.title}>Verify OTP</h2>
-              <p className={styles.subtitle}>
-                Enter the 6-digit code sent to +91 {phone}
-              </p>
+            <div className={styles.headerContainer}>
+              <div className={styles.blueLogoSquare}>
+                <Building size={22} color="#ffffff" strokeWidth={2.5} />
+              </div>
+              <h2 className={styles.welcomeBackTitle}>Welcome back. Enter the OTP sent to your phone number</h2>
+              <div className={styles.phoneChangeRow}>
+                <span className={styles.phoneDisplay}>+91 {phone}</span>
+                <button
+                  type="button"
+                  className={styles.changeBtn}
+                  onClick={() => { setView('main'); setOtp(''); }}
+                >
+                  Change
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleVerifyOtp} className={styles.form}>
-              <Input
-                label="Verification Code"
-                type="text"
-                inputMode="numeric"
-                placeholder="Enter 6-digit OTP"
+              <OtpInput
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                leftIcon={<ShieldCheck size={18} />}
-                fullWidth
-                required
-                autoFocus
+                onChange={handleOtpChange}
+                numInputs={6}
+                disabled={loading}
               />
               <Button
                 type="submit"
@@ -468,13 +483,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </Button>
             </form>
 
-            <div className={styles.resendRow}>
+            <div className={styles.otpFooter}>
               {timer > 0 ? (
-                <span className={styles.resendTimer}>Resend in {timer}s</span>
+                <span className={styles.resendTimerText}>Resend OTP in {timer}s</span>
               ) : (
                 <button
                   type="button"
-                  className={styles.resendBtn}
+                  className={styles.resendTextBtn}
                   onClick={handleResendOtp}
                   disabled={loading}
                 >
@@ -532,33 +547,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* ── EMAIL OTP VERIFICATION VIEW ── */}
         {view === 'email-otp' && (
           <div className={styles.content}>
-            <div className={styles.header}>
-              <button
-                type="button"
-                className={styles.backBtn}
-                onClick={() => { setView('email'); setOtp(''); }}
-              >
-                <ArrowLeft size={18} />
-                <span>Back</span>
-              </button>
-              <h2 className={styles.title}>Verify Email Code</h2>
-              <p className={styles.subtitle}>
-                Enter the 6-digit code sent to {email}
-              </p>
+            <div className={styles.headerContainer}>
+              <div className={styles.blueLogoSquare}>
+                <Mail size={22} color="#ffffff" strokeWidth={2.5} />
+              </div>
+              <h2 className={styles.welcomeBackTitle}>Welcome back. Enter the OTP sent to your email address</h2>
+              <div className={styles.phoneChangeRow}>
+                <span className={styles.phoneDisplay}>{email}</span>
+                <button
+                  type="button"
+                  className={styles.changeBtn}
+                  onClick={() => { setView('email'); setOtp(''); }}
+                >
+                  Change
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleVerifyEmailOtp} className={styles.form}>
-              <Input
-                label="Verification Code"
-                type="text"
-                inputMode="numeric"
-                placeholder="Enter 6-digit OTP"
+              <OtpInput
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                leftIcon={<ShieldCheck size={18} />}
-                fullWidth
-                required
-                autoFocus
+                onChange={handleEmailOtpChange}
+                numInputs={6}
+                disabled={loading}
               />
               <Button
                 type="submit"
@@ -571,10 +582,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </Button>
             </form>
 
-            <div className={styles.resendRow}>
+            <div className={styles.otpFooter}>
               <button
                 type="button"
-                className={styles.resendBtn}
+                className={styles.resendTextBtn}
                 onClick={handleSendEmailLink}
                 disabled={loading}
               >

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Phone, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useToast, Modal, Input, Button } from '../ui';
+import { useToast, Modal, Input, Button, OtpInput } from '../ui';
 import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import styles from './PhoneVerificationModal.module.css';
@@ -136,9 +136,18 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
     setLoading(false);
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
+  const handleOtpChange = (val: string) => {
+    setOtp(val);
+    if (val.length === 6) {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleOtpSubmit(fakeEvent, val);
+    }
+  };
+
+  const handleOtpSubmit = async (e: React.FormEvent, otpVal?: string) => {
     e.preventDefault();
-    if (!otp || otp.length !== 6) {
+    const activeOtp = otpVal || otp;
+    if (!activeOtp || activeOtp.length !== 6) {
       showToast('Error', 'Please enter a valid 6-digit code', 'error');
       return;
     }
@@ -148,14 +157,14 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
 
     if (isFirebaseConfigured && confirmationResult) {
       try {
-        await confirmationResult.confirm(otp);
+        await confirmationResult.confirm(activeOtp);
         verifySuccess = true;
       } catch (error: any) {
         showToast('Verification Failed', error.message || 'Incorrect OTP. Try again.', 'error');
       }
     } else {
       // Mock validation
-      if (otp === '123456') {
+      if (activeOtp === '123456') {
         verifySuccess = true;
       } else {
         showToast('Verification Failed', 'Incorrect simulated OTP. Use 123456.', 'error');
@@ -251,19 +260,11 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
             <p className={styles.description}>
               Enter the 6-digit verification code sent to <strong>+91 {phone}</strong>.
             </p>
-            <Input
-              label="One-Time Password (OTP)"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
+            <OtpInput
               value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="123456"
-              leftIcon={<ShieldCheck size={18} />}
-              maxLength={6}
-              required
+              onChange={handleOtpChange}
+              numInputs={6}
               disabled={loading}
-              fullWidth
             />
 
             <div className={styles.timerBar}>

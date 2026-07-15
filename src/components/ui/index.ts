@@ -5,3 +5,5 @@ export { default as Badge, type BadgeProps } from './Badge';
 export { default as Modal, type ModalProps } from './Modal';
 export { ToastProvider, useToast, type ToastItem, type ToastType } from './Toast';
 export { default as Skeleton, type SkeletonProps } from './Skeleton';
+export { OtpInput } from './OtpInput';
+

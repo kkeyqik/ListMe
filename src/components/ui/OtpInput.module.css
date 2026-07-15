@@ -1,0 +1,71 @@
+.otpContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 16px 0;
+}
+
+.otpInput {
+  width: 56px;
+  height: 56px;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-neutral-900);
+  background-color: var(--color-bg);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: 12px;
+  outline: none;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.otpInput::placeholder {
+  color: var(--color-neutral-300);
+  opacity: 1;
+}
+
+.otpInput:focus {
+  border-color: #3b82f6;
+  background-color: var(--color-bg);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.otpInput.hasValue {
+  border-color: var(--color-neutral-400);
+}
+
+.otpInput.hasValue:focus {
+  border-color: #3b82f6;
+}
+
+.otpInput.error {
+  border-color: var(--color-error);
+}
+
+.otpInput.error:focus {
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+}
+
+.otpInput:disabled {
+  background-color: var(--color-neutral-100);
+  color: var(--color-neutral-400);
+  cursor: not-allowed;
+}
+
+/* Responsive styles for smaller mobile screens */
+@media (max-width: 480px) {
+  .otpContainer {
+    gap: 8px;
+  }
+  
+  .otpInput {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    border-radius: 10px;
+  }
+}
