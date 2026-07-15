@@ -452,7 +452,6 @@ export default function Home() {
       <main style={{ flex: 1 }}>
         {/* --- Hero Canvas Wrapper Section --- */}
         <div className={styles.heroCanvasWrapper}>
-          <Header />
 
           {/* Redesigned Premium Hero Section */}
           <section className={styles.heroSection}>
