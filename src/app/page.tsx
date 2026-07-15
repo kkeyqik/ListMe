@@ -728,7 +728,11 @@ export default function Home() {
                 </div>
               </div>
               <div className={styles.featuredHeaderRight}>
-                <Button href="/listings" variant="outline" className={styles.viewAllBtn}>
+                <Button 
+                  href={searchLocation ? `/listings?city=${encodeURIComponent(searchLocation)}` : '/listings'} 
+                  variant="outline" 
+                  className={styles.viewAllBtn}
+                >
                   View All Properties <span className={styles.arrow}>→</span>
                 </Button>
               </div>
