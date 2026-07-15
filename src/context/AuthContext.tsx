@@ -11,6 +11,7 @@ export interface DbProfile {
   phone: string | null;
   phoneVerified: boolean;
   avatarUrl: string | null;
+  city: string | null;
   address: string | null;
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
   status: 'ACTIVE' | 'SUSPENDED' | 'BANNED';
@@ -310,6 +311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             phone: null,
             phoneVerified: false,
             avatarUrl: null,
+            city: null,
             address: null,
             role: 'USER',
             status: 'ACTIVE',

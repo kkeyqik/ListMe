@@ -7,6 +7,7 @@ import { Button, Card } from '../components/ui';
 import styles from './Home.module.css';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useAuth } from '@/context/AuthContext';
 
 
 // Register ScrollTrigger plugin (client-side only to prevent SSR issues)
@@ -106,6 +107,7 @@ const mapDbListingToProperty = (dbListing: any) => {
 };
 
 export default function Home() {
+  const { user, profile, loading: authLoading } = useAuth();
   const [searchLocation, setSearchLocation] = useState('');
   const [searchType, setSearchType] = useState('sale');
   const [searchBudget, setSearchBudget] = useState('');
@@ -121,13 +123,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const CITIES = [
-      { name: 'mumbai', lat: 19.0760, lon: 72.8777, label: 'Mumbai', dbName: 'mumbai' },
-      { name: 'bangalore', lat: 12.9716, lon: 77.5946, label: 'Bangalore', dbName: 'bangalore' },
-      { name: 'delhi', lat: 28.6139, lon: 77.2090, label: 'Delhi NCR', dbName: 'delhi ncr' },
-      { name: 'pune', lat: 18.5204, lon: 73.8567, label: 'Pune', dbName: 'pune' }
-    ];
-
     async function fetchCities() {
       try {
         const res = await fetch('/api/cities');
@@ -142,6 +137,17 @@ export default function Home() {
       }
     }
     fetchCities();
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    const CITIES = [
+      { name: 'mumbai', lat: 19.0760, lon: 72.8777, label: 'Mumbai', dbName: 'mumbai' },
+      { name: 'bangalore', lat: 12.9716, lon: 77.5946, label: 'Bangalore', dbName: 'bangalore' },
+      { name: 'delhi', lat: 28.6139, lon: 77.2090, label: 'Delhi NCR', dbName: 'delhi ncr' },
+      { name: 'pune', lat: 18.5204, lon: 73.8567, label: 'Pune', dbName: 'pune' }
+    ];
 
     async function loadFeatured(closestCityName?: string) {
       setIsLoadingFeatured(true);
@@ -182,7 +188,13 @@ export default function Home() {
       }
     }
 
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+    if (profile?.city) {
+      // User is logged in and city is known: load listings dynamically for their city, bypass browser prompt
+      setSearchLocation(profile.city.toLowerCase());
+      loadFeatured(profile.city);
+      console.log('[Home] User is logged in. Loading listings dynamically for city:', profile.city);
+    } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      // User is not logged in: attempt browser geolocation
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -199,21 +211,19 @@ export default function Home() {
             }
           });
           
-          // Default searchLocation state to the lowercase name of the closest city
           setSearchLocation(closest.name);
-          
-          // Load featured listings for closest city dbName
           loadFeatured(closest.dbName);
+          console.log('[Home] Geolocation granted. Nearest detected city:', closest.label);
         },
         (error) => {
-          console.warn('Geolocation failed:', error);
+          console.warn('[Home] Geolocation failed or blocked:', error);
           loadFeatured();
         }
       );
     } else {
       loadFeatured();
     }
-  }, []);
+  }, [profile?.city, authLoading]);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
