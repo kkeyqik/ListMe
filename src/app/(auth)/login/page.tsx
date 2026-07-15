@@ -446,7 +446,6 @@ function LoginContent() {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="Enter your email or phone number"
-                  leftIcon={<Mail size={18} />}
                   required
                   disabled={loading}
                   fullWidth

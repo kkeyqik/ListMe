@@ -419,7 +419,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 placeholder="Enter your email or phone number"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                leftIcon={<Mail size={18} />}
                 fullWidth
                 required
               />
