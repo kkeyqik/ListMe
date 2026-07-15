@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-      return NextResponse.json({ registered: !!profile });
+      return NextResponse.json({ registered: !!profile, userId: profile?.id || null });
     } else {
       // Check phone number
       const cleanPhone = identifier.replace(/\D/g, '');
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
           ],
         },
       });
-      return NextResponse.json({ registered: !!profile });
+      return NextResponse.json({ registered: !!profile, userId: profile?.id || null });
     }
   } catch (error: any) {
     return NextResponse.json(
