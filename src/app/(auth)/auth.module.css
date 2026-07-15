@@ -244,14 +244,15 @@
 }
 
 .googleBtn {
-  background: var(--color-neutral-900);
-  border: 1.5px solid var(--color-neutral-800);
-  color: #ffffff;
+  background: #ffffff;
+  border: 1.5px solid var(--color-neutral-200);
+  color: var(--color-neutral-800);
 }
 
 .googleBtn:hover {
-  background: var(--color-neutral-800);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background-color: var(--color-neutral-50);
+  border-color: var(--color-neutral-300);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .emailBtn {

@@ -43,6 +43,7 @@ function LoginContent() {
   const [otp, setOtp] = useState('');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [step, setStep] = useState<'main' | 'otp' | 'email' | 'email-otp' | 'signup' | 'signup-otp'>('main');
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -89,32 +90,63 @@ function LoginContent() {
   }, [timer]);
 
   // Phone submission handler
-  const handlePhoneSubmit = async (e: React.FormEvent) => {
+  // Unified email/phone submission handler
+  const handleIdentifierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone || phone.length < 10) {
-      showToast('Error', 'Please enter a valid 10-digit mobile number', 'error');
+    const val = identifier.trim();
+    if (!val) {
+      showToast('Error', 'Please enter your email or phone number', 'error');
       return;
     }
 
-    setLoading(true);
-
-    if (phone === '7777777777' || phone === '9999999999' || phone === '8888888888') {
-      showToast('OTP Sent (Bypassed)', 'Test number detected. Use OTP 123456.', 'success');
-      setStep('otp');
-      setTimer(30);
+    // Determine if email or phone number
+    if (val.includes('@')) {
+      // Validate email format
+      if (!/\S+@\S+\.\S+/.test(val)) {
+        showToast('Error', 'Please enter a valid email address', 'error');
+        return;
+      }
+      setEmail(val);
+      setLoading(true);
+      const { error } = await signInWithEmail(val);
       setLoading(false);
-      return;
-    }
 
-    const { error } = await signInWithOtp(phone);
-    setLoading(false);
-
-    if (error) {
-      showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
+      if (error) {
+        showToast('Failed to send code', error.message || 'Could not send verification code', 'error');
+      } else {
+        showToast('Code Sent', 'Check your inbox for a 6-digit OTP code', 'success');
+        setStep('email-otp');
+      }
     } else {
-      showToast('OTP Sent', 'Verification code has been sent to your phone', 'success');
-      setStep('otp');
-      setTimer(30);
+      // Clean digits from phone number
+      const cleanPhone = val.replace(/\D/g, '');
+      if (cleanPhone.length < 10) {
+        showToast('Error', 'Please enter a valid email or 10-digit mobile number', 'error');
+        return;
+      }
+      // Keep only the last 10 digits
+      const formattedPhone = cleanPhone.slice(-10);
+      setPhone(formattedPhone);
+      setLoading(true);
+
+      if (formattedPhone === '7777777777' || formattedPhone === '9999999999' || formattedPhone === '8888888888') {
+        showToast('OTP Sent (Bypassed)', 'Test number detected. Use OTP 123456.', 'success');
+        setStep('otp');
+        setTimer(30);
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await signInWithOtp(formattedPhone);
+      setLoading(false);
+
+      if (error) {
+        showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
+      } else {
+        showToast('OTP Sent', 'Verification code has been sent to your phone', 'success');
+        setStep('otp');
+        setTimer(30);
+      }
     }
   };
 
@@ -397,7 +429,7 @@ function LoginContent() {
       <div className={styles.formPanel}>
         <div className={styles.formInner}>
 
-          {/* ── MAIN VIEW: Phone + Social ── */}
+          {/* ── MAIN VIEW: Unified Email/Phone + Social ── */}
           {step === 'main' && (
             <>
               <div className={styles.header}>
@@ -407,14 +439,14 @@ function LoginContent() {
                 </p>
               </div>
 
-              <form onSubmit={handlePhoneSubmit} className={styles.form}>
+              <form onSubmit={handleIdentifierSubmit} className={styles.form}>
                 <Input
-                  label="Mobile Number"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="Enter 10-digit number"
-                  leftIcon={<Phone size={18} />}
+                  label="Email or Mobile Number"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Enter your email or phone number"
+                  leftIcon={<Mail size={18} />}
                   required
                   disabled={loading}
                   fullWidth
@@ -427,14 +459,14 @@ function LoginContent() {
                   rightIcon={<ArrowRight size={18} />}
                   fullWidth
                 >
-                  Sign In
+                  Continue
                 </Button>
               </form>
 
               {/* Divider */}
               <div className={styles.divider}>
                 <span className={styles.dividerLine} />
-                <span className={styles.dividerText}>Or continue with</span>
+                <span className={styles.dividerText}>or</span>
                 <span className={styles.dividerLine} />
               </div>
 
@@ -452,15 +484,6 @@ function LoginContent() {
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
                   <span>Continue with Google</span>
-                </button>
-
-                <button
-                  type="button"
-                  className={styles.emailBtn}
-                  onClick={() => setStep('email')}
-                >
-                  <Mail size={20} />
-                  <span>Continue with Email</span>
                 </button>
               </div>
 

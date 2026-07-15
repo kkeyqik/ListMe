@@ -46,6 +46,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
 
@@ -141,47 +142,75 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone || phone.length < 10) {
-      showToast('Error', 'Please enter a valid 10-digit mobile number', 'error');
+    const val = identifier.trim();
+    if (!val) {
+      showToast('Error', 'Please enter your email or phone number', 'error');
       return;
     }
-    setLoading(true);
 
-    const testPhones = ['7777777777', '9999999999', '8888888888'];
-    if (testPhones.includes(phone)) {
-      showToast('OTP Sent (Bypassed)', 'Bypassed SMS verification for test number. Use OTP 123456.', 'success');
-      setView('otp');
-      setTimer(30);
+    if (val.includes('@')) {
+      // Email Flow
+      if (!/\S+@\S+\.\S+/.test(val)) {
+        showToast('Error', 'Please enter a valid email address', 'error');
+        return;
+      }
+      setEmail(val);
+      setLoading(true);
+      const { error } = await signInWithEmail(val);
       setLoading(false);
-      return;
-    }
-
-    const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
-
-    if (isFirebaseConfigured) {
-      const auth = getFirebaseAuth();
-      if (auth && recaptchaVerifier) {
-        try {
-          const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
-          setConfirmationResult(result);
-          showToast('OTP Sent', 'Verification code has been sent via Firebase SMS', 'success');
-          setView('otp');
-          setTimer(30);
-        } catch (error: any) {
-          console.error('Firebase AuthModal send SMS error:', error);
-          showToast('Failed to send OTP', error.message || 'OTP delivery error', 'error');
-        }
+      if (error) {
+        showToast('Failed to send code', error.message || 'Could not send verification code', 'error');
       } else {
-        showToast('Error', 'Firebase Auth system is not ready', 'error');
+        showToast('Code Sent', 'Check your inbox for a 6-digit OTP code', 'success');
+        setView('email-otp');
       }
     } else {
-      // Mock / Simulated Flow for Development
-      showToast('OTP Sent (Simulated)', 'SMS verification code is 123456', 'success');
-      setView('otp');
-      setTimer(30);
-    }
+      // Phone Flow
+      const cleanPhone = val.replace(/\D/g, '');
+      if (cleanPhone.length < 10) {
+        showToast('Error', 'Please enter a valid email or 10-digit mobile number', 'error');
+        return;
+      }
+      const formattedPhoneNum = cleanPhone.slice(-10);
+      setPhone(formattedPhoneNum);
+      setLoading(true);
 
-    setLoading(false);
+      const testPhones = ['7777777777', '9999999999', '8888888888'];
+      if (testPhones.includes(formattedPhoneNum)) {
+        showToast('OTP Sent (Bypassed)', 'Bypassed SMS verification for test number. Use OTP 123456.', 'success');
+        setView('otp');
+        setTimer(30);
+        setLoading(false);
+        return;
+      }
+
+      const formattedPhone = `+91${formattedPhoneNum}`;
+
+      if (isFirebaseConfigured) {
+        const auth = getFirebaseAuth();
+        if (auth && recaptchaVerifier) {
+          try {
+            const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+            setConfirmationResult(result);
+            showToast('OTP Sent', 'Verification code has been sent via Firebase SMS', 'success');
+            setView('otp');
+            setTimer(30);
+          } catch (error: any) {
+            console.error('Firebase AuthModal send SMS error:', error);
+            showToast('Failed to send OTP', error.message || 'OTP delivery error', 'error');
+          }
+        } else {
+          showToast('Error', 'Firebase Auth system is not ready', 'error');
+        }
+      } else {
+        // Mock / Simulated Flow for Development
+        showToast('OTP Sent (Simulated)', 'SMS verification code is 123456', 'success');
+        setView('otp');
+        setTimer(30);
+      }
+
+      setLoading(false);
+    }
   };
 
   const handleOtpChange = (val: string) => {
@@ -371,7 +400,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <X size={20} />
         </button>
 
-        {/* ── MAIN VIEW: Phone + Social ── */}
+        {/* ── MAIN VIEW: Unified Email/Phone + Social ── */}
         {view === 'main' && (
           <div className={styles.content}>
             <div className={styles.header}>
@@ -382,15 +411,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <p className={styles.subtitle}>Login or create an account</p>
             </div>
 
-            {/* Phone OTP Form */}
+            {/* Unified Email/Phone Form */}
             <form onSubmit={handleSendOtp} className={styles.form}>
               <Input
-                label="Mobile Number"
-                type="tel"
-                placeholder="Enter 10-digit number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                leftIcon={<Phone size={18} />}
+                label="Email or Mobile Number"
+                type="text"
+                placeholder="Enter your email or phone number"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                leftIcon={<Mail size={18} />}
                 fullWidth
                 required
               />
@@ -402,14 +431,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 loading={loading}
                 rightIcon={<ArrowRight size={18} />}
               >
-                Send OTP
+                Continue
               </Button>
             </form>
 
             {/* Divider */}
             <div className={styles.divider}>
               <span className={styles.dividerLine} />
-              <span className={styles.dividerText}>or continue with</span>
+              <span className={styles.dividerText}>or</span>
               <span className={styles.dividerLine} />
             </div>
 
@@ -427,15 +456,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
                 <span>Continue with Google</span>
-              </button>
-
-              <button
-                type="button"
-                className={styles.emailBtn}
-                onClick={() => setView('email')}
-              >
-                <Mail size={20} />
-                <span>Continue with Email</span>
               </button>
             </div>
 
