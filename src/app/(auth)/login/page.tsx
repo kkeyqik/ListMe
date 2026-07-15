@@ -2,28 +2,53 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Phone, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Phone, ArrowRight, Home, Mail } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useToast, Button, Input, Card } from '@/components/ui';
+import { useToast, Button, Input, OtpInput } from '@/components/ui';
+import { useSettings } from '@/context/SettingsContext';
 import { createClient } from '@/lib/supabase/client';
 import styles from '../auth.module.css';
 
+const testimonials = [
+  {
+    name: 'Priya Sharma',
+    handle: '@priyasharma',
+    initials: 'PS',
+    text: 'Found my dream apartment in Bangalore within a week. The direct owner contact saved me lakhs in brokerage!',
+  },
+  {
+    name: 'Rahul Verma',
+    handle: '@rahulverma',
+    initials: 'RV',
+    text: 'Listed my property and got 12 genuine inquiries in 3 days. Clean design, powerful features.',
+  },
+  {
+    name: 'Anita Desai',
+    handle: '@anitadesai',
+    initials: 'AD',
+    text: "Best real estate platform I've used. Intuitive, reliable, and genuinely helpful for both buyers and sellers.",
+  },
+];
+
 function LoginContent() {
-  const { user, profile, loading: authLoading, signInWithOtp, verifyOtp, loginMockUser } = useAuth();
+  const { user, profile, loading: authLoading, signInWithOtp, verifyOtp, signInWithGoogle, signInWithEmail, verifyEmailOtp, loginMockUser, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+  const { settings } = useSettings();
+
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [email, setEmail] = useState('');
+  const [step, setStep] = useState<'main' | 'otp' | 'email' | 'email-otp'>('main');
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
-  
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const redirectPath = searchParams.get('redirect') || '/dashboard';
-  
+
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
@@ -36,7 +61,7 @@ function LoginContent() {
     }
   }, [user, profile, authLoading, redirectPath, router]);
 
-  // Read phone from searchParams or secure sessionStorage on mount/searchParams changes
+  // Read phone from searchParams or secure sessionStorage on mount
   useEffect(() => {
     const queryPhone = searchParams.get('phone');
     if (queryPhone) {
@@ -45,7 +70,7 @@ function LoginContent() {
       const storedPhone = window.sessionStorage.getItem('onboarding_phone');
       if (storedPhone) {
         setPhone(storedPhone);
-        window.sessionStorage.removeItem('onboarding_phone'); // Clean up consumed phone data immediately
+        window.sessionStorage.removeItem('onboarding_phone');
       }
     }
   }, [searchParams]);
@@ -72,8 +97,8 @@ function LoginContent() {
 
     setLoading(true);
 
-    if (phone === '7777777777') {
-      showToast('OTP Sent (Bypassed)', 'Bypassed SMS verification for admin number. Use OTP 123456.', 'success');
+    if (phone === '7777777777' || phone === '9999999999' || phone === '8888888888') {
+      showToast('OTP Sent (Bypassed)', 'Test number detected. Use OTP 123456.', 'success');
       setStep('otp');
       setTimer(30);
       setLoading(false);
@@ -88,27 +113,28 @@ function LoginContent() {
     } else {
       showToast('OTP Sent', 'Verification code has been sent to your phone', 'success');
       setStep('otp');
-      setTimer(30); // 30-second cooldown
+      setTimer(30);
     }
   };
 
   // OTP verification handler
-  const handleOtpSubmit = async (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: React.FormEvent, otpVal?: string) => {
     e.preventDefault();
-    if (!otp || otp.length !== 6) {
+    const activeOtp = otpVal || otp;
+    if (!activeOtp || activeOtp.length !== 6) {
       showToast('Error', 'Please enter a valid 6-digit code', 'error');
       return;
     }
 
     setLoading(true);
-    const { error } = await verifyOtp(phone, otp);
+    const { error } = await verifyOtp(phone, activeOtp);
     setLoading(false);
 
     if (error) {
       showToast('Verification Failed', error.message || 'Incorrect OTP. Try again.', 'error');
     } else {
       showToast('Login Successful', 'Welcome back to ListMe!', 'success');
-      
+
       let userId: string | null = null;
       let profileData: any = null;
       const isPlaceholder = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
@@ -147,6 +173,14 @@ function LoginContent() {
     }
   };
 
+  const handleOtpChange = (val: string) => {
+    setOtp(val);
+    if (val.length === 6) {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleOtpSubmit(fakeEvent, val);
+    }
+  };
+
   // Resend OTP handler
   const handleResendOtp = async () => {
     if (timer > 0) return;
@@ -162,113 +196,350 @@ function LoginContent() {
     }
   };
 
+  // Google login
+  const handleGoogleLogin = async () => {
+    const { error } = await signInWithGoogle(redirectPath);
+    if (error) {
+      showToast('Failed', error.message || 'Google login failed', 'error');
+    }
+  };
+
+  // Email login
+  const handleSendEmailOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes('@')) {
+      showToast('Error', 'Please enter a valid email address', 'error');
+      return;
+    }
+    setLoading(true);
+    const { error } = await signInWithEmail(email);
+    setLoading(false);
+    if (error) {
+      showToast('Failed', error.message || 'Could not send verification code', 'error');
+    } else {
+      showToast('Code Sent', 'Check your inbox for a 6-digit OTP code', 'success');
+      setStep('email-otp');
+    }
+  };
+
+  // Email OTP verify
+  const handleVerifyEmailOtp = async (e: React.FormEvent, otpVal?: string) => {
+    e.preventDefault();
+    const activeOtp = otpVal || otp;
+    if (!activeOtp || activeOtp.length !== 6) {
+      showToast('Error', 'Please enter the 6-digit code', 'error');
+      return;
+    }
+    setLoading(true);
+    const { error } = await verifyEmailOtp(email, activeOtp);
+    setLoading(false);
+    if (error) {
+      showToast('Failed', error.message || 'Incorrect OTP code', 'error');
+    } else {
+      showToast('Welcome!', 'You are now logged in.', 'success');
+      try {
+        const res = await fetch('/api/users/profile');
+        if (res.ok) {
+          const data = await res.json();
+          const role = data?.profile?.role || 'USER';
+          if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+            router.push('/admin');
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not determine role for redirect:', err);
+      }
+      router.push(redirectPath);
+    }
+  };
+
+  const handleEmailOtpChange = (val: string) => {
+    setOtp(val);
+    if (val.length === 6) {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleVerifyEmailOtp(fakeEvent, val);
+    }
+  };
+
   return (
-    <div className={styles.container}>
-      <Card padding="lg" className={styles.authCard}>
-        {/* Logo and header */}
-        <div className={styles.header}>
-          <Link href="/" className={`${styles.logo} text-gradient`}>
-            ListMe
-          </Link>
-          <h2 className={styles.title}>
-            {step === 'phone' ? 'Welcome Back' : 'Verify Phone'}
+    <div className={styles.splitContainer}>
+      {/* ── Left Panel: Hero Image + Testimonials ── */}
+      <div className={styles.heroPanel}>
+        <Image
+          src="/images/login-hero.png"
+          alt="ListMe real estate platform"
+          fill
+          priority
+          className={styles.heroImage}
+        />
+        <div className={styles.heroOverlay} />
+        <div className={styles.heroContent}>
+          <div className={styles.heroBrandRow}>
+            <div className={styles.heroBrandIcon}>
+              <Home size={20} />
+            </div>
+            <span className={styles.heroBrandName}>{settings.brandName}</span>
+          </div>
+          <h2 className={styles.heroTagline}>
+            Find your perfect home, directly from owners across India.
           </h2>
-          <p className={styles.subtitle}>
-            {step === 'phone' 
-              ? 'Enter your phone number to sign in or create an account.'
-              : `Enter the 6-digit verification code sent to +91 ${phone}`
-            }
-          </p>
+          <div className={styles.testimonials}>
+            {testimonials.map((t) => (
+              <div key={t.handle} className={styles.testimonialCard}>
+                <div className={styles.testimonialHeader}>
+                  <div className={styles.testimonialAvatar}>{t.initials}</div>
+                  <div>
+                    <div className={styles.testimonialName}>{t.name}</div>
+                    <div className={styles.testimonialHandle}>{t.handle}</div>
+                  </div>
+                </div>
+                <p className={styles.testimonialText}>{t.text}</p>
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
 
-        {step === 'otp' && (
-          <button 
-            type="button" 
-            onClick={() => setStep('phone')} 
-            className={styles.backButton}
-          >
-            <ArrowLeft size={16} />
-            Back to phone number
-          </button>
-        )}
+      {/* ── Right Panel: Login Form ── */}
+      <div className={styles.formPanel}>
+        <div className={styles.formInner}>
 
-        {step === 'phone' ? (
-          /* Phone Entry Step */
-          <form onSubmit={handlePhoneSubmit} className={styles.form}>
-            <Input
-              label="Mobile Number"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              placeholder="98765 43210"
-              leftIcon={<Phone size={18} />}
-              helperText="OTP will be sent to this number"
-              required
-              disabled={loading}
-              fullWidth
-            />
-            <Button 
-              type="submit" 
-              variant="primary" 
-              loading={loading}
-              rightIcon={<ArrowRight size={18} />}
-              fullWidth
-            >
-              Get OTP
-            </Button>
-          </form>
-        ) : (
-          /* OTP Verification Step */
-          <form onSubmit={handleOtpSubmit} className={styles.form}>
-            <Input
-              label="One-Time Password (OTP)"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="123456"
-              leftIcon={<ShieldCheck size={18} />}
-              maxLength={6}
-              required
-              disabled={loading}
-              fullWidth
-            />
-            
-            <div className={styles.resendContainer}>
-              <span>Didn't receive code?</span>
+          {/* ── MAIN VIEW: Phone + Social ── */}
+          {step === 'main' && (
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Welcome</h1>
+                <p className={styles.subtitle}>
+                  Access your account and continue your journey with us
+                </p>
+              </div>
+
+              <form onSubmit={handlePhoneSubmit} className={styles.form}>
+                <Input
+                  label="Mobile Number"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="Enter 10-digit number"
+                  leftIcon={<Phone size={18} />}
+                  required
+                  disabled={loading}
+                  fullWidth
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  loading={loading}
+                  rightIcon={<ArrowRight size={18} />}
+                  fullWidth
+                >
+                  Sign In
+                </Button>
+              </form>
+
+              {/* Divider */}
+              <div className={styles.divider}>
+                <span className={styles.dividerLine} />
+                <span className={styles.dividerText}>Or continue with</span>
+                <span className={styles.dividerLine} />
+              </div>
+
+              {/* Social Buttons */}
+              <div className={styles.socialButtons}>
+                <button
+                  type="button"
+                  className={styles.googleBtn}
+                  onClick={handleGoogleLogin}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </svg>
+                  <span>Continue with Google</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.emailBtn}
+                  onClick={() => setStep('email')}
+                >
+                  <Mail size={20} />
+                  <span>Continue with Email</span>
+                </button>
+              </div>
+
+              <div className={styles.footer}>
+                <p>
+                  New to {settings.brandName}?{' '}
+                  <Link href="/signup" className={styles.link}>
+                    Create Account
+                  </Link>
+                </p>
+              </div>
+
+              <p className={styles.terms}>
+                By continuing, you agree to our{' '}
+                <a href="/terms">Terms of Service</a> &{' '}
+                <a href="/privacy">Privacy Policy</a>
+              </p>
+            </>
+          )}
+
+          {/* ── OTP VIEW ── */}
+          {step === 'otp' && (
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Verify Phone</h1>
+                <p className={styles.subtitle}>
+                  Enter the 6-digit code sent to +91 {phone}
+                </p>
+              </div>
+
               <button
                 type="button"
-                onClick={handleResendOtp}
-                disabled={timer > 0 || loading}
-                className={styles.resendButton}
+                onClick={() => { setStep('main'); setOtp(''); }}
+                className={styles.backButton}
               >
-                {timer > 0 ? `Resend OTP (${timer}s)` : 'Resend OTP'}
+                ← Change number
               </button>
-            </div>
 
-            <Button 
-              type="submit" 
-              variant="primary" 
-              loading={loading}
-              fullWidth
-            >
-              Verify & Sign In
-            </Button>
-          </form>
-        )}
+              <form onSubmit={(e) => handleOtpSubmit(e)} className={styles.form}>
+                <OtpInput
+                  value={otp}
+                  onChange={handleOtpChange}
+                  numInputs={6}
+                  disabled={loading}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                >
+                  Verify & Sign In
+                </Button>
+              </form>
 
-        <div className={styles.footer}>
-          {step === 'phone' && (
-            <p>
-              New to ListMe?{' '}
-              <Link href="/signup" className={styles.link}>
-                Create an account
-              </Link>
-            </p>
+              <div className={styles.resendContainer}>
+                {timer > 0 ? (
+                  <span>Resend OTP in {timer}s</span>
+                ) : (
+                  <>
+                    <span>Didn&apos;t receive code?</span>
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={loading}
+                      className={styles.resendButton}
+                    >
+                      Resend OTP
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
           )}
+
+          {/* ── EMAIL VIEW ── */}
+          {step === 'email' && (
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Login with Email</h1>
+                <p className={styles.subtitle}>
+                  We&apos;ll send a 6-digit verification code to your inbox
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setStep('main'); setEmail(''); }}
+                className={styles.backButton}
+              >
+                ← Back to login
+              </button>
+
+              <form onSubmit={handleSendEmailOtp} className={styles.form}>
+                <Input
+                  label="Email Address"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  leftIcon={<Mail size={18} />}
+                  fullWidth
+                  required
+                  autoFocus
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                  rightIcon={<ArrowRight size={18} />}
+                >
+                  Send Verification Code
+                </Button>
+              </form>
+            </>
+          )}
+
+          {/* ── EMAIL OTP VIEW ── */}
+          {step === 'email-otp' && (
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Verify Email</h1>
+                <p className={styles.subtitle}>
+                  Enter the 6-digit code sent to {email}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setStep('email'); setOtp(''); }}
+                className={styles.backButton}
+              >
+                ← Change email
+              </button>
+
+              <form onSubmit={(e) => handleVerifyEmailOtp(e)} className={styles.form}>
+                <OtpInput
+                  value={otp}
+                  onChange={handleEmailOtpChange}
+                  numInputs={6}
+                  disabled={loading}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                >
+                  Verify & Sign In
+                </Button>
+              </form>
+
+              <div className={styles.resendContainer}>
+                <button
+                  type="button"
+                  onClick={(e) => handleSendEmailOtp(e)}
+                  disabled={loading}
+                  className={styles.resendButton}
+                >
+                  Resend Code
+                </button>
+              </div>
+            </>
+          )}
+
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
@@ -276,15 +547,27 @@ function LoginContent() {
 export default function Login() {
   return (
     <React.Suspense fallback={
-      <div className={styles.container}>
-        <Card padding="lg" className={styles.authCard}>
-          <div className={styles.header}>
-            <span className={`${styles.logo} text-gradient`}>ListMe</span>
+      <div className={styles.splitContainer}>
+        <div className={styles.heroPanel}>
+          <Image
+            src="/images/login-hero.png"
+            alt="ListMe real estate platform"
+            fill
+            priority
+            className={styles.heroImage}
+          />
+          <div className={styles.heroOverlay} />
+        </div>
+        <div className={styles.formPanel}>
+          <div className={styles.formInner}>
+            <div className={styles.header}>
+              <h1 className={styles.title}>Welcome</h1>
+            </div>
+            <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-secondary)' }}>
+              Loading auth portal...
+            </div>
           </div>
-          <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-secondary)' }}>
-            Loading auth portal...
-          </div>
-        </Card>
+        </div>
       </div>
     }>
       <LoginContent />
