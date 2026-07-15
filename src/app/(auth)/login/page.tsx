@@ -158,7 +158,6 @@ function LoginContent() {
       if (error) {
         showToast('Failed to send code', error.message || 'Could not send verification code', 'error');
       } else {
-        showToast('Code Sent', 'Check your inbox for a 6-digit OTP code', 'success');
         setStep('email-otp');
       }
     } else {
@@ -175,7 +174,6 @@ function LoginContent() {
       setLoading(true);
 
       if (localNum === '7777777777' || localNum === '9999999999' || localNum === '8888888888') {
-        showToast('OTP Sent (Bypassed)', 'Test number detected. Use OTP 123456.', 'success');
         setStep('otp');
         setTimer(30);
         setLoading(false);
@@ -188,7 +186,6 @@ function LoginContent() {
       if (error) {
         showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
       } else {
-        showToast('OTP Sent', `Verification code has been sent to ${formattedPhone}`, 'success');
         setStep('otp');
         setTimer(30);
       }
@@ -269,7 +266,6 @@ function LoginContent() {
     if (error) {
       showToast('Failed to resend OTP', error.message || 'Something went wrong', 'error');
     } else {
-      showToast('OTP Resent', 'A new verification code has been sent to your phone', 'success');
       setTimer(30);
     }
   };
@@ -295,7 +291,6 @@ function LoginContent() {
     if (error) {
       showToast('Failed', error.message || 'Could not send verification code', 'error');
     } else {
-      showToast('Code Sent', 'Check your inbox for a 6-digit OTP code', 'success');
       setStep('email-otp');
     }
   };
@@ -364,7 +359,6 @@ function LoginContent() {
     setLoading(true);
 
     if (localNum === '7777777777' || localNum === '9999999999' || localNum === '8888888888') {
-      showToast('OTP Sent (Bypassed)', 'Test number detected. Use OTP 123456.', 'success');
       setStep('signup-otp');
       setTimer(30);
       setLoading(false);
@@ -377,7 +371,6 @@ function LoginContent() {
     if (error) {
       showToast('Registration Failed', typeof error === 'string' ? error : error.message || 'Something went wrong', 'error');
     } else {
-      showToast('OTP Sent', `Verification code has been sent to ${formattedPhone}`, 'success');
       setStep('signup-otp');
       setTimer(30);
     }
@@ -420,7 +413,6 @@ function LoginContent() {
     if (error) {
       showToast('Failed to resend OTP', typeof error === 'string' ? error : error.message || 'Something went wrong', 'error');
     } else {
-      showToast('OTP Resent', 'A new verification code has been sent to your phone', 'success');
       setTimer(30);
     }
   };

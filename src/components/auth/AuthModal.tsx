@@ -219,7 +219,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (error) {
         showToast('Failed to send code', error.message || 'Could not send verification code', 'error');
       } else {
-        showToast('Code Sent', 'Check your inbox for a 6-digit OTP code', 'success');
         setView('email-otp');
       }
     } else {
@@ -236,7 +235,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const testPhones = ['7777777777', '9999999999', '8888888888'];
       if (testPhones.includes(formattedPhoneNum)) {
-        showToast('OTP Sent (Bypassed)', 'Bypassed SMS verification for test number. Use OTP 123456.', 'success');
         setView('otp');
         setTimer(30);
         setLoading(false);
@@ -249,7 +247,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           try {
             const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
             setConfirmationResult(result);
-            showToast('OTP Sent', `Verification code has been sent via Firebase SMS to ${formattedPhone}`, 'success');
             setView('otp');
             setTimer(30);
           } catch (error: any) {
@@ -261,7 +258,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       } else {
         // Mock / Simulated Flow for Development
-        showToast('OTP Sent (Simulated)', `SMS verification code is 123456 sent to ${formattedPhone}`, 'success');
         setView('otp');
         setTimer(30);
       }
@@ -368,14 +364,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         try {
           const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
           setConfirmationResult(result);
-          showToast('OTP Resent', 'A new verification code has been sent', 'success');
           setTimer(30);
         } catch (error: any) {
           showToast('Failed to resend OTP', error.message || 'Telephony error', 'error');
         }
       }
     } else {
-      showToast('OTP Resent (Simulated)', 'Simulated verification code is 123456', 'success');
       setTimer(30);
     }
 
@@ -401,7 +395,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (error) {
       showToast('Failed', error.message || 'Could not send verification code', 'error');
     } else {
-      showToast('Code Sent', 'Check your inbox for a 6-digit OTP code', 'success');
       setView('email-otp');
     }
   };
