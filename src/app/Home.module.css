@@ -994,6 +994,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100%;
   transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
@@ -1852,6 +1853,27 @@
   color: #ffffff;
   background-color: var(--color-primary-dark);
   border-color: var(--color-primary-dark);
+}
+
+.citySubtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.625rem;
+  color: var(--color-primary);
+  margin-top: 0.5rem;
+  font-family: var(--font-heading);
+}
+
+.citySubtitleIcon {
+  color: var(--color-secondary);
+  flex-shrink: 0;
+}
+
+.cityNameBold {
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: -0.5px;
 }
 
 

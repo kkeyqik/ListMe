@@ -155,33 +155,28 @@ export default function Home() {
     async function loadFeatured(closestCityName?: string) {
       setIsLoadingFeatured(true);
       try {
-        let success = false;
-        
-        // 1. Try nearest city first if available
         if (closestCityName) {
-          const res = await fetch(`/api/listings?city=${closestCityName}&limit=4`);
+          const res = await fetch(`/api/listings?city=${encodeURIComponent(closestCityName)}`);
           if (res.ok) {
             const data = await res.json();
-            if (data.listings && data.listings.length >= 4) {
+            if (data.listings) {
               setFeaturedProperties(data.listings.map(mapDbListingToProperty));
-              success = true;
+              return;
             }
           }
         }
         
-        // 2. Fallback to general listings if no city was found or city had < 4 listings
-        if (!success) {
-          const res = await fetch('/api/listings?limit=4');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.listings && data.listings.length >= 4) {
-              setFeaturedProperties(data.listings.map(mapDbListingToProperty));
-            } else {
-              setFeaturedProperties(staticHandpickedProperties);
-            }
+        // General fallback if no city is detected/provided
+        const res = await fetch('/api/listings?limit=4');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.listings) {
+            setFeaturedProperties(data.listings.map(mapDbListingToProperty));
           } else {
             setFeaturedProperties(staticHandpickedProperties);
           }
+        } else {
+          setFeaturedProperties(staticHandpickedProperties);
         }
       } catch (err) {
         console.error('Failed to load listings:', err);
@@ -728,6 +723,9 @@ export default function Home() {
               <div className={styles.featuredHeaderLeft}>
                 <span className={styles.sectionEyebrow}>Featured Properties</span>
                 <h2 className={styles.featuredTitle}>Handpicked Properties For You</h2>
+                <div className={styles.citySubtitle}>
+                  IN <MapPin size={24} className={styles.citySubtitleIcon} /> <span className={styles.cityNameBold}>{searchLocation ? searchLocation.toUpperCase() : 'YOUR LOCATION'}</span>
+                </div>
               </div>
               <div className={styles.featuredHeaderRight}>
                 <Button href="/listings" variant="outline" className={styles.viewAllBtn}>
