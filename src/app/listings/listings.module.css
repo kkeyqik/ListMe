@@ -1,0 +1,216 @@
+.container {
+  padding-top: 8rem;
+  padding-bottom: 5rem;
+}
+
+/* Two Column Layout: Filters on Left, Grid on Right */
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Filters Sidebar */
+.filtersSidebar {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  position: sticky;
+  top: 7rem;
+  height: fit-content;
+  max-height: calc(100vh - 9rem);
+  overflow-y: auto;
+}
+
+@media (max-width: 1023px) {
+  .filtersSidebar {
+    position: static;
+    max-height: none;
+  }
+}
+
+.filterGroup {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-neutral-100);
+  padding-bottom: 1.5rem;
+}
+
+.filterGroup:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.filterTitle {
+  font-family: var(--font-heading);
+  font-size: 0.937rem;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  margin-bottom: 0.75rem;
+}
+
+/* Listings Grid Area */
+.mainArea {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Toolbar: count, sorting options */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.resultsCount {
+  font-size: 0.937rem;
+  color: var(--color-text-secondary);
+}
+
+.sortingSelect {
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-neutral-300);
+  background: #fff;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  min-height: 38px;
+}
+
+/* Grid Cards */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.propertyCard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardImageArea {
+  position: relative;
+  height: 180px;
+  background-color: var(--color-neutral-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.cardImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardBadge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 1;
+}
+
+.cardPrice {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  background: rgba(23, 23, 23, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.062rem;
+  z-index: 1;
+}
+
+.cardContent {
+  padding: 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cardTitle {
+  font-family: var(--font-heading);
+  font-size: 1.062rem;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  line-height: 1.3;
+  /* Multi-line truncation */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 2.6rem;
+}
+
+.cardLocation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.812rem;
+  color: var(--color-text-secondary);
+}
+
+.cardSpecs {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.specDivider {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: var(--color-neutral-300);
+}
+
+.cardFooter {
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--color-neutral-50);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 3rem;
+}
+
+.pageNumber {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.937rem;
+  color: var(--color-neutral-800);
+}

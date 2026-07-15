@@ -1,0 +1,845 @@
+.headerWrapper {
+  position: fixed;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 2.5rem);
+  max-width: 1200px;
+  z-index: var(--z-fixed);
+  transition: all var(--transition-base);
+}
+
+.homeHeaderWrapper {
+  position: relative;
+  top: 0;
+  left: 0;
+  transform: none;
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 0;
+  z-index: 10;
+}
+
+.header {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(10, 17, 40, 0.06);
+  border-radius: var(--radius-2xl);
+  padding: 0.75rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), background-color var(--transition-base);
+}
+
+.homeHeader {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 32px 48px 0px 48px;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* White logo + nav links on dark hero */
+.homeHeader .logo,
+.homeHeader .logoIcon,
+.homeHeader .logoText {
+  color: #ffffff !important;
+}
+
+.homeHeader .navLink {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+
+.homeHeader .navLink:hover {
+  color: #ffffff !important;
+}
+
+.homeHeader .navLink::after {
+  background-color: #ffffff !important;
+}
+
+.homeHeader .activeNavLink {
+  color: #ffffff !important;
+}
+
+.homeHeader .activeDot {
+  color: #A8B99F !important;
+}
+
+.homeHeader .capsuleBtn {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: none !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 12px rgba(10, 17, 40, 0.15);
+}
+
+.homeHeader .capsuleBtn span {
+  color: #0F172A !important; /* Forces span text to navy */
+}
+
+.homeHeader .capsuleBtn:hover {
+  background: rgba(255, 255, 255, 0.92) !important;
+  background-image: none !important;
+  transform: translateY(-2px);
+}
+
+.scrolled {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(10, 17, 40, 0.1);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.homeHeader.scrolled {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-md);
+}
+
+.homeHeader.scrolled .capsuleBtn {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0F172A !important;
+  border: 1px solid rgba(15, 23, 42, 0.15) !important;
+  box-shadow: 0 4px 12px rgba(10, 17, 40, 0.06);
+}
+
+.homeHeader.scrolled .capsuleBtn span {
+  color: #0F172A !important; /* Forces span text to navy */
+}
+
+.homeHeader.scrolled .capsuleBtn:hover {
+  background: #f8fafc !important;
+  background-image: none !important;
+  transform: translateY(-2px);
+}
+
+.capsuleBtn {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0F172A !important;
+  height: 52px !important; /* Increased height by 10% (from 48px to 52px) */
+  padding: 0 28px !important; /* Increased padding slightly (from 24px to 28px) */
+  border-radius: 999px !important;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.0625rem; /* Slightly larger text (17px) */
+  border: 1px solid rgba(15, 23, 42, 0.15) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast) !important;
+}
+
+.capsuleBtn span {
+  color: #0F172A !important; /* Forces default text to navy */
+}
+
+.capsuleBtn:hover {
+  background: #f8fafc !important;
+  background-image: none !important;
+  transform: translateY(-2px);
+}
+
+.freeBadge {
+  background-color: #48BB78; /* Clean green matching the sample badge */
+  color: #ffffff !important;
+  font-size: 0.625rem; /* 10px */
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+}
+
+.logo {
+  font-family: var(--font-heading);
+  font-size: 2.5rem; /* 40px */
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #081120;
+}
+
+.logoIcon {
+  color: #081120;
+  stroke-width: 2px;
+}
+
+.logoText {
+  color: #081120;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 40px; /* 40px spacing */
+}
+
+@media (max-width: 1023px) {
+  .nav {
+    display: none;
+  }
+}
+
+.navLink {
+  font-family: var(--font-heading);
+  font-size: 1.125rem; /* 18px */
+  font-weight: 500;
+  color: rgba(31, 41, 55, 0.8); /* #1F2937 with 80% opacity */
+  transition: color var(--transition-fast), transform var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0;
+  position: relative;
+}
+
+.navLink:hover {
+  color: rgba(31, 41, 55, 1);
+  transform: translateY(-2px);
+}
+
+.navLink::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--color-secondary); /* Sage Green */
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.navLink:hover::after {
+  transform: scaleX(1);
+}
+
+.activeNavLink {
+  color: rgba(31, 41, 55, 1);
+  font-weight: 600;
+}
+
+.activeDot {
+  color: #081120;
+  margin-right: 6px;
+  font-weight: 800;
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+@media (max-width: 1023px) {
+  .rightSection {
+    display: none;
+  }
+}
+
+/* Mobile Controls */
+.mobileMenuButton {
+  display: none;
+  background: transparent;
+  color: var(--color-neutral-800);
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+}
+
+.mobileMenuButton:hover {
+  background-color: var(--color-neutral-100);
+}
+
+@media (max-width: 1023px) {
+  .mobileMenuButton {
+    display: flex;
+  }
+}
+
+/* Mobile Nav Overlay & Drawer */
+.mobileOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(23, 23, 23, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal-backdrop);
+  animation: fadeIn var(--transition-fast) forwards;
+}
+
+.mobileDrawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 300px;
+  background-color: var(--color-card);
+  box-shadow: var(--shadow-xl);
+  z-index: var(--z-modal);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  transform: translateX(100%);
+  animation: slideIn var(--transition-base) forwards;
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawerLogo {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.closeButton {
+  background: transparent;
+  color: var(--color-neutral-600);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  transition: background-color var(--transition-fast);
+}
+
+.closeButton:hover {
+  background-color: var(--color-neutral-100);
+}
+
+.drawerNav {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.drawerNavLink {
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-neutral-700);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-neutral-100);
+  transition: color var(--transition-fast);
+}
+
+.drawerNavLink:hover {
+  color: var(--color-primary);
+}
+
+.activeDrawerNavLink {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary-light);
+}
+
+.drawerFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   POST PROPERTY HEADER VARIANT
+   ═══════════════════════════════════════════════════════════ */
+
+.ppHeaderWrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: var(--z-fixed);
+}
+
+.ppHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 2.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  transition: box-shadow var(--transition-base), background-color var(--transition-base);
+}
+
+.ppHeaderScrolled {
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 2px 16px rgba(10, 17, 40, 0.06);
+  border-bottom-color: rgba(15, 23, 42, 0.1);
+}
+
+@media (max-width: 600px) {
+  .ppHeader {
+    padding: 0.75rem 1.25rem;
+  }
+}
+
+/* ── Logo ── */
+.ppLogo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.ppLogoIcon {
+  color: var(--color-primary);
+  stroke-width: 2px;
+}
+
+.ppLogoText {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--color-primary);
+}
+
+/* ── Right Controls ── */
+.ppRightControls {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.ppIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-primary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  cursor: pointer;
+}
+
+.ppIconButton:hover {
+  background-color: var(--color-primary-fade);
+}
+
+.ppIconButtonImg {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.ppIconButtonInitials {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-secondary-fade);
+  color: var(--color-secondary-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.ppDropdownSectionHeader {
+  padding: 0.375rem 1.125rem;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+/* ── Login Hover Dropdown ── */
+.ppLoginTrigger {
+  position: relative;
+}
+
+.ppLoginDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(10, 17, 40, 0.12);
+  padding: 0.5rem 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+  z-index: 10;
+}
+
+/* Triangle pointer */
+.ppLoginDropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 16px;
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  border-left: 1px solid rgba(15, 23, 42, 0.08);
+  transform: rotate(45deg);
+}
+
+.ppLoginTrigger:hover .ppLoginDropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.ppDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.125rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.ppDropdownItem:hover {
+  background-color: var(--color-primary-fade);
+}
+
+.ppDropdownItem svg {
+  flex-shrink: 0;
+  color: var(--color-secondary);
+}
+
+.ppDropdownItemContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ppDropdownLabel {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--color-text);
+}
+
+.ppDropdownMeta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.ppDropdownDivider {
+  height: 1px;
+  background-color: var(--color-neutral-100);
+  margin: 0.25rem 1rem;
+}
+
+/* ── Drawer Overlay ── */
+.ppDrawerOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(10, 17, 40, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-modal-backdrop);
+  animation: fadeIn 0.15s ease forwards;
+}
+
+/* ── Side Drawer ── */
+.ppDrawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 360px;
+  background: #ffffff;
+  box-shadow: -8px 0 40px rgba(10, 17, 40, 0.1);
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transform: translateX(100%);
+  animation: slideIn 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* ── Drawer Header ── */
+.ppDrawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-neutral-100);
+  background-color: var(--color-neutral-50);
+}
+
+.ppDrawerLoginLink {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: color var(--transition-fast);
+}
+
+.ppDrawerLoginLink:hover {
+  color: var(--color-secondary);
+}
+
+.ppDrawerLoginLink svg {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: var(--radius-full);
+  padding: 4px;
+  width: 32px;
+  height: 32px;
+}
+
+.ppDrawerClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-neutral-500);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.ppDrawerClose:hover {
+  background-color: var(--color-neutral-100);
+  color: var(--color-primary);
+}
+
+/* ── Drawer Body ── */
+.ppDrawerBody {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.5rem 2rem;
+  gap: 0;
+}
+
+/* Post Property CTA */
+.ppDrawerPostBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  text-decoration: none;
+  padding: 0.75rem 0;
+  transition: color var(--transition-fast);
+}
+
+.ppDrawerPostBtn:hover {
+  color: var(--color-secondary-dark);
+}
+
+.ppDrawerFreeBadge {
+  background-color: var(--color-secondary);
+  color: #ffffff;
+  font-size: 0.625rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+/* Section Dividers */
+.ppDrawerDivider {
+  height: 1px;
+  background-color: var(--color-neutral-100);
+  margin: 0.625rem 0;
+}
+
+/* Section Titles */
+.ppDrawerSectionTitle {
+  font-family: var(--font-heading);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  padding: 0.75rem 0 0.5rem;
+  letter-spacing: 0.01em;
+}
+
+/* Sub-links (indented with chevrons) */
+.ppDrawerSubList {
+  display: flex;
+  flex-direction: column;
+}
+
+.ppDrawerSubLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0 0.625rem 0.5rem;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text);
+  text-decoration: none;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+  border-radius: var(--radius-sm);
+}
+
+.ppDrawerSubLink:hover {
+  color: var(--color-secondary);
+  background-color: var(--color-secondary-fade);
+  padding-left: 0.75rem;
+}
+
+.ppDrawerSubLink svg {
+  color: var(--color-neutral-400);
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+
+.ppDrawerSubLink:hover svg {
+  color: var(--color-secondary);
+}
+
+/* Standard Links */
+.ppDrawerLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.ppDrawerLink:hover {
+  color: var(--color-secondary);
+}
+
+.ppDrawerLink svg {
+  color: var(--color-neutral-400);
+  flex-shrink: 0;
+}
+
+.ppDrawerLink:hover svg {
+  color: var(--color-secondary);
+}
+
+/* NEW Badge */
+.ppDrawerNewBadge {
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  margin-left: auto;
+}
+
+/* ── PP Header Responsive ── */
+
+/* Focus-within fallback for keyboard/touch accessibility on the login dropdown */
+.ppLoginTrigger:focus-within .ppLoginDropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .ppLogoText {
+    font-size: 1.5rem;
+  }
+
+  .ppIconButton {
+    width: 38px;
+    height: 38px;
+  }
+
+  /* On touch screens, dropdown opens on button click/focus instead of hover */
+  .ppLoginTrigger:hover .ppLoginDropdown {
+    /* Disable hover trigger — use focus-within above */
+  }
+
+  .ppLoginDropdown {
+    width: 260px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ppLogoText {
+    font-size: 1.35rem;
+  }
+
+  .ppLoginDropdown {
+    width: 240px;
+    right: -1rem;
+  }
+
+  .ppLoginDropdown::before {
+    right: 24px;
+  }
+
+  .ppDrawer {
+    max-width: 100%;
+  }
+}

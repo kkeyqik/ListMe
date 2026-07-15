@@ -1,0 +1,101 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem 0;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: var(--color-neutral-900);
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 0.937rem;
+  color: var(--color-neutral-500);
+}
+
+.settingsCard {
+  background-color: var(--color-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-neutral-200);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 2rem;
+  opacity: 0; /* Animate with autoAlpha in GSAP */
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .formGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .fullWidthRow {
+    grid-column: span 2;
+  }
+}
+
+.sectionDivider {
+  height: 1px;
+  background-color: var(--color-neutral-200);
+  margin: 0.5rem 0;
+}
+
+.sectionHeader {
+  margin-bottom: 0.25rem;
+}
+
+.sectionTitle {
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sectionDescription {
+  font-size: 0.812rem;
+  color: var(--color-neutral-500);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.saveButton {
+  min-width: 140px;
+  cursor: pointer;
+}
+
+.resetButton {
+  cursor: pointer;
+}
+
+.iconWrapper {
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

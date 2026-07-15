@@ -1,0 +1,46 @@
+.skeleton {
+  background-color: var(--color-neutral-200);
+  position: relative;
+  overflow: hidden;
+  display: block;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.5s infinite;
+}
+
+/* Shapes */
+.text {
+  height: 1rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  border-radius: var(--radius-sm);
+  width: 100%;
+}
+
+.circular {
+  border-radius: var(--radius-full);
+}
+
+.rectangular {
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

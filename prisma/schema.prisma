@@ -1,0 +1,362 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Profile {
+  id            String             @id @db.Uuid
+  name          String?
+  email         String?            @unique
+  phone         String?            @unique
+  phoneVerified Boolean            @default(false) @map("phone_verified")
+  avatarUrl     String?            @map("avatar_url")
+  address       String?
+  role          Role               @default(USER)
+  status        UserStatus         @default(ACTIVE)
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  adminLogs     AdminActivityLog[]
+  interests     Interest[]
+  listings      Listing[]
+  notifications Notification[]
+  savedSearches SavedSearch[]
+  shortlists    Shortlist[]
+
+  @@map("profiles")
+}
+
+model Listing {
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId            String            @map("owner_id") @db.Uuid
+  listingFor         ListingFor        @map("listing_for")
+  propertyType       PropertyType      @map("property_type")
+  title              String
+  description        String
+  keyHighlights      String[]          @map("key_highlights")
+  city               String
+  locality           String
+  subLocality        String?           @map("sub_locality")
+  pinCode            String            @map("pin_code")
+  fullAddress        String            @map("full_address")
+  landmark           String?
+  latitude           Float?
+  longitude          Float?
+  bedrooms           Int?
+  bathrooms          Int?
+  balconies          Int?
+  carpetArea         Float?            @map("carpet_area")
+  builtUpArea        Float?            @map("built_up_area")
+  superBuiltUpArea   Float?            @map("super_built_up_area")
+  plotArea           Float?            @map("plot_area")
+  askingPrice        Decimal           @map("asking_price") @db.Decimal(15, 2)
+  pricePerSqft       Decimal?          @map("price_per_sqft") @db.Decimal(10, 2)
+  maintenanceCharges Decimal?          @map("maintenance_charges") @db.Decimal(10, 2)
+  securityDeposit    Decimal?          @map("security_deposit") @db.Decimal(10, 2)
+  priceNegotiable    Boolean           @default(false) @map("price_negotiable")
+  furnishing         Furnishing?
+  facing             String?
+  floorNumber        Int?              @map("floor_number")
+  totalFloors        Int?              @map("total_floors")
+  possession         Possession?
+  possessionDate     String?           @map("possession_date")
+  ageOfProperty      String?           @map("age_of_property")
+  ownership          Ownership?
+  parking            Parking?
+  parkingCount       Int?              @map("parking_count")
+  waterSupply        String?           @map("water_supply")
+  powerBackup        String?           @map("power_backup")
+  reraNumber         String?           @map("rera_number")
+  status             ListingStatus     @default(PENDING_REVIEW)
+  rejectionReason    String?           @map("rejection_reason")
+  viewCount          Int               @default(0) @map("view_count")
+  isFeatured         Boolean           @default(false) @map("is_featured")
+  expiresAt          DateTime?         @map("expires_at")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  furnishingItems    FurnishingItem[]
+  interests          Interest[]
+  amenities          ListingAmenity[]
+  documents          ListingDocument[]
+  images             ListingImage[]
+  videos             ListingVideo[]
+  owner              Profile           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  shortlists         Shortlist[]
+
+  @@map("listings")
+}
+
+model ListingImage {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listingId    String   @map("listing_id") @db.Uuid
+  imageUrl     String   @map("image_url")
+  imageType    String   @default("photo") @map("image_type")
+  displayOrder Int      @default(0) @map("display_order")
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  createdAt    DateTime @default(now()) @map("created_at")
+  listing      Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("listing_images")
+}
+
+model ListingVideo {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  videoUrl  String   @map("video_url")
+  videoType String   @default("walkthrough") @map("video_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("listing_videos")
+}
+
+model ListingDocument {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  docType   DocType  @map("doc_type")
+  docName   String   @map("doc_name")
+  docUrl    String   @map("doc_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("listing_documents")
+}
+
+model Amenity {
+  id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name     String           @unique
+  iconName String           @map("icon_name")
+  category String
+  isActive Boolean          @default(true) @map("is_active")
+  listings ListingAmenity[]
+
+  @@map("amenities")
+}
+
+model ListingAmenity {
+  listingId String  @map("listing_id") @db.Uuid
+  amenityId String  @map("amenity_id") @db.Uuid
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([listingId, amenityId])
+  @@map("listing_amenities")
+}
+
+model FurnishingItem {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listingId String  @map("listing_id") @db.Uuid
+  itemName  String  @map("item_name")
+  quantity  Int     @default(1)
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("furnishing_items")
+}
+
+model Interest {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String         @map("user_id") @db.Uuid
+  listingId        String         @map("listing_id") @db.Uuid
+  status           InterestStatus @default(NEW)
+  adminNotes       String?        @map("admin_notes")
+  commissionAmount Decimal?       @map("commission_amount") @db.Decimal(12, 2)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  listing          Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user             Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("interests")
+}
+
+model Shortlist {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("shortlists")
+}
+
+model SavedSearch {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  searchCriteria Json      @map("search_criteria")
+  alertEnabled   Boolean   @default(true) @map("alert_enabled")
+  lastAlertedAt  DateTime? @map("last_alerted_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  user           Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_searches")
+}
+
+model Notification {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean             @default(false) @map("is_read")
+  channel   NotificationChannel @default(IN_APP)
+  createdAt DateTime            @default(now()) @map("created_at")
+  user      Profile             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AdminActivityLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adminId    String   @map("admin_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  admin      Profile  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@map("admin_activity_log")
+}
+
+model City {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String     @unique
+  state        String
+  imageUrl     String?    @map("image_url")
+  isActive     Boolean    @default(true) @map("is_active")
+  listingCount Int        @default(0) @map("listing_count")
+  localities   Locality[]
+
+  @@map("cities")
+}
+
+model Locality {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cityId    String  @map("city_id") @db.Uuid
+  name      String
+  pinCode   String  @map("pin_code")
+  latitude  Float?
+  longitude Float?
+  isActive  Boolean @default(true) @map("is_active")
+  city      City    @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@map("localities")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum ListingFor {
+  SALE
+  RENT
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  VILLA
+  PLOT
+  BUILDER_FLOOR
+  PENTHOUSE
+  FARM_HOUSE
+  STUDIO
+  PG
+  OFFICE
+  SHOP
+  WAREHOUSE
+  COMMERCIAL_LAND
+}
+
+enum Furnishing {
+  FURNISHED
+  SEMI_FURNISHED
+  UNFURNISHED
+}
+
+enum Possession {
+  READY
+  UNDER_CONSTRUCTION
+}
+
+enum Ownership {
+  FREEHOLD
+  LEASEHOLD
+  COOPERATIVE
+  POA
+}
+
+enum Parking {
+  COVERED
+  OPEN
+  BOTH
+  NONE
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  EXPIRED
+  DEACTIVATED
+}
+
+enum DocType {
+  SALE_DEED
+  TITLE_DEED
+  ENCUMBRANCE
+  TAX_RECEIPT
+  APPROVED_PLAN
+  COMPLETION_CERT
+  RERA_CERT
+  NOC
+  OTHER
+}
+
+enum InterestStatus {
+  NEW
+  ADMIN_CONTACTED
+  IN_PROGRESS
+  SOLD
+  CLOSED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model UserActivityLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String   // e.g., "VIEW_PROPERTY", "SEARCH", "EXPRESS_INTEREST"
+  entityId  String?  @map("entity_id") // e.g., listingId, interestId
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json?    // e.g., { location: 'Delhi', query: '3BHK', connectionStatus: 'Connected' }
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("user_activity_log")
+}
+
+
