@@ -65,9 +65,23 @@ function LoginContent() {
     }
   }, [user, profile, authLoading, redirectPath, router]);
 
-  // Read phone from searchParams or secure sessionStorage on mount
+  // Read searchParams or secure sessionStorage on mount
   useEffect(() => {
     const queryPhone = searchParams.get('phone');
+    const queryEmail = searchParams.get('email');
+    const queryStep = searchParams.get('step');
+    const queryCountry = searchParams.get('countryCode');
+
+    if (queryStep === 'signup') {
+      setStep('signup');
+    }
+    if (queryEmail) {
+      setEmail(queryEmail);
+    }
+    if (queryCountry) {
+      setCountryCode(queryCountry);
+    }
+
     if (queryPhone) {
       setPhone(queryPhone);
     } else if (typeof window !== 'undefined') {

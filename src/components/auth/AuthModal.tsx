@@ -178,6 +178,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    setLoading(true);
+
+    // Check if the user is registered
+    try {
+      const response = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(val)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (!data.registered) {
+          showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+          onClose();
+          
+          let queryParam = '';
+          if (val.includes('@')) {
+            queryParam = `email=${encodeURIComponent(val)}`;
+          } else {
+            const cleanPhone = val.replace(/\D/g, '').slice(-10);
+            queryParam = `phone=${encodeURIComponent(cleanPhone)}&countryCode=${encodeURIComponent(countryCode)}`;
+          }
+          
+          router.push(`/login?step=signup&${queryParam}`);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Error checking user registration status:', err);
+    }
+
     if (val.includes('@')) {
       // Email Flow
       if (!/\S+@\S+\.\S+/.test(val)) {
