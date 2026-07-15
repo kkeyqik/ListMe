@@ -110,6 +110,7 @@ export default function Home() {
   const [searchType, setSearchType] = useState('sale');
   const [searchBudget, setSearchBudget] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const [dbCities, setDbCities] = useState<any[]>([]);
 
   const [featuredProperties, setFeaturedProperties] = useState<any[]>(staticHandpickedProperties);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
@@ -126,6 +127,21 @@ export default function Home() {
       { name: 'delhi', lat: 28.6139, lon: 77.2090, label: 'Delhi NCR', dbName: 'delhi ncr' },
       { name: 'pune', lat: 18.5204, lon: 73.8567, label: 'Pune', dbName: 'pune' }
     ];
+
+    async function fetchCities() {
+      try {
+        const res = await fetch('/api/cities');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.cities) {
+            setDbCities(data.cities);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch cities:', err);
+      }
+    }
+    fetchCities();
 
     async function loadFeatured(closestCityName?: string) {
       setIsLoadingFeatured(true);
@@ -479,10 +495,11 @@ export default function Home() {
                     onChange={(e) => setSearchLocation(e.target.value)}
                   >
                     <option value="">Enter Your Location</option>
-                    <option value="mumbai">Mumbai</option>
-                    <option value="bangalore">Bangalore</option>
-                    <option value="delhi">Delhi NCR</option>
-                    <option value="pune">Pune</option>
+                    {dbCities.map((city: any) => (
+                      <option key={city.id} value={city.name.toLowerCase()}>
+                        {city.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
