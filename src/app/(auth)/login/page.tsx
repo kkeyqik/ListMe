@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Phone, ArrowRight, Home, Mail } from 'lucide-react';
+import { Phone, ArrowRight, Home, Mail, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
@@ -33,7 +33,7 @@ const testimonials = [
 ];
 
 function LoginContent() {
-  const { user, profile, loading: authLoading, signInWithOtp, verifyOtp, signInWithGoogle, signInWithEmail, verifyEmailOtp, loginMockUser, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, signInWithOtp, verifyOtp, signInWithGoogle, signInWithEmail, verifyEmailOtp, loginMockUser, refreshProfile, signUp } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,7 +42,8 @@ function LoginContent() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [email, setEmail] = useState('');
-  const [step, setStep] = useState<'main' | 'otp' | 'email' | 'email-otp'>('main');
+  const [name, setName] = useState('');
+  const [step, setStep] = useState<'main' | 'otp' | 'email' | 'email-otp' | 'signup' | 'signup-otp'>('main');
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -262,6 +263,97 @@ function LoginContent() {
     }
   };
 
+  // ── Signup Handlers ──
+  const handleSignupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      showToast('Error', 'Please enter your name', 'error');
+      return;
+    }
+    if (!phone || phone.length < 10) {
+      showToast('Error', 'Please enter a valid 10-digit mobile number', 'error');
+      return;
+    }
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+      showToast('Error', 'Please enter a valid email address', 'error');
+      return;
+    }
+
+    setLoading(true);
+
+    if (phone === '7777777777' || phone === '9999999999' || phone === '8888888888') {
+      showToast('OTP Sent (Bypassed)', 'Test number detected. Use OTP 123456.', 'success');
+      setStep('signup-otp');
+      setTimer(30);
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await signUp(name, phone, email);
+    setLoading(false);
+
+    if (error) {
+      showToast('Registration Failed', typeof error === 'string' ? error : error.message || 'Something went wrong', 'error');
+    } else {
+      showToast('OTP Sent', 'Verification code has been sent to your phone', 'success');
+      setStep('signup-otp');
+      setTimer(30);
+    }
+  };
+
+  const handleSignupOtpSubmit = async (e: React.FormEvent, otpVal?: string) => {
+    e.preventDefault();
+    const activeOtp = otpVal || otp;
+    if (!activeOtp || activeOtp.length !== 6) {
+      showToast('Error', 'Please enter a valid 6-digit code', 'error');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await verifyOtp(phone, activeOtp);
+    setLoading(false);
+
+    if (error) {
+      showToast('Verification Failed', error.message || 'Incorrect OTP. Try again.', 'error');
+    } else {
+      showToast('Account Created', 'Welcome to ListMe! Your account has been set up successfully.', 'success');
+      router.push('/dashboard');
+    }
+  };
+
+  const handleSignupOtpChange = (val: string) => {
+    setOtp(val);
+    if (val.length === 6) {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleSignupOtpSubmit(fakeEvent, val);
+    }
+  };
+
+  const handleResendSignupOtp = async () => {
+    if (timer > 0) return;
+    setLoading(true);
+    const { error } = await signUp(name, phone, email);
+    setLoading(false);
+
+    if (error) {
+      showToast('Failed to resend OTP', typeof error === 'string' ? error : error.message || 'Something went wrong', 'error');
+    } else {
+      showToast('OTP Resent', 'A new verification code has been sent to your phone', 'success');
+      setTimer(30);
+    }
+  };
+
+  const switchToSignup = () => {
+    setStep('signup');
+    setOtp('');
+  };
+
+  const switchToLogin = () => {
+    setStep('main');
+    setOtp('');
+    setName('');
+  };
+
   return (
     <div className={styles.splitContainer}>
       {/* ── Left Panel: Hero Image + Testimonials ── */}
@@ -375,9 +467,14 @@ function LoginContent() {
               <div className={styles.footer}>
                 <p>
                   New to {settings.brandName}?{' '}
-                  <Link href="/signup" className={styles.link}>
+                  <button
+                    type="button"
+                    onClick={switchToSignup}
+                    className={styles.link}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}
+                  >
                     Create Account
-                  </Link>
+                  </button>
                 </p>
               </div>
 
@@ -534,6 +631,140 @@ function LoginContent() {
                 >
                   Resend Code
                 </button>
+              </div>
+            </>
+          )}
+
+          {/* ── SIGNUP VIEW ── */}
+          {step === 'signup' && (
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Create Account</h1>
+                <p className={styles.subtitle}>
+                  Join {settings.brandName} today. Post listings for free and connect directly with buyers.
+                </p>
+              </div>
+
+              <form onSubmit={handleSignupSubmit} className={styles.form}>
+                <Input
+                  label="Full Name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  leftIcon={<User size={18} />}
+                  required
+                  disabled={loading}
+                  fullWidth
+                />
+                <Input
+                  label="Mobile Number"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="Enter 10-digit number"
+                  leftIcon={<Phone size={18} />}
+                  required
+                  disabled={loading}
+                  fullWidth
+                />
+                <Input
+                  label="Email Address"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  leftIcon={<Mail size={18} />}
+                  required
+                  disabled={loading}
+                  fullWidth
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  loading={loading}
+                  rightIcon={<ArrowRight size={18} />}
+                  fullWidth
+                >
+                  Sign Up
+                </Button>
+              </form>
+
+              <div className={styles.footer}>
+                <p>
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={switchToLogin}
+                    className={styles.link}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}
+                  >
+                    Log In
+                  </button>
+                </p>
+              </div>
+
+              <p className={styles.terms}>
+                By continuing, you agree to our{' '}
+                <a href="/terms">Terms of Service</a> &{' '}
+                <a href="/privacy">Privacy Policy</a>
+              </p>
+            </>
+          )}
+
+          {/* ── SIGNUP OTP VIEW ── */}
+          {step === 'signup-otp' && (
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Verify Phone</h1>
+                <p className={styles.subtitle}>
+                  Enter the 6-digit code sent to +91 {phone}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setStep('signup'); setOtp(''); }}
+                className={styles.backButton}
+              >
+                ← Back to registration
+              </button>
+
+              <form onSubmit={(e) => handleSignupOtpSubmit(e)} className={styles.form}>
+                <OtpInput
+                  value={otp}
+                  onChange={handleSignupOtpChange}
+                  numInputs={6}
+                  disabled={loading}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                >
+                  Verify & Complete Signup
+                </Button>
+              </form>
+
+              <div className={styles.resendContainer}>
+                {timer > 0 ? (
+                  <span>Resend OTP in {timer}s</span>
+                ) : (
+                  <>
+                    <span>Didn&apos;t receive code?</span>
+                    <button
+                      type="button"
+                      onClick={handleResendSignupOtp}
+                      disabled={loading}
+                      className={styles.resendButton}
+                    >
+                      Resend OTP
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}
