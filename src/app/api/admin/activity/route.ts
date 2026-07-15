@@ -63,9 +63,16 @@ export async function GET(request: NextRequest) {
       user: log.userId ? profileMap.get(log.userId) || null : null,
     }));
 
+    // Fetch email logs
+    const emailLogs = await prisma.emailLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+
     return NextResponse.json({
       userLogs: userLogsWithProfiles,
       adminLogs,
+      emailLogs,
     });
   } catch (error: any) {
     return NextResponse.json(

@@ -26,8 +26,10 @@ export default function AdminActivityLog() {
 
   const [userLogs, setUserLogs] = useState<any[]>([]);
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
+  const [emailLogs, setEmailLogs] = useState<any[]>([]);
+  const [selectedEmail, setSelectedEmail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'seeker' | 'operations'>('seeker');
+  const [activeTab, setActiveTab] = useState<'seeker' | 'operations' | 'emails'>('seeker');
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +43,7 @@ export default function AdminActivityLog() {
         const data = await res.json();
         setUserLogs(data.userLogs || []);
         setAdminLogs(data.adminLogs || []);
+        setEmailLogs(data.emailLogs || []);
       } else {
         const data = await res.json();
         showToast('Error', data.message || 'Failed to fetch logs', 'error');
@@ -116,6 +119,25 @@ export default function AdminActivityLog() {
       JSON.stringify(log.metadata || {}).toLowerCase().includes(searchLower);
 
     const matchesAction = actionFilter === 'ALL' || log.entityType === actionFilter;
+
+    return matchesSearch && matchesAction;
+  });
+
+  // Email logs filter
+  const filteredEmailLogs = emailLogs.filter((log) => {
+    const searchLower = searchQuery.toLowerCase();
+    const to = log.to || '';
+    const subject = log.subject || '';
+    const body = log.body || '';
+    const status = log.status || '';
+
+    const matchesSearch =
+      to.toLowerCase().includes(searchLower) ||
+      subject.toLowerCase().includes(searchLower) ||
+      body.toLowerCase().includes(searchLower) ||
+      status.toLowerCase().includes(searchLower);
+
+    const matchesAction = actionFilter === 'ALL' || log.status === actionFilter;
 
     return matchesSearch && matchesAction;
   });
@@ -232,6 +254,15 @@ export default function AdminActivityLog() {
         >
           Operations Audit Trail
         </button>
+        <button
+          className={`${pageStyles.tabButton} ${activeTab === 'emails' ? pageStyles.tabButtonActive : ''}`}
+          onClick={() => {
+            setActiveTab('emails');
+            setActionFilter('ALL');
+          }}
+        >
+          Emails Sent (SMTP Audit)
+        </button>
       </div>
 
       {/* Filters Bar */}
@@ -243,7 +274,9 @@ export default function AdminActivityLog() {
             placeholder={
               activeTab === 'seeker'
                 ? "Search by action, seeker, IP or metadata..."
-                : "Search by admin name, action, or metadata..."
+                : activeTab === 'operations'
+                ? "Search by admin name, action, or metadata..."
+                : "Search by recipient, subject, status or content..."
             }
             leftIcon={<Search size={18} />}
             fullWidth
@@ -264,12 +297,19 @@ export default function AdminActivityLog() {
                 <option value="SEARCH">Searches</option>
                 <option value="EXPRESS_INTEREST">Interest Expressions</option>
               </>
-            ) : (
+            ) : activeTab === 'operations' ? (
               <>
                 <option value="ALL">All Entity Types</option>
                 <option value="LISTING">Listings</option>
                 <option value="SYSTEM_SETTINGS">Settings</option>
                 <option value="USER_PROFILE">User Profiles</option>
+              </>
+            ) : (
+              <>
+                <option value="ALL">All Statuses</option>
+                <option value="SENT">Sent</option>
+                <option value="FAILED">Failed</option>
+                <option value="SIMULATED">Simulated</option>
               </>
             )}
           </select>
@@ -355,7 +395,7 @@ export default function AdminActivityLog() {
             </div>
           )}
         </Card>
-      ) : (
+      ) : activeTab === 'operations' ? (
         /* Tab 2: Operations Audit Trail */
         <div className={`${pageStyles.timeline} animate-fade-in`}>
           {filteredAdminLogs.length === 0 ? (
@@ -397,6 +437,149 @@ export default function AdminActivityLog() {
               </div>
             ))
           )}
+        </div>
+      ) : (
+        /* Tab 3: Emails Sent (SMTP Audit) */
+        <Card className="animate-fade-in">
+          {filteredEmailLogs.length === 0 ? (
+            <div className={pageStyles.emptyState}>No matching email logs found.</div>
+          ) : (
+            <div className={styles.tableContainer}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th className={styles.th}>Sent Date</th>
+                    <th className={styles.th}>Recipient</th>
+                    <th className={styles.th}>Subject</th>
+                    <th className={styles.th}>Sender</th>
+                    <th className={styles.th}>Status</th>
+                    <th className={styles.th}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEmailLogs.map((log) => (
+                    <tr key={log.id} className={styles.tr}>
+                      <td className={styles.td}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Clock size={14} style={{ color: 'var(--color-text-secondary)' }} />
+                          <span style={{ fontSize: '0.8rem' }}>
+                            {new Date(log.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                      </td>
+                      <td className={styles.td}>
+                        <div className={styles.titleText}>{log.to}</div>
+                      </td>
+                      <td className={styles.td}>
+                        <span style={{ fontWeight: 500 }}>{log.subject}</span>
+                      </td>
+                      <td className={styles.td}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                          {log.from}
+                        </span>
+                      </td>
+                      <td className={styles.td}>
+                        <Badge
+                          variant={
+                            log.status === 'SENT'
+                              ? 'success'
+                              : log.status === 'FAILED'
+                              ? 'error'
+                              : 'info'
+                          }
+                        >
+                          {log.status}
+                        </Badge>
+                      </td>
+                      <td className={styles.td}>
+                        <Button
+                          onClick={() => setSelectedEmail(log)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          View Content
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Email Content Detail Modal */}
+      {selectedEmail && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setSelectedEmail(null)}
+        >
+          <div 
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: 'var(--radius-lg)',
+              padding: '2rem',
+              maxWidth: '650px',
+              width: '90%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              boxShadow: 'var(--shadow-lg)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--color-neutral-200)', paddingBottom: '0.75rem' }}>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                Email Content Audit
+              </h3>
+              <button 
+                onClick={() => setSelectedEmail(null)}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-secondary)', fontWeight: 700 }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--color-text)' }}>
+              <div><strong>Recipient:</strong> {selectedEmail.to}</div>
+              <div><strong>Sender:</strong> {selectedEmail.from}</div>
+              <div><strong>Subject:</strong> {selectedEmail.subject}</div>
+              <div><strong>Sent At:</strong> {new Date(selectedEmail.createdAt).toLocaleString()}</div>
+              <div>
+                <strong>Status:</strong>{' '}
+                <Badge
+                  variant={
+                    selectedEmail.status === 'SENT'
+                      ? 'success'
+                      : selectedEmail.status === 'FAILED'
+                      ? 'error'
+                      : 'info'
+                  }
+                >
+                  {selectedEmail.status}
+                </Badge>
+              </div>
+              {selectedEmail.error && (
+                <div style={{ color: 'var(--color-error)', padding: '0.5rem', backgroundColor: '#fef2f2', borderRadius: '4px', border: '1px solid #fee2e2' }}>
+                  <strong>Error:</strong> {selectedEmail.error}
+                </div>
+              )}
+            </div>
+
+            <div style={{ border: '1px solid var(--color-neutral-200)', borderRadius: 'var(--radius-md)', padding: '1rem', backgroundColor: 'var(--color-neutral-50)', maxHeight: '350px', overflowY: 'auto' }}>
+              <pre style={{ margin: 0, fontFamily: 'var(--font-body)', whiteSpace: 'pre-wrap', fontSize: '0.925rem', lineHeight: '1.5', color: 'var(--color-text)' }}>
+                {selectedEmail.body}
+              </pre>
+            </div>
+          </div>
         </div>
       )}
     </div>
