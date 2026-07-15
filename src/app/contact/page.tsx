@@ -4,10 +4,17 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { Header, Footer } from '@/components/layout';
 import { useToast, Input, Button } from '@/components/ui';
+import { useSettings } from '@/context/SettingsContext';
 import styles from '../static.module.css';
 
 export default function Contact() {
   const { showToast } = useToast();
+  const { settings } = useSettings();
+  const brandName = settings.brandName || 'ListMe';
+  const contactPhone = settings.contactPhone || '+91 1800 123 45';
+  const contactEmail = settings.contactEmail || 'support@listme.in';
+  const officeAddress = settings.officeAddress || '80 Feet Road, Indiranagar, Bangalore, KA, 560038';
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -29,7 +36,7 @@ export default function Contact() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
       <main className={`${styles.container} container`} style={{ flex: 1, maxWidth: '1000px' }}>
-        <h1 className={styles.title} style={{ textAlign: 'center', marginBottom: '3rem' }}>Contact ListMe</h1>
+        <h1 className={styles.title} style={{ textAlign: 'center', marginBottom: '3rem' }}>Contact {brandName}</h1>
 
         <div className={styles.contactGrid}>
           {/* Left Column: Contact details card */}
@@ -42,7 +49,7 @@ export default function Contact() {
               <Mail className={styles.infoIcon} size={18} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-neutral-900)' }}>Email Us</div>
-                <a href="mailto:support@listme.in" style={{ fontSize: '0.875rem' }}>support@listme.in</a>
+                <a href={`mailto:${contactEmail}`} style={{ fontSize: '0.875rem' }}>{contactEmail}</a>
               </div>
             </div>
 
@@ -50,7 +57,7 @@ export default function Contact() {
               <Phone className={styles.infoIcon} size={18} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-neutral-900)' }}>Call Us</div>
-                <a href="tel:+91180012345" style={{ fontSize: '0.875rem' }}>+91 1800 123 45</a>
+                <a href={`tel:${contactPhone}`} style={{ fontSize: '0.875rem' }}>{contactPhone}</a>
               </div>
             </div>
 
@@ -58,10 +65,9 @@ export default function Contact() {
               <MapPin className={styles.infoIcon} size={18} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-neutral-900)' }}>Head Office</div>
-                <div style={{ fontSize: '0.875rem', lineHeight: '1.4' }}>
-                  ListMe Technologies Pvt Ltd,<br />
-                  80 Feet Road, Indiranagar,<br />
-                  Bangalore, KA, 560038
+                <div style={{ fontSize: '0.875rem', lineHeight: '1.4', whiteSpace: 'pre-line' }}>
+                  {brandName} Technologies Pvt Ltd,<br />
+                  {officeAddress}
                 </div>
               </div>
             </div>

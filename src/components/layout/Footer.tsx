@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Send } from 'lucide-react';
+import { useSettings } from '@/context/SettingsContext';
 import styles from './Footer.module.css';
 
 export const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
+  const { settings } = useSettings();
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +23,7 @@ export const Footer: React.FC = () => {
           {/* Column 1: Logo & description */}
           <div className={styles.brandCol}>
             <Link href="/" className={styles.logo}>
-              ListMe
+              {settings.brandName || 'ListMe'}
             </Link>
             <p className={styles.description}>
               Reach thousands of genuine buyers and tenants. India's first completely free real estate SaaS platform connecting owners and seekers directly.
@@ -217,7 +219,7 @@ export const Footer: React.FC = () => {
         {/* Bottom row */}
         <div className={styles.bottomBar}>
           <div className={styles.copyright}>
-            Copyright © {new Date().getFullYear()} ListMe. All rights reserved.
+            Copyright © {new Date().getFullYear()} {settings.brandName || 'ListMe'}. All rights reserved.
           </div>
           <div className={styles.madeWith}>
             Made with <span className={styles.heart}>♥</span> for property owners & buyers.

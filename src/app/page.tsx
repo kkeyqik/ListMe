@@ -447,11 +447,11 @@ export default function Home() {
 
   return (
     <div className={styles.main} ref={containerRef}>
-      <Header />
       
       <main style={{ flex: 1 }}>
         {/* --- Hero Canvas Wrapper Section --- */}
         <div className={styles.heroCanvasWrapper}>
+          <Header />
 
           {/* Redesigned Premium Hero Section */}
           <section className={styles.heroSection}>

@@ -2,19 +2,23 @@
 
 import React from 'react';
 import { Header, Footer } from '@/components/layout';
+import { useSettings } from '@/context/SettingsContext';
 import styles from '../static.module.css';
 
 export default function About() {
+  const { settings } = useSettings();
+  const brandName = settings.brandName || 'ListMe';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
       <main className={`${styles.container} container`} style={{ flex: 1 }}>
-        <h1 className={styles.title}>About ListMe</h1>
+        <h1 className={styles.title}>About {brandName}</h1>
         <span className={styles.lastUpdated}>Last updated: July 2026</span>
         
         <div className={styles.content}>
           <p>
-            Welcome to <strong>ListMe</strong> — India's premier free real estate SaaS platform. 
+            Welcome to <strong>{brandName}</strong> — India's premier free real estate SaaS platform. 
             We are dedicated to simplifying how property owners list, manage, and find houses, flats, plots, 
             or commercial listings, entirely without brokers.
           </p>
@@ -26,7 +30,7 @@ export default function About() {
             inflated prices and constant spam.
           </p>
           <p>
-            ListMe was born to disrupt this. We connect property owners and home seekers directly. By verifying 
+            {brandName} was born to disrupt this. We connect property owners and home seekers directly. By verifying 
             every account via mobile OTP and hiding contact numbers initially, we create a secure, broker-free 
             environment where you are in complete control of your data.
           </p>
