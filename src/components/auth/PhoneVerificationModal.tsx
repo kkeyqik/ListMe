@@ -101,7 +101,6 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
 
     const testPhones = ['7777777777', '9999999999', '8888888888'];
     if (testPhones.includes(phone)) {
-      showToast('OTP Sent (Bypassed)', 'Bypassed SMS verification for test number. Use OTP 123456.', 'success');
       setStep('otp');
       setTimer(30);
       setLoading(false);
@@ -116,7 +115,6 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
         try {
           const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
           setConfirmationResult(result);
-          showToast('OTP Sent', 'Verification code has been sent via Firebase SMS', 'success');
           setStep('otp');
           setTimer(30);
         } catch (error: any) {
@@ -128,7 +126,6 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
       }
     } else {
       // Mock / Simulated Flow for Development
-      showToast('OTP Sent (Simulated)', 'SMS verification code is 123456', 'success');
       setStep('otp');
       setTimer(30);
     }
@@ -209,14 +206,12 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
         try {
           const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
           setConfirmationResult(result);
-          showToast('OTP Resent', 'A new verification code has been sent', 'success');
           setTimer(30);
         } catch (error: any) {
           showToast('Failed to resend OTP', error.message || 'Telephony error', 'error');
         }
       }
     } else {
-      showToast('OTP Resent (Simulated)', 'Simulated verification code is 123456', 'success');
       setTimer(30);
     }
 
