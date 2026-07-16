@@ -733,7 +733,7 @@ export default function Home() {
                 <div className={styles.typeCardContent}>
                   <h3 className={styles.typeCardTitle}>Residential Apartments</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.apartments || 12} Active Listings
+                    {cityTrends?.counts?.apartments || 12}+ Properties
                   </span>
                 </div>
               </div>
@@ -759,7 +759,7 @@ export default function Home() {
                 <div className={styles.typeCardContent}>
                   <h3 className={styles.typeCardTitle}>Builder Floor</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.builderFloors || 8} Active Listings
+                    {cityTrends?.counts?.builderFloors || 8}+ Properties
                   </span>
                 </div>
               </div>
@@ -785,7 +785,7 @@ export default function Home() {
                 <div className={styles.typeCardContent}>
                   <h3 className={styles.typeCardTitle}>Residential Land</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.plots || 4} Active Listings
+                    {cityTrends?.counts?.plots || 4}+ Properties
                   </span>
                 </div>
               </div>
@@ -811,7 +811,7 @@ export default function Home() {
                 <div className={styles.typeCardContent}>
                   <h3 className={styles.typeCardTitle}>Independent House/Villa</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.villas || 6} Active Listings
+                    {cityTrends?.counts?.villas || 6}+ Properties
                   </span>
                 </div>
               </div>
@@ -837,7 +837,7 @@ export default function Home() {
                 <div className={styles.typeCardContent}>
                   <h3 className={styles.typeCardTitle}>1 RK / Studio Apt</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.studios || 5} Active Listings
+                    {cityTrends?.counts?.studios || 5}+ Properties
                   </span>
                 </div>
               </div>
@@ -863,7 +863,7 @@ export default function Home() {
                 <div className={styles.typeCardContent}>
                   <h3 className={styles.typeCardTitle}>Serviced Apartments</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.serviced || 3} Active Listings
+                    {cityTrends?.counts?.serviced || 3}+ Properties
                   </span>
                 </div>
               </div>
@@ -889,7 +889,7 @@ export default function Home() {
                 <div className={styles.typeCardContent}>
                   <h3 className={styles.typeCardTitle}>Farmhouse</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.farmhouses || 2} Active Listings
+                    {cityTrends?.counts?.farmhouses || 2}+ Properties
                   </span>
                 </div>
               </div>
