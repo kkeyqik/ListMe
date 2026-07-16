@@ -934,7 +934,7 @@ export default function Home() {
                   No matching properties found in this location.
                 </div>
               ) : (
-                displayedProperties.map((prop) => {
+                displayedProperties.slice(0, 4).map((prop) => {
                   const isRent = prop.tag === 'For Rent';
                   const isFav = !!favorites[prop.id];
                 
