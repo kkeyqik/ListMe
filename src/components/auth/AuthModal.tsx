@@ -14,6 +14,7 @@ import {
   Home,
   MapPin,
   User,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
@@ -53,6 +54,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isPhoneDetected, setIsPhoneDetected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
 
   // Firebase auth state variables
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
@@ -60,6 +62,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const modalRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close country dropdown
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target as Node)) {
+        setIsCountryDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Mount state for portal
   useEffect(() => {
@@ -490,16 +504,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label className={styles.inputLabel}>Email or Mobile Number</label>
                 <div className={styles.customInputContainer}>
                   {isPhoneDetected && (
-                    <div className={styles.countryCodeSelector}>
-                      <select
-                        value={countryCode}
-                        onChange={(e) => setCountryCode(e.target.value)}
-                        className={styles.countrySelect}
+                    <div className={styles.countryCodeSelector} ref={countryDropdownRef} style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        className={styles.customCountryPane}
+                        onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
                         disabled={loading}
                       >
-                        <option value="+91">🇮🇳 +91</option>
-                        <option value="+1">🇺🇸 +1</option>
-                      </select>
+                        <span>{countryCode === '+91' ? '🇮🇳 +91' : '🇺🇸 +1'}</span>
+                        <ChevronDown size={14} style={{ color: 'var(--color-neutral-500)', opacity: 0.8 }} />
+                      </button>
+                      {isCountryDropdownOpen && (
+                        <div className={styles.customCountryDropdown}>
+                          <button
+                            type="button"
+                            className={styles.customDropdownOption}
+                            onClick={() => {
+                              setCountryCode('+91');
+                              setIsCountryDropdownOpen(false);
+                            }}
+                          >
+                            🇮🇳 +91
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.customDropdownOption}
+                            onClick={() => {
+                              setCountryCode('+1');
+                              setIsCountryDropdownOpen(false);
+                            }}
+                          >
+                            🇺🇸 +1
+                          </button>
+                        </div>
+                      )}
                       <div className={styles.selectorDivider} />
                     </div>
                   )}

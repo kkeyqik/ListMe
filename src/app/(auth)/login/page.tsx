@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Phone, ArrowRight, Home, Mail, User, MapPin } from 'lucide-react';
+import { Phone, ArrowRight, Home, Mail, User, MapPin, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
@@ -51,6 +51,30 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [selectedCity, setSelectedCity] = useState('');
   const [citiesList, setCitiesList] = useState<any[]>([]);
+
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [isSignupCountryDropdownOpen, setIsSignupCountryDropdownOpen] = useState(false);
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
+  const signupCountryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target as Node)) {
+        setIsCityDropdownOpen(false);
+      }
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target as Node)) {
+        setIsCountryDropdownOpen(false);
+      }
+      if (signupCountryDropdownRef.current && !signupCountryDropdownRef.current.contains(e.target as Node)) {
+        setIsSignupCountryDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Load cities list and auto-detect location
   useEffect(() => {
@@ -550,16 +574,40 @@ function LoginContent() {
                   <label className={styles.inputLabel}>Email or Mobile Number</label>
                   <div className={styles.customInputContainer}>
                     {isPhoneDetected && (
-                      <div className={styles.countryCodeSelector}>
-                        <select
-                          value={countryCode}
-                          onChange={(e) => setCountryCode(e.target.value)}
-                          className={styles.countrySelect}
+                      <div className={styles.countryCodeSelector} ref={countryDropdownRef} style={{ position: 'relative' }}>
+                        <button
+                          type="button"
+                          className={styles.customCountryPane}
+                          onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
                           disabled={loading}
                         >
-                          <option value="+91">🇮🇳 +91</option>
-                          <option value="+1">🇺🇸 +1</option>
-                        </select>
+                          <span>{countryCode === '+91' ? '🇮🇳 +91' : '🇺🇸 +1'}</span>
+                          <ChevronDown size={14} style={{ color: 'var(--color-neutral-500)', opacity: 0.8 }} />
+                        </button>
+                        {isCountryDropdownOpen && (
+                          <div className={styles.customCountryDropdown}>
+                            <button
+                              type="button"
+                              className={styles.customDropdownOption}
+                              onClick={() => {
+                                setCountryCode('+91');
+                                setIsCountryDropdownOpen(false);
+                              }}
+                            >
+                              🇮🇳 +91
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.customDropdownOption}
+                              onClick={() => {
+                                setCountryCode('+1');
+                                setIsCountryDropdownOpen(false);
+                              }}
+                            >
+                              🇺🇸 +1
+                            </button>
+                          </div>
+                        )}
                         <div className={styles.selectorDivider} />
                       </div>
                     )}
@@ -806,16 +854,40 @@ function LoginContent() {
                 <div>
                   <label className={styles.inputLabel}>Mobile Number</label>
                   <div className={styles.customInputContainer}>
-                    <div className={styles.countryCodeSelector}>
-                      <select
-                        value={countryCode}
-                        onChange={(e) => setCountryCode(e.target.value)}
-                        className={styles.countrySelect}
+                    <div className={styles.countryCodeSelector} ref={signupCountryDropdownRef} style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        className={styles.customCountryPane}
+                        onClick={() => setIsSignupCountryDropdownOpen(!isSignupCountryDropdownOpen)}
                         disabled={loading}
                       >
-                        <option value="+91">🇮🇳 +91</option>
-                        <option value="+1">🇺🇸 +1</option>
-                      </select>
+                        <span>{countryCode === '+91' ? '🇮🇳 +91' : '🇺🇸 +1'}</span>
+                        <ChevronDown size={14} style={{ color: 'var(--color-neutral-500)', opacity: 0.8 }} />
+                      </button>
+                      {isSignupCountryDropdownOpen && (
+                        <div className={styles.customCountryDropdown}>
+                          <button
+                            type="button"
+                            className={styles.customDropdownOption}
+                            onClick={() => {
+                              setCountryCode('+91');
+                              setIsSignupCountryDropdownOpen(false);
+                            }}
+                          >
+                            🇮🇳 +91
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.customDropdownOption}
+                            onClick={() => {
+                              setCountryCode('+1');
+                              setIsSignupCountryDropdownOpen(false);
+                            }}
+                          >
+                            🇺🇸 +1
+                          </button>
+                        </div>
+                      )}
                       <div className={styles.selectorDivider} />
                     </div>
                     <input
@@ -842,36 +914,38 @@ function LoginContent() {
                 />
                 <div>
                   <label className={styles.inputLabel}>Preferred City</label>
-                  <div className={styles.customInputContainer} style={{ display: 'flex', alignItems: 'center' }}>
-                    <div style={{ paddingLeft: '12px', display: 'flex', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
-                      <MapPin size={18} />
-                    </div>
-                    <select
-                      value={selectedCity}
-                      onChange={(e) => setSelectedCity(e.target.value)}
-                      className={styles.customInputField}
-                      style={{ 
-                        border: 'none', 
-                        background: 'transparent', 
-                        width: '100%', 
-                        outline: 'none',
-                        color: selectedCity ? 'var(--color-text)' : 'var(--color-text-muted)',
-                        padding: '12px 8px',
-                        cursor: 'pointer',
-                        fontSize: '0.95rem'
-                      }}
-                      required
+                  <div className={styles.customDropdownWrapper} ref={cityDropdownRef}>
+                    <button
+                      type="button"
+                      className={styles.customDropdownPane}
+                      onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
                       disabled={loading}
                     >
-                      <option value="" disabled style={{ color: 'var(--color-text-muted)' }}>
-                        Select preferred city
-                      </option>
-                      {citiesList.map((c) => (
-                        <option key={c.id} value={c.name} style={{ color: 'var(--color-text)' }}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <MapPin size={18} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
+                        <span style={{ color: selectedCity ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
+                          {selectedCity || 'Select preferred city'}
+                        </span>
+                      </div>
+                      <ChevronDown size={16} style={{ color: 'var(--color-neutral-500)', flexShrink: 0 }} />
+                    </button>
+                    {isCityDropdownOpen && (
+                      <div className={styles.customDropdownList}>
+                        {citiesList.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className={styles.customDropdownOption}
+                            onClick={() => {
+                              setSelectedCity(c.name);
+                              setIsCityDropdownOpen(false);
+                            }}
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <Button

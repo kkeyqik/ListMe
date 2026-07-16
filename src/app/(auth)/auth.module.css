@@ -532,3 +532,105 @@
     font-size: 1.375rem;
   }
 }
+
+/* Custom Dropdown / Select Styles */
+.customDropdownWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.customDropdownPane {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+  padding: 0.75rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--color-neutral-900);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-height: 48px;
+  text-align: left;
+}
+
+.customDropdownPane:hover:not(:disabled) {
+  border-color: var(--color-neutral-400);
+}
+
+.customDropdownPane:focus {
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px var(--color-secondary-fade);
+}
+
+.customDropdownList {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background-color: #ffffff;
+  border: 1px solid var(--color-secondary-fade);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  animation: slideInSelector var(--transition-fast);
+}
+
+.customDropdownOption {
+  padding: 10px 16px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-neutral-700);
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.customDropdownOption:hover {
+  background-color: var(--color-secondary-fade);
+  color: var(--color-primary);
+  padding-left: 20px;
+}
+
+/* Custom Country Code Selector Dropdown */
+.customCountryPane {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--color-neutral-800);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  padding: 0.5rem 0.25rem 0.5rem 0;
+}
+
+.customCountryDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background-color: #ffffff;
+  border: 1px solid var(--color-secondary-fade);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  animation: slideInSelector var(--transition-fast);
+}

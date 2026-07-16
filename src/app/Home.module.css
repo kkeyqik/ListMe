@@ -2073,31 +2073,47 @@
   top: calc(100% + 8px);
   left: 0;
   background-color: #ffffff;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-secondary-fade);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   z-index: 100;
   min-width: 200px;
+  max-height: 240px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   padding: 6px 0;
+  animation: categoryDropdownSlide var(--transition-fast);
+}
+
+@keyframes categoryDropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .categoryDropdownOption {
   padding: 10px 16px;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
-  color: #475569;
+  color: var(--color-neutral-700);
   text-align: left;
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition: all var(--transition-fast);
+  width: 100%;
 }
 
 .categoryDropdownOption:hover {
-  background-color: var(--color-surface);
+  background-color: var(--color-secondary-fade);
   color: var(--color-primary);
+  padding-left: 20px;
 }
 
 .searchQueryPane {
