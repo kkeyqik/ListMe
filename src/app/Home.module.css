@@ -408,11 +408,18 @@
   z-index: 20;
 }
 
+@media (min-width: 1024px) {
+  .searchCapsuleContainer {
+    width: 50%;
+    min-width: 780px;
+  }
+}
+
 @media (max-width: 1023px) {
   .searchCapsuleContainer {
     position: absolute;
     bottom: 20px;
-    width: 70%;
+    width: 90%;
   }
 }
 
@@ -1943,7 +1950,7 @@
 
 .searchTabsLeft {
   display: flex;
-  gap: 2.25rem;
+  gap: clamp(1rem, 2.2vw, 2.25rem);
 }
 
 .searchTabItem {
