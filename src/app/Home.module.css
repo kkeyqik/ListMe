@@ -1929,11 +1929,18 @@
   flex-direction: column;
   overflow: visible;
   transition: all var(--transition-base);
+  position: relative;
 }
 
 .premiumSearchBox:focus-within {
   border-color: var(--color-secondary);
   box-shadow: 0 25px 60px rgba(96, 122, 102, 0.15);
+}
+
+.premiumSearchBoxDropdownOpen {
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  box-shadow: 0 10px 30px rgba(10, 17, 40, 0.04);
 }
 
 /* Tabs Row */
@@ -2049,7 +2056,7 @@
 }
 
 .categorySelectWrapper {
-  position: relative;
+  /* No position relative so absolute children align to the premiumSearchBox wrapper */
 }
 
 .categorySelectPane {
@@ -2077,14 +2084,15 @@
 /* Category Checkbox Panel */
 .categoryDropdown {
   position: absolute;
-  top: calc(100% + 12px);
-  left: -18px;
+  top: 100%;
+  left: 0;
+  width: 100%;
   background-color: #ffffff;
   border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 20px 50px rgba(10, 17, 40, 0.12);
+  border-top: none;
+  border-radius: 0 0 20px 20px;
+  box-shadow: 0 25px 50px rgba(10, 17, 40, 0.12);
   z-index: 100;
-  min-width: 580px;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -2094,7 +2102,7 @@
 @keyframes categoryDropdownSlide {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
@@ -2105,8 +2113,15 @@
 .categoryDropdownHeader {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 14px 20px 8px 20px;
+  justify-content: space-between;
+  padding: 18px 24px 8px 24px;
+}
+
+.categoryDropdownTitle {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1E293B;
 }
 
 .categoryClearBtn {
@@ -2128,9 +2143,9 @@
 
 .categoryCheckboxGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px 24px;
-  padding: 12px 20px 20px 20px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px 24px;
+  padding: 12px 24px 20px 24px;
 }
 
 .categoryCheckboxLabel {
@@ -2174,24 +2189,124 @@
 .categoryDropdownFooter {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 14px 20px;
-  border-top: 1px solid #F1F5F9;
+  gap: 6px;
+  padding: 14px 24px;
+  border-top: 1px dashed #E2E8F0;
   font-family: var(--font-body);
   font-size: 0.85rem;
   color: #64748B;
 }
 
-.commercialLink {
+.commercialLinkButton {
+  background: none;
+  border: none;
   color: #3B82F6;
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
 }
 
-.commercialLink:hover {
+.commercialLinkButton:hover {
   color: #2563EB;
+}
+
+/* Divider inside dropdown */
+.dropdownDivider {
+  width: 100%;
+  height: 1px;
+  background-color: #F1F5F9;
+}
+
+/* Pills inside dropdown */
+.dropdownPillsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background-color: #F8FAFC;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+/* Sub-filter View Layout */
+.subViewHeader {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 24px 10px 24px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: transparent;
+  border: none;
+  color: #64748B;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+}
+
+.backButton:hover {
+  color: var(--color-primary);
+  background-color: #F1F5F9;
+}
+
+.subViewPills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subViewContent {
+  padding: 20px 24px 24px 24px;
+}
+
+.subViewPanel {
+  width: 100%;
+}
+
+.subViewPanelOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+}
+
+.subViewOption {
+  padding: 10px 18px;
+  background-color: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 24px;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.subViewOption:hover {
+  background-color: var(--color-secondary-fade);
+  color: var(--color-primary);
+  border-color: #94A3B8;
+}
+
+.subViewOptionActive {
+  background-color: #EFF6FF;
+  color: var(--color-primary);
+  border-color: #3B82F6;
+  font-weight: 600;
 }
 
 /* Vertical Divider */
