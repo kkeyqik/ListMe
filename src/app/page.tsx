@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Building, Building2, ShieldCheck, Heart, Check, Tag, ArrowUp, MapPin, MessageSquare, Calendar, Home as HomeIcon, CheckCircle, Users, CircleDollarSign, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Building, Building2, ShieldCheck, Heart, Check, Tag, ArrowUp, MapPin, MessageSquare, Calendar, Home as HomeIcon, CheckCircle, Users, CircleDollarSign, Star, ChevronLeft, ChevronRight, ChevronDown, Navigation, Mic } from 'lucide-react';
 import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
 import styles from './Home.module.css';
@@ -167,6 +167,55 @@ export default function Home() {
   };
 
   const [dbCities, setDbCities] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('Buy');
+  const [selectedCategory, setSelectedCategory] = useState('All Residential');
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const categoryMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target as Node)) {
+        setIsCategoryOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLocateMe = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setSearchQuery(searchLocation ? searchLocation.charAt(0).toUpperCase() + searchLocation.slice(1) : 'Mumbai');
+        },
+        (error) => {
+          setSearchQuery('Delhi NCR');
+        }
+      );
+    }
+  };
+
+  const handleVoiceSearch = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-IN';
+      recognition.onstart = () => {
+        setSearchQuery('Listening...');
+      };
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setSearchQuery(transcript);
+      };
+      recognition.onerror = () => {
+        setSearchQuery('');
+      };
+      recognition.start();
+    } else {
+      alert('Voice speech recognition not supported in this browser.');
+    }
+  };
 
   const [featuredProperties, setFeaturedProperties] = useState<any[]>(staticHandpickedProperties);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
@@ -424,9 +473,48 @@ export default function Home() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (searchLocation) params.set('city', searchLocation);
-    if (searchType) params.set('type', searchType);
-    if (searchBudget) params.set('budget', searchBudget);
+
+    // 1. Resolve city from query input text
+    const queryLower = searchQuery.toLowerCase();
+    let resolvedCity = '';
+    if (queryLower.includes('mumbai')) resolvedCity = 'mumbai';
+    else if (queryLower.includes('pune')) resolvedCity = 'pune';
+    else if (queryLower.includes('delhi')) resolvedCity = 'delhi';
+    else if (queryLower.includes('ghaziabad')) resolvedCity = 'ghaziabad';
+    else if (searchLocation) resolvedCity = searchLocation;
+
+    if (resolvedCity) params.set('city', resolvedCity);
+
+    // 2. Resolve BHK from query input text
+    let resolvedBhk = '';
+    if (queryLower.includes('1 bhk') || queryLower.includes('1bhk')) resolvedBhk = '1';
+    else if (queryLower.includes('2 bhk') || queryLower.includes('2bhk')) resolvedBhk = '2';
+    else if (queryLower.includes('3 bhk') || queryLower.includes('3bhk')) resolvedBhk = '3';
+    else if (queryLower.includes('4 bhk') || queryLower.includes('4bhk')) resolvedBhk = '4';
+
+    if (resolvedBhk) params.set('bhk', resolvedBhk);
+
+    // 3. Resolve active tab type
+    if (activeTab === 'Rent') {
+      params.set('type', 'rent');
+    } else if (activeTab === 'Commercial') {
+      params.set('type', 'commercial');
+    } else if (activeTab === 'Plots/Land') {
+      params.set('property_type', 'PLOT');
+    } else {
+      params.set('type', 'sale');
+    }
+
+    // 4. Resolve selected category
+    if (selectedCategory === 'Apartments') {
+      params.set('property_type', 'APARTMENT');
+    } else if (selectedCategory === 'Villas') {
+      params.set('property_type', 'VILLA');
+    } else if (selectedCategory === 'Plots') {
+      params.set('property_type', 'PLOT');
+    } else if (selectedCategory === 'Commercial') {
+      params.set('property_type', 'COMMERCIAL');
+    }
 
     // Save to localStorage
     if (typeof window !== 'undefined') {
@@ -436,17 +524,12 @@ export default function Home() {
         if (!Array.isArray(searches)) searches = [];
 
         const parts = [];
-        if (searchLocation) {
-          parts.push(searchLocation.charAt(0).toUpperCase() + searchLocation.slice(1));
-        }
-        if (searchType) {
-          parts.push(searchType === 'sale' ? 'For Sale' : searchType === 'rent' ? 'For Rent' : searchType);
-        }
-        if (searchBudget) {
-          parts.push(`Budget: ₹${searchBudget}`);
-        }
-        const display = parts.join(' • ') || 'All Listings';
+        if (resolvedCity) parts.push(resolvedCity.charAt(0).toUpperCase() + resolvedCity.slice(1));
+        parts.push(activeTab);
+        if (selectedCategory !== 'All Residential') parts.push(selectedCategory);
+        if (resolvedBhk) parts.push(`${resolvedBhk} BHK`);
 
+        const display = parts.join(' • ') || 'All Listings';
         const paramsStr = params.toString();
         searches = searches.filter((s: any) => s.params !== paramsStr);
         searches.unshift({ display, params: paramsStr, timestamp: Date.now() });
@@ -576,78 +659,108 @@ export default function Home() {
                   <span>Wide range of Properties</span>
                 </div>
               </div>
-
             </div>
 
-            {/* Floating Search Bar Container */}
+              {/* Floating Search Bar Container */}
             <div className={`${styles.searchCapsuleContainer} search-capsule-animate`}>
-              <form onSubmit={handleSearchSubmit} className={styles.searchCapsule}>
+              <form onSubmit={handleSearchSubmit} className={styles.premiumSearchBox}>
                 
-                {/* Location */}
-                <div className={styles.capsuleField}>
-                  <div className={styles.fieldHeader}>
-                    <MapPin size={18} className={styles.fieldIcon} />
-                    <label className={styles.capsuleLabel}>Location</label>
-                  </div>
-                  <select
-                    className={styles.capsuleSelect}
-                    value={searchLocation}
-                    onChange={(e) => setSearchLocation(e.target.value)}
-                  >
-                    <option value="">Enter Your Location</option>
-                    {dbCities.map((city: any) => (
-                      <option key={city.id} value={city.name.toLowerCase()}>
-                        {city.name}
-                      </option>
+                {/* 1. First Row: Tabs */}
+                <div className={styles.searchTabsRow}>
+                  <div className={styles.searchTabsLeft}>
+                    {['Buy', 'Rent', 'New Launch', 'Commercial', 'Plots/Land', 'Projects'].map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        className={`${styles.searchTabItem} ${activeTab === tab ? styles.searchTabActive : ''}`}
+                        onClick={() => setActiveTab(tab)}
+                      >
+                        {tab}
+                        {tab === 'New Launch' && <span className={styles.tabNotificationDot} />}
+                      </button>
                     ))}
-                  </select>
-                </div>
-
-                <div className={styles.verticalDivider} />
-
-                {/* Property Type */}
-                <div className={styles.capsuleField}>
-                  <div className={styles.fieldHeader}>
-                    <Building2 size={18} className={styles.fieldIcon} />
-                    <label className={styles.capsuleLabel}>Property Type</label>
                   </div>
-                  <select
-                    className={styles.capsuleSelect}
-                    value={searchType}
-                    onChange={(e) => setSearchType(e.target.value)}
-                  >
-                    <option value="">All Types</option>
-                    <option value="sale">Buy</option>
-                    <option value="rent">Rent</option>
-                    <option value="commercial">Commercial</option>
-                  </select>
-                </div>
 
-                <div className={styles.verticalDivider} />
-
-                {/* Price Range */}
-                <div className={styles.capsuleField}>
-                  <div className={styles.fieldHeader}>
-                    <CircleDollarSign size={18} className={styles.fieldIcon} />
-                    <label className={styles.capsuleLabel}>Price Range</label>
+                  <div className={styles.searchTabsRight}>
+                    <a href="/post-property" className={styles.postPropertyTab}>
+                      Post Property <span className={styles.freeBadge}>FREE</span>
+                    </a>
                   </div>
-                  <select
-                    className={styles.capsuleSelect}
-                    value={searchBudget}
-                    onChange={(e) => setSearchBudget(e.target.value)}
-                  >
-                    <option value="">Any Budget</option>
-                    <option value="under_50l">Under ₹50 Lakhs</option>
-                    <option value="50l_1cr">₹50L - ₹1 Crore</option>
-                    <option value="1cr_2cr">₹1Cr - ₹2 Crores</option>
-                    <option value="2cr_plus">₹2 Crores+</option>
-                  </select>
                 </div>
 
-                <button type="submit" className={styles.navySearchButton}>
-                  <Search size={20} />
-                  <span>Search Properties</span>
-                </button>
+                {/* 2. Second Row: Inputs */}
+                <div className={styles.searchInputsRow}>
+                  {/* Category Dropdown */}
+                  <div className={styles.categorySelectWrapper} ref={categoryMenuRef}>
+                    <button
+                      type="button"
+                      className={styles.categorySelectPane}
+                      onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                    >
+                      <span>{selectedCategory}</span>
+                      <ChevronDown size={16} />
+                    </button>
+                    {isCategoryOpen && (
+                      <div className={styles.categoryDropdown}>
+                        {['All Residential', 'Apartments', 'Villas', 'Plots', 'Commercial'].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={styles.categoryDropdownOption}
+                            onClick={() => {
+                              setSelectedCategory(opt);
+                              setIsCategoryOpen(false);
+                            }}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={styles.verticalDivider} />
+
+                  {/* Search Query Pane */}
+                  <div className={styles.searchQueryPane}>
+                    <Search size={20} className={styles.searchQueryIcon} />
+                    <input
+                      type="text"
+                      className={styles.searchQueryInput}
+                      placeholder='Search "3 BHK for sale in Mumbai"'
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  <div className={styles.actionsGroup}>
+                    {/* Locate Button */}
+                    <button
+                      type="button"
+                      onClick={handleLocateMe}
+                      className={styles.actionCircleBtn}
+                      title="Locate me"
+                    >
+                      <Navigation size={18} />
+                    </button>
+
+                    {/* Voice search Button */}
+                    <button
+                      type="button"
+                      onClick={handleVoiceSearch}
+                      className={styles.actionCircleBtn}
+                      title="Voice search"
+                    >
+                      <Mic size={18} />
+                    </button>
+
+                    {/* Search Button */}
+                    <button type="submit" className={styles.solidBlueSearchBtn}>
+                      Search
+                    </button>
+                  </div>
+                </div>
+
               </form>
 
               {/* Trust indicators below search bar */}
