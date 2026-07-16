@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Building, Building2, ShieldCheck, Heart, Check, Tag, ArrowUp, MapPin, MessageSquare, Calendar, Home as HomeIcon, CheckCircle, Users, CircleDollarSign, Star } from 'lucide-react';
+import { Search, Building, Building2, ShieldCheck, Heart, Check, Tag, ArrowUp, MapPin, MessageSquare, Calendar, Home as HomeIcon, CheckCircle, Users, CircleDollarSign, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
 import styles from './Home.module.css';
@@ -117,6 +117,17 @@ export default function Home() {
   const [selectedBhk, setSelectedBhk] = useState<string>('ALL');
   const [selectedPossession, setSelectedPossession] = useState<string>('ALL');
   const containerRef = useRef<HTMLDivElement>(null);
+  const categoriesRef = useRef<HTMLDivElement>(null);
+
+  const scrollCategories = (direction: 'left' | 'right') => {
+    if (categoriesRef.current) {
+      const scrollAmount = 304; // card width 280 + gap 24
+      categoriesRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
   const [dbCities, setDbCities] = useState<any[]>([]);
 
   const [featuredProperties, setFeaturedProperties] = useState<any[]>(staticHandpickedProperties);
@@ -638,15 +649,23 @@ export default function Home() {
             <div className={`${styles.featuredHeader} animate-fade-in`}>
               <div>
                 <h2 className={styles.featuredTitle}>
-                  Apartments, Villas and more
+                  Apartments, Villas & more
                 </h2>
                 <div className={styles.citySubtitle}>
-                  IN <MapPin size={24} className={styles.citySubtitleIcon} /> <span className={styles.cityNameBold}>{searchLocation ? searchLocation.toUpperCase() : 'YOUR LOCATION'}</span>
+                  IN <MapPin size={16} className={styles.citySubtitleIcon} /> <span className={styles.cityNameBold}>{searchLocation ? searchLocation.toUpperCase() : 'YOUR LOCATION'}</span>
                 </div>
+              </div>
+              <div className={styles.scrollButtons}>
+                <button className={styles.scrollBtn} onClick={() => scrollCategories('left')} aria-label="Scroll Left">
+                  <ChevronLeft size={20} />
+                </button>
+                <button className={styles.scrollBtn} onClick={() => scrollCategories('right')} aria-label="Scroll Right">
+                  <ChevronRight size={20} />
+                </button>
               </div>
             </div>
 
-            <div className={`${styles.typesGrid} animate-fade-in`}>
+            <div className={`${styles.typesGrid} animate-fade-in`} ref={categoriesRef}>
               {/* 1. Apartments */}
               <div 
                 className={styles.typeCard}
@@ -827,7 +846,7 @@ export default function Home() {
                 <span className={styles.sectionEyebrow}>Featured Properties</span>
                 <h2 className={styles.featuredTitle}>Handpicked Properties For You</h2>
                 <div className={styles.citySubtitle}>
-                  IN <MapPin size={24} className={styles.citySubtitleIcon} /> <span className={styles.cityNameBold}>{searchLocation ? searchLocation.toUpperCase() : 'YOUR LOCATION'}</span>
+                  IN <MapPin size={16} className={styles.citySubtitleIcon} /> <span className={styles.cityNameBold}>{searchLocation ? searchLocation.toUpperCase() : 'YOUR LOCATION'}</span>
                 </div>
               </div>
               <div className={styles.featuredHeaderRight}>
