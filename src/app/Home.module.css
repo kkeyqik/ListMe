@@ -1943,6 +1943,11 @@
   box-shadow: 0 10px 30px rgba(10, 17, 40, 0.04);
 }
 
+.premiumSearchBoxDropdownOpen .searchInputsRow {
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
 /* Tabs Row */
 .searchTabsRow {
   display: flex;
@@ -2053,6 +2058,9 @@
   padding: 12px 18px;
   background-color: #ffffff;
   gap: 1.25rem;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  transition: border-radius var(--transition-base);
 }
 
 .categorySelectWrapper {
