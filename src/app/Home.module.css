@@ -1999,6 +1999,14 @@
 .searchTabsRight {
   display: flex;
   align-items: center;
+  gap: 0;
+}
+
+.tabsSeparator {
+  width: 1px;
+  height: 28px;
+  background-color: #CBD5E1;
+  margin-right: 1.25rem;
 }
 
 .postPropertyTab {
@@ -2038,8 +2046,6 @@
   padding: 12px 18px;
   background-color: #ffffff;
   gap: 1.25rem;
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
 }
 
 .categorySelectWrapper {
@@ -2068,28 +2074,27 @@
   color: var(--color-primary);
 }
 
+/* Category Checkbox Panel */
 .categoryDropdown {
   position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
+  top: calc(100% + 12px);
+  left: -18px;
   background-color: #ffffff;
-  border: 1px solid var(--color-secondary-fade);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(10, 17, 40, 0.12);
   z-index: 100;
-  min-width: 200px;
-  max-height: 240px;
-  overflow-y: auto;
+  min-width: 580px;
   display: flex;
   flex-direction: column;
-  padding: 6px 0;
+  padding: 0;
   animation: categoryDropdownSlide var(--transition-fast);
 }
 
 @keyframes categoryDropdownSlide {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
@@ -2097,23 +2102,104 @@
   }
 }
 
-.categoryDropdownOption {
-  padding: 10px 16px;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--color-neutral-700);
-  text-align: left;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  width: 100%;
+.categoryDropdownHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 14px 20px 8px 20px;
 }
 
-.categoryDropdownOption:hover {
-  background-color: var(--color-secondary-fade);
+.categoryClearBtn {
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--color-primary);
-  padding-left: 20px;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+
+.categoryClearBtn:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+.categoryCheckboxGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px 24px;
+  padding: 12px 20px 20px 20px;
+}
+
+.categoryCheckboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.categoryCheckbox {
+  display: none;
+}
+
+.categoryCheckboxCustom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #CBD5E1;
+  border-radius: 4px;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.categoryCheckbox:checked + .categoryCheckboxCustom {
+  background-color: #3B82F6;
+  border-color: #3B82F6;
+}
+
+.categoryCheckboxText {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: #334155;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.categoryDropdownFooter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 20px;
+  border-top: 1px solid #F1F5F9;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: #64748B;
+}
+
+.commercialLink {
+  color: #3B82F6;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.commercialLink:hover {
+  color: #2563EB;
+}
+
+/* Vertical Divider */
+.verticalDivider {
+  width: 1px;
+  height: 32px;
+  background-color: #E2E8F0;
+  flex-shrink: 0;
 }
 
 .searchQueryPane {
@@ -2148,6 +2234,67 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Tooltip Wrapper */
+.tooltipWrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltip {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background-color: #EFF6FF;
+  color: #1E40AF;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 8px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 200;
+}
+
+.tooltip::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  background-color: #EFF6FF;
+  rotate: 45deg;
+  border-radius: 2px;
+}
+
+.tooltipWrapper:hover .tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.newBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background-color: #EC4899;
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+  line-height: 1;
 }
 
 .actionCircleBtn {
@@ -2187,6 +2334,180 @@
   background-color: #2563EB;
 }
 
+/* ==================== */
+/* Filter Pills Row     */
+/* ==================== */
+.filterPillsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background-color: #ffffff;
+  border-top: 1px solid #F1F5F9;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+.filterPillWrapper {
+  position: relative;
+}
+
+.filterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 24px;
+  background-color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1E293B;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.filterPill:hover {
+  border-color: #94A3B8;
+  background-color: #F8FAFC;
+}
+
+.filterPillActive {
+  border-color: #1E293B;
+  background-color: #F8FAFC;
+}
+
+.pillDropdownPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background-color: #ffffff;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(10, 17, 40, 0.1);
+  z-index: 120;
+  min-width: 200px;
+  padding: 6px 0;
+  animation: categoryDropdownSlide var(--transition-fast);
+}
+
+.pillOption {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 18px;
+  background: transparent;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pillOption:hover {
+  background-color: var(--color-secondary-fade);
+  color: var(--color-primary);
+  padding-left: 22px;
+}
+
+.pillOptionActive {
+  background-color: #EFF6FF;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Budget Slider */
+.budgetHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px 8px 20px;
+}
+
+.budgetHeader strong {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  color: #1E293B;
+}
+
+.budgetSubtext {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: #94A3B8;
+}
+
+.budgetSliderContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px 20px 20px;
+}
+
+.budgetLabel {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffffff;
+  background-color: #1E293B;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.budgetSliderTrack {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  background-color: #E2E8F0;
+  border-radius: 3px;
+}
+
+.budgetRangeInput {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  transform: translateY(-50%);
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  pointer-events: none;
+  height: 6px;
+  margin: 0;
+}
+
+.budgetRangeInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #3B82F6;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.budgetRangeInput::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #3B82F6;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* ==================== */
+/* Mobile Responsive    */
+/* ==================== */
 @media (max-width: 767px) {
   .searchTabsRow {
     flex-direction: column;
@@ -2209,6 +2530,9 @@
     border-top: 1px dashed var(--color-border);
     padding-top: 8px;
   }
+  .tabsSeparator {
+    display: none;
+  }
   .searchInputsRow {
     flex-direction: column;
     align-items: flex-start;
@@ -2219,6 +2543,14 @@
     width: 100%;
     border-bottom: 1px solid var(--color-border);
     padding-bottom: 12px;
+  }
+  .categoryDropdown {
+    min-width: 280px;
+    left: 0;
+  }
+  .categoryCheckboxGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
   .searchQueryPane {
     width: 100%;
@@ -2231,7 +2563,29 @@
     width: 100%;
     text-align: center;
   }
+  .filterPillsRow {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .pillDropdownPanel {
+    min-width: 260px;
+  }
+  .budgetSliderContainer {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .tooltip {
+    display: none;
+  }
 }
 
-
+@media (min-width: 768px) and (max-width: 1023px) {
+  .categoryDropdown {
+    min-width: 420px;
+  }
+  .categoryCheckboxGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 

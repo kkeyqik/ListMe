@@ -168,15 +168,45 @@ export default function Home() {
 
   const [dbCities, setDbCities] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('Buy');
-  const [selectedCategory, setSelectedCategory] = useState('All Residential');
+  const defaultCategories = new Set(['Flat/Apartment', 'Builder Floor', 'Independent House/Villa', 'Residential Land', '1 RK/ Studio Apartment', 'Farm House', 'Serviced Apartments', 'Other']);
+  const [checkedCategories, setCheckedCategories] = useState<Set<string>>(new Set(defaultCategories));
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const categoryMenuRef = useRef<HTMLDivElement>(null);
+
+  // Filter pills state
+  const [activePill, setActivePill] = useState<string | null>(null);
+  const [budgetRange, setBudgetRange] = useState<[number, number]>([0, 100]);
+  const [selectedBedrooms, setSelectedBedrooms] = useState<string>('Any');
+  const [selectedConstructionStatus, setSelectedConstructionStatus] = useState<string>('Any');
+  const [selectedPostedBy, setSelectedPostedBy] = useState<string>('Any');
+  const pillsRef = useRef<HTMLDivElement>(null);
+
+  // Category label helper
+  const categoryLabel = checkedCategories.size === defaultCategories.size
+    ? 'All Residential'
+    : checkedCategories.size === 0
+      ? 'Select Type'
+      : checkedCategories.size === 1
+        ? Array.from(checkedCategories)[0]
+        : `${checkedCategories.size} Selected`;
+
+  const toggleCategory = (cat: string) => {
+    setCheckedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target as Node)) {
         setIsCategoryOpen(false);
+      }
+      if (pillsRef.current && !pillsRef.current.contains(e.target as Node)) {
+        setActivePill(null);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -505,15 +535,13 @@ export default function Home() {
       params.set('type', 'sale');
     }
 
-    // 4. Resolve selected category
-    if (selectedCategory === 'Apartments') {
-      params.set('property_type', 'APARTMENT');
-    } else if (selectedCategory === 'Villas') {
-      params.set('property_type', 'VILLA');
-    } else if (selectedCategory === 'Plots') {
-      params.set('property_type', 'PLOT');
-    } else if (selectedCategory === 'Commercial') {
-      params.set('property_type', 'COMMERCIAL');
+    // 4. Resolve selected categories
+    if (checkedCategories.size === 1) {
+      const cat = Array.from(checkedCategories)[0];
+      if (cat === 'Flat/Apartment') params.set('property_type', 'APARTMENT');
+      else if (cat === 'Independent House/Villa') params.set('property_type', 'VILLA');
+      else if (cat === 'Residential Land') params.set('property_type', 'PLOT');
+      else if (cat === 'Builder Floor') params.set('property_type', 'HOUSE');
     }
 
     // Save to localStorage
@@ -526,7 +554,7 @@ export default function Home() {
         const parts = [];
         if (resolvedCity) parts.push(resolvedCity.charAt(0).toUpperCase() + resolvedCity.slice(1));
         parts.push(activeTab);
-        if (selectedCategory !== 'All Residential') parts.push(selectedCategory);
+        if (checkedCategories.size < defaultCategories.size && checkedCategories.size > 0) parts.push(categoryLabel);
         if (resolvedBhk) parts.push(`${resolvedBhk} BHK`);
 
         const display = parts.join(' • ') || 'All Listings';
@@ -682,6 +710,8 @@ export default function Home() {
                   </div>
 
                   <div className={styles.searchTabsRight}>
+                    {/* Vertical separator before Post Property */}
+                    <div className={styles.tabsSeparator} />
                     <a href="/post-property" className={styles.postPropertyTab}>
                       Post Property <span className={styles.freeBadge}>FREE</span>
                     </a>
@@ -690,31 +720,49 @@ export default function Home() {
 
                 {/* 2. Second Row: Inputs */}
                 <div className={styles.searchInputsRow}>
-                  {/* Category Dropdown */}
+                  {/* Category Dropdown with Checkbox Panel */}
                   <div className={styles.categorySelectWrapper} ref={categoryMenuRef}>
                     <button
                       type="button"
                       className={styles.categorySelectPane}
                       onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                     >
-                      <span>{selectedCategory}</span>
-                      <ChevronDown size={16} />
+                      <span>{categoryLabel}</span>
+                      <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isCategoryOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
                     </button>
                     {isCategoryOpen && (
                       <div className={styles.categoryDropdown}>
-                        {['All Residential', 'Apartments', 'Villas', 'Plots', 'Commercial'].map((opt) => (
+                        <div className={styles.categoryDropdownHeader}>
+                          <span />
                           <button
-                            key={opt}
                             type="button"
-                            className={styles.categoryDropdownOption}
-                            onClick={() => {
-                              setSelectedCategory(opt);
-                              setIsCategoryOpen(false);
-                            }}
+                            className={styles.categoryClearBtn}
+                            onClick={() => setCheckedCategories(new Set())}
                           >
-                            {opt}
+                            Clear
                           </button>
-                        ))}
+                        </div>
+                        <div className={styles.categoryCheckboxGrid}>
+                          {Array.from(defaultCategories).map((cat) => (
+                            <label key={cat} className={styles.categoryCheckboxLabel}>
+                              <input
+                                type="checkbox"
+                                checked={checkedCategories.has(cat)}
+                                onChange={() => toggleCategory(cat)}
+                                className={styles.categoryCheckbox}
+                              />
+                              <span className={styles.categoryCheckboxCustom}>
+                                {checkedCategories.has(cat) && (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                )}
+                              </span>
+                              <span className={styles.categoryCheckboxText}>{cat}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className={styles.categoryDropdownFooter}>
+                          Looking for commercial properties? <a href="/listings?type=commercial" className={styles.commercialLink}>Click here</a>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -734,30 +782,157 @@ export default function Home() {
                   </div>
 
                   <div className={styles.actionsGroup}>
-                    {/* Locate Button */}
-                    <button
-                      type="button"
-                      onClick={handleLocateMe}
-                      className={styles.actionCircleBtn}
-                      title="Locate me"
-                    >
-                      <Navigation size={18} />
-                    </button>
+                    {/* Locate Button with tooltip */}
+                    <div className={styles.tooltipWrapper}>
+                      <button
+                        type="button"
+                        onClick={handleLocateMe}
+                        className={styles.actionCircleBtn}
+                      >
+                        <Navigation size={18} />
+                      </button>
+                      <div className={styles.tooltip}>
+                        <Navigation size={14} style={{ flexShrink: 0 }} /> Search <strong>Near Me</strong>
+                      </div>
+                    </div>
 
-                    {/* Voice search Button */}
-                    <button
-                      type="button"
-                      onClick={handleVoiceSearch}
-                      className={styles.actionCircleBtn}
-                      title="Voice search"
-                    >
-                      <Mic size={18} />
-                    </button>
+                    {/* Voice search Button with tooltip */}
+                    <div className={styles.tooltipWrapper}>
+                      <button
+                        type="button"
+                        onClick={handleVoiceSearch}
+                        className={styles.actionCircleBtn}
+                      >
+                        <Mic size={18} />
+                      </button>
+                      <div className={styles.tooltip}>
+                        <Mic size={14} style={{ flexShrink: 0 }} /> Search by <strong>Voice</strong> <span className={styles.newBadge}>NEW</span>
+                      </div>
+                    </div>
 
                     {/* Search Button */}
                     <button type="submit" className={styles.solidBlueSearchBtn}>
                       Search
                     </button>
+                  </div>
+                </div>
+
+                {/* 3. Third Row: Filter Pills */}
+                <div className={styles.filterPillsRow} ref={pillsRef}>
+                  {/* Budget Pill */}
+                  <div className={styles.filterPillWrapper}>
+                    <button
+                      type="button"
+                      className={`${styles.filterPill} ${activePill === 'budget' ? styles.filterPillActive : ''}`}
+                      onClick={() => setActivePill(activePill === 'budget' ? null : 'budget')}
+                    >
+                      Budget <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: activePill === 'budget' ? 'rotate(180deg)' : 'rotate(0)' }} />
+                    </button>
+                    {activePill === 'budget' && (
+                      <div className={styles.pillDropdownPanel}>
+                        <div className={styles.budgetHeader}>
+                          <strong>Select Price Range</strong>
+                          <span className={styles.budgetSubtext}>{budgetRange[0]} - {budgetRange[1] >= 100 ? '100+' : budgetRange[1]} Crore</span>
+                        </div>
+                        <div className={styles.budgetSliderContainer}>
+                          <span className={styles.budgetLabel}>{budgetRange[0]}</span>
+                          <div className={styles.budgetSliderTrack}>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={budgetRange[0]}
+                              onChange={(e) => setBudgetRange([Math.min(Number(e.target.value), budgetRange[1] - 1), budgetRange[1]])}
+                              className={styles.budgetRangeInput}
+                            />
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={budgetRange[1]}
+                              onChange={(e) => setBudgetRange([budgetRange[0], Math.max(Number(e.target.value), budgetRange[0] + 1)])}
+                              className={styles.budgetRangeInput}
+                            />
+                          </div>
+                          <span className={styles.budgetLabel}>100+ Crores</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bedroom Pill */}
+                  <div className={styles.filterPillWrapper}>
+                    <button
+                      type="button"
+                      className={`${styles.filterPill} ${activePill === 'bedroom' ? styles.filterPillActive : ''}`}
+                      onClick={() => setActivePill(activePill === 'bedroom' ? null : 'bedroom')}
+                    >
+                      Bedroom <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: activePill === 'bedroom' ? 'rotate(180deg)' : 'rotate(0)' }} />
+                    </button>
+                    {activePill === 'bedroom' && (
+                      <div className={styles.pillDropdownPanel}>
+                        {['Any', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={`${styles.pillOption} ${selectedBedrooms === opt ? styles.pillOptionActive : ''}`}
+                            onClick={() => { setSelectedBedrooms(opt); setActivePill(null); }}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Construction Status Pill */}
+                  <div className={styles.filterPillWrapper}>
+                    <button
+                      type="button"
+                      className={`${styles.filterPill} ${activePill === 'construction' ? styles.filterPillActive : ''}`}
+                      onClick={() => setActivePill(activePill === 'construction' ? null : 'construction')}
+                    >
+                      Construction Status <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: activePill === 'construction' ? 'rotate(180deg)' : 'rotate(0)' }} />
+                    </button>
+                    {activePill === 'construction' && (
+                      <div className={styles.pillDropdownPanel}>
+                        {['Any', 'Ready to Move', 'Under Construction', 'New Launch'].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={`${styles.pillOption} ${selectedConstructionStatus === opt ? styles.pillOptionActive : ''}`}
+                            onClick={() => { setSelectedConstructionStatus(opt); setActivePill(null); }}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Posted By Pill */}
+                  <div className={styles.filterPillWrapper}>
+                    <button
+                      type="button"
+                      className={`${styles.filterPill} ${activePill === 'postedby' ? styles.filterPillActive : ''}`}
+                      onClick={() => setActivePill(activePill === 'postedby' ? null : 'postedby')}
+                    >
+                      Posted By <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: activePill === 'postedby' ? 'rotate(180deg)' : 'rotate(0)' }} />
+                    </button>
+                    {activePill === 'postedby' && (
+                      <div className={styles.pillDropdownPanel}>
+                        {['Any', 'Owner', 'Dealer', 'Builder'].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={`${styles.pillOption} ${selectedPostedBy === opt ? styles.pillOptionActive : ''}`}
+                            onClick={() => { setSelectedPostedBy(opt); setActivePill(null); }}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
