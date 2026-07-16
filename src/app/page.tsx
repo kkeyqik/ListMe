@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, Building, Building2, ShieldCheck, Heart, Check, Tag, ArrowUp, MapPin, MessageSquare, Calendar, Home as HomeIcon, CheckCircle, Users, CircleDollarSign, Star } from 'lucide-react';
 import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
@@ -107,6 +108,7 @@ const mapDbListingToProperty = (dbListing: any) => {
 };
 
 export default function Home() {
+  const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
   const [searchLocation, setSearchLocation] = useState('');
   const [searchType, setSearchType] = useState('sale');
@@ -635,10 +637,12 @@ export default function Home() {
           <div className="container">
             <div className={`${styles.featuredHeader} animate-fade-in`}>
               <div>
-                <span className={styles.sectionEyebrow}>Structured Directory</span>
-                <h2 className={styles.featuredTitle} style={{ textTransform: 'capitalize' }}>
-                  Apartments, Villas & Land in {searchLocation || 'Your City'}
+                <h2 className={styles.featuredTitle}>
+                  Apartments, Villas and more
                 </h2>
+                <div className={styles.citySubtitle}>
+                  IN <MapPin size={24} className={styles.citySubtitleIcon} /> <span className={styles.cityNameBold}>{searchLocation ? searchLocation.toUpperCase() : 'YOUR LOCATION'}</span>
+                </div>
               </div>
             </div>
 
@@ -647,9 +651,10 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
-                  setSelectedBhk('ALL');
-                  setSelectedPossession('ALL');
-                  document.getElementById('featured-grid')?.scrollIntoView({ behavior: 'smooth' });
+                  const url = searchLocation
+                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=APARTMENT`
+                    : '/listings?property_type=APARTMENT';
+                  router.push(url);
                 }}
               >
                 <img 
@@ -670,9 +675,10 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
-                  setSelectedBhk('ALL');
-                  setSelectedPossession('ALL');
-                  document.getElementById('featured-grid')?.scrollIntoView({ behavior: 'smooth' });
+                  const url = searchLocation
+                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=VILLA`
+                    : '/listings?property_type=VILLA';
+                  router.push(url);
                 }}
               >
                 <img 
@@ -693,9 +699,10 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
-                  setSelectedBhk('ALL');
-                  setSelectedPossession('ALL');
-                  document.getElementById('featured-grid')?.scrollIntoView({ behavior: 'smooth' });
+                  const url = searchLocation
+                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=PLOT`
+                    : '/listings?property_type=PLOT';
+                  router.push(url);
                 }}
               >
                 <img 
