@@ -12,7 +12,7 @@
   height: 100vh;
   border: none;
   border-radius: 0;
-  overflow: hidden;
+  overflow: visible;
   /* Subtle dark scrim only on the left to ensure text readability — image shows through fully on the right */
   background: linear-gradient(105deg, rgba(8, 17, 32, 0.72) 0%, rgba(8, 17, 32, 0.55) 30%, rgba(8, 17, 32, 0.15) 55%, rgba(8, 17, 32, 0.02) 75%, transparent 100%), 
               url('/images/hero_bg.jpg') no-repeat center 40% / cover;
