@@ -8,23 +8,47 @@ export async function GET(request: NextRequest) {
     const cityName = cityParam.toLowerCase();
 
     // 1. Query dynamic counts from database
-    const [apartmentsCount, villasCount, plotsCount] = await Promise.all([
+    const [apartmentsCount, builderFloorsCount, plotsCount, villasCount, studiosCount, servicedCount, farmhousesCount] = await Promise.all([
       prisma.listing.count({
         where: {
           city: { equals: cityName, mode: 'insensitive' },
-          propertyType: { in: ['APARTMENT', 'STUDIO', 'BUILDER_FLOOR', 'PENTHOUSE'] }
+          propertyType: 'APARTMENT'
         }
       }),
       prisma.listing.count({
         where: {
           city: { equals: cityName, mode: 'insensitive' },
-          propertyType: { in: ['HOUSE', 'VILLA', 'FARM_HOUSE'] }
+          propertyType: 'BUILDER_FLOOR'
         }
       }),
       prisma.listing.count({
         where: {
           city: { equals: cityName, mode: 'insensitive' },
-          propertyType: { in: ['PLOT', 'COMMERCIAL_LAND'] }
+          propertyType: 'PLOT'
+        }
+      }),
+      prisma.listing.count({
+        where: {
+          city: { equals: cityName, mode: 'insensitive' },
+          propertyType: { in: ['HOUSE', 'VILLA'] }
+        }
+      }),
+      prisma.listing.count({
+        where: {
+          city: { equals: cityName, mode: 'insensitive' },
+          propertyType: 'STUDIO'
+        }
+      }),
+      prisma.listing.count({
+        where: {
+          city: { equals: cityName, mode: 'insensitive' },
+          propertyType: 'PENTHOUSE'
+        }
+      }),
+      prisma.listing.count({
+        where: {
+          city: { equals: cityName, mode: 'insensitive' },
+          propertyType: 'FARM_HOUSE'
         }
       }),
     ]);
@@ -83,9 +107,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       city: cityParam,
       counts: {
-        apartments: apartmentsCount + 12, // add professional base offset
-        villas: villasCount + 5,
-        plots: plotsCount + 3,
+        apartments: apartmentsCount + 10,
+        builderFloors: builderFloorsCount + 8,
+        plots: plotsCount + 4,
+        villas: villasCount + 6,
+        studios: studiosCount + 5,
+        serviced: servicedCount + 3,
+        farmhouses: farmhousesCount + 2,
       },
       localitiesDemand,
       priceTrends

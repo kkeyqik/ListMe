@@ -647,7 +647,7 @@ export default function Home() {
             </div>
 
             <div className={`${styles.typesGrid} animate-fade-in`}>
-              {/* Apartments */}
+              {/* 1. Apartments */}
               <div 
                 className={styles.typeCard}
                 onClick={() => {
@@ -671,31 +671,31 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Villas */}
+              {/* 2. Builder Floor */}
               <div 
                 className={styles.typeCard}
                 onClick={() => {
                   const url = searchLocation
-                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=VILLA`
-                    : '/listings?property_type=VILLA';
+                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=BUILDER_FLOOR`
+                    : '/listings?property_type=BUILDER_FLOOR';
                   router.push(url);
                 }}
               >
                 <img 
-                  src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80" 
-                  alt="Villas" 
+                  src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80" 
+                  alt="Builder Floor" 
                   className={styles.typeCardImg}
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
-                  <h3 className={styles.typeCardTitle}>Villas & Duplexes</h3>
+                  <h3 className={styles.typeCardTitle}>Builder Floor</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.villas || 5} Active Listings
+                    {cityTrends?.counts?.builderFloors || 8} Active Listings
                   </span>
                 </div>
               </div>
 
-              {/* Land */}
+              {/* 3. Residential Land */}
               <div 
                 className={styles.typeCard}
                 onClick={() => {
@@ -712,9 +712,105 @@ export default function Home() {
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
-                  <h3 className={styles.typeCardTitle}>Residential Land & Plots</h3>
+                  <h3 className={styles.typeCardTitle}>Residential Land</h3>
                   <span className={styles.typeCardCount}>
-                    {cityTrends?.counts?.plots || 3} Active Listings
+                    {cityTrends?.counts?.plots || 4} Active Listings
+                  </span>
+                </div>
+              </div>
+
+              {/* 4. Independent House/Villa */}
+              <div 
+                className={styles.typeCard}
+                onClick={() => {
+                  const url = searchLocation
+                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=VILLA`
+                    : '/listings?property_type=VILLA';
+                  router.push(url);
+                }}
+              >
+                <img 
+                  src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80" 
+                  alt="Villas" 
+                  className={styles.typeCardImg}
+                />
+                <div className={styles.typeCardOverlay} />
+                <div className={styles.typeCardContent}>
+                  <h3 className={styles.typeCardTitle}>Independent House/Villa</h3>
+                  <span className={styles.typeCardCount}>
+                    {cityTrends?.counts?.villas || 6} Active Listings
+                  </span>
+                </div>
+              </div>
+
+              {/* 5. 1 RK/ Studio Apartment */}
+              <div 
+                className={styles.typeCard}
+                onClick={() => {
+                  const url = searchLocation
+                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=STUDIO`
+                    : '/listings?property_type=STUDIO';
+                  router.push(url);
+                }}
+              >
+                <img 
+                  src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80" 
+                  alt="Studio" 
+                  className={styles.typeCardImg}
+                />
+                <div className={styles.typeCardOverlay} />
+                <div className={styles.typeCardContent}>
+                  <h3 className={styles.typeCardTitle}>1 RK / Studio Apt</h3>
+                  <span className={styles.typeCardCount}>
+                    {cityTrends?.counts?.studios || 5} Active Listings
+                  </span>
+                </div>
+              </div>
+
+              {/* 6. Serviced Apartments */}
+              <div 
+                className={styles.typeCard}
+                onClick={() => {
+                  const url = searchLocation
+                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=PENTHOUSE`
+                    : '/listings?property_type=PENTHOUSE';
+                  router.push(url);
+                }}
+              >
+                <img 
+                  src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80" 
+                  alt="Serviced Apartments" 
+                  className={styles.typeCardImg}
+                />
+                <div className={styles.typeCardOverlay} />
+                <div className={styles.typeCardContent}>
+                  <h3 className={styles.typeCardTitle}>Serviced Apartments</h3>
+                  <span className={styles.typeCardCount}>
+                    {cityTrends?.counts?.serviced || 3} Active Listings
+                  </span>
+                </div>
+              </div>
+
+              {/* 7. Farmhouse */}
+              <div 
+                className={styles.typeCard}
+                onClick={() => {
+                  const url = searchLocation
+                    ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=FARM_HOUSE`
+                    : '/listings?property_type=FARM_HOUSE';
+                  router.push(url);
+                }}
+              >
+                <img 
+                  src="https://images.unsplash.com/photo-1500076656116-558758c991c1?auto=format&fit=crop&w=800&q=80" 
+                  alt="Farmhouse" 
+                  className={styles.typeCardImg}
+                />
+                <div className={styles.typeCardOverlay} />
+                <div className={styles.typeCardContent}>
+                  <h3 className={styles.typeCardTitle}>Farmhouse</h3>
+                  <span className={styles.typeCardCount}>
+                    {cityTrends?.counts?.farmhouses || 2} Active Listings
                   </span>
                 </div>
               </div>
