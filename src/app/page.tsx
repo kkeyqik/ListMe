@@ -128,6 +128,44 @@ export default function Home() {
       });
     }
   };
+  const [isDown, setIsDown] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeftState, setScrollLeftState] = useState(0);
+  const [dragged, setDragged] = useState(false);
+  const mouseDownPos = useRef({ x: 0, y: 0 });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!categoriesRef.current) return;
+    setIsDown(true);
+    setDragged(false);
+    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+    setStartX(e.pageX - categoriesRef.current.offsetLeft);
+    setScrollLeftState(categoriesRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDown(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDown(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDown || !categoriesRef.current) return;
+    const deltaX = Math.abs(e.clientX - mouseDownPos.current.x);
+    const deltaY = Math.abs(e.clientY - mouseDownPos.current.y);
+    
+    if (deltaX > 5 || deltaY > 5) {
+      setDragged(true);
+    }
+    
+    e.preventDefault();
+    const x = e.pageX - categoriesRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    categoriesRef.current.scrollLeft = scrollLeftState - walk;
+  };
+
   const [dbCities, setDbCities] = useState<any[]>([]);
 
   const [featuredProperties, setFeaturedProperties] = useState<any[]>(staticHandpickedProperties);
@@ -665,11 +703,20 @@ export default function Home() {
               </div>
             </div>
 
-            <div className={`${styles.typesGrid} animate-fade-in`} ref={categoriesRef}>
+            <div 
+              className={`${styles.typesGrid} animate-fade-in`} 
+              ref={categoriesRef}
+              onMouseDown={handleMouseDown}
+              onMouseLeave={handleMouseLeave}
+              onMouseUp={handleMouseUp}
+              onMouseMove={handleMouseMove}
+              style={{ cursor: isDown ? 'grabbing' : 'grab', userSelect: 'none' }}
+            >
               {/* 1. Apartments */}
               <div 
                 className={styles.typeCard}
                 onClick={() => {
+                  if (dragged) return;
                   const url = searchLocation
                     ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=APARTMENT`
                     : '/listings?property_type=APARTMENT';
@@ -680,6 +727,7 @@ export default function Home() {
                   src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80" 
                   alt="Apartments" 
                   className={styles.typeCardImg}
+                  draggable="false"
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
@@ -694,6 +742,7 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
+                  if (dragged) return;
                   const url = searchLocation
                     ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=BUILDER_FLOOR`
                     : '/listings?property_type=BUILDER_FLOOR';
@@ -704,6 +753,7 @@ export default function Home() {
                   src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80" 
                   alt="Builder Floor" 
                   className={styles.typeCardImg}
+                  draggable="false"
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
@@ -718,6 +768,7 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
+                  if (dragged) return;
                   const url = searchLocation
                     ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=PLOT`
                     : '/listings?property_type=PLOT';
@@ -728,6 +779,7 @@ export default function Home() {
                   src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80" 
                   alt="Land/Plots" 
                   className={styles.typeCardImg}
+                  draggable="false"
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
@@ -742,6 +794,7 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
+                  if (dragged) return;
                   const url = searchLocation
                     ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=VILLA`
                     : '/listings?property_type=VILLA';
@@ -752,6 +805,7 @@ export default function Home() {
                   src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80" 
                   alt="Villas" 
                   className={styles.typeCardImg}
+                  draggable="false"
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
@@ -766,6 +820,7 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
+                  if (dragged) return;
                   const url = searchLocation
                     ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=STUDIO`
                     : '/listings?property_type=STUDIO';
@@ -776,6 +831,7 @@ export default function Home() {
                   src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80" 
                   alt="Studio" 
                   className={styles.typeCardImg}
+                  draggable="false"
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
@@ -790,6 +846,7 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
+                  if (dragged) return;
                   const url = searchLocation
                     ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=PENTHOUSE`
                     : '/listings?property_type=PENTHOUSE';
@@ -800,6 +857,7 @@ export default function Home() {
                   src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80" 
                   alt="Serviced Apartments" 
                   className={styles.typeCardImg}
+                  draggable="false"
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
@@ -814,6 +872,7 @@ export default function Home() {
               <div 
                 className={styles.typeCard}
                 onClick={() => {
+                  if (dragged) return;
                   const url = searchLocation
                     ? `/listings?city=${encodeURIComponent(searchLocation)}&property_type=FARM_HOUSE`
                     : '/listings?property_type=FARM_HOUSE';
@@ -824,6 +883,7 @@ export default function Home() {
                   src="https://images.unsplash.com/photo-1500076656116-558758c991c1?auto=format&fit=crop&w=800&q=80" 
                   alt="Farmhouse" 
                   className={styles.typeCardImg}
+                  draggable="false"
                 />
                 <div className={styles.typeCardOverlay} />
                 <div className={styles.typeCardContent}>
