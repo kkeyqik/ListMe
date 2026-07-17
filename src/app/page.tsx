@@ -1168,6 +1168,10 @@ export default function Home() {
                                           setCommercialTrade(t as any);
                                           if (t === 'Invest') {
                                             setCommercialType('All Commercial');
+                                          } else if (t === 'Lease') {
+                                            setCommercialType('Office Spaces');
+                                          } else if (t === 'Buy') {
+                                            setCommercialType('All Commercial');
                                           }
                                         }}
                                         className={styles.radioInput}
