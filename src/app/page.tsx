@@ -181,6 +181,18 @@ export default function Home() {
   const [selectedConstructionStatus, setSelectedConstructionStatus] = useState<string>('Any');
   const [selectedPostedBy, setSelectedPostedBy] = useState<string>('Any');
 
+  // Commercial States
+  const [commercialTrade, setCommercialTrade] = useState<'Buy' | 'Lease' | 'Invest'>('Buy');
+  const [isCommercialTradeOpen, setIsCommercialTradeOpen] = useState(false);
+  const [commercialType, setCommercialType] = useState<string>('All Commercial');
+  const [isCommercialTypeOpen, setIsCommercialTypeOpen] = useState(false);
+  const [officeSpaceType, setOfficeSpaceType] = useState<string | null>(null);
+  const [commercialArea, setCommercialArea] = useState<[number, number]>([0, 10000]);
+  const [commercialActiveView, setCommercialActiveView] = useState<'main' | 'budget' | 'area' | 'construction' | 'postedby'>('main');
+
+  const commercialTradeMenuRef = useRef<HTMLDivElement>(null);
+  const commercialTypeMenuRef = useRef<HTMLDivElement>(null);
+
   // Category label helper
   const categoryLabel = checkedCategories.size === defaultCategories.size
     ? 'All Residential'
@@ -205,10 +217,186 @@ export default function Home() {
         setIsCategoryOpen(false);
         setActiveDropdownView('main');
       }
+      if (commercialTradeMenuRef.current && !commercialTradeMenuRef.current.contains(e.target as Node)) {
+        setIsCommercialTradeOpen(false);
+        setCommercialActiveView('main');
+      }
+      if (commercialTypeMenuRef.current && !commercialTypeMenuRef.current.contains(e.target as Node)) {
+        setIsCommercialTypeOpen(false);
+        setCommercialActiveView('main');
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const renderCommercialSubView = () => {
+    return (
+      <>
+        <div className={styles.subViewHeader}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => setCommercialActiveView('main')}
+          >
+            <ArrowLeft size={16} />
+            <span>Back</span>
+          </button>
+
+          <div className={styles.subViewPills}>
+            <button
+              type="button"
+              className={`${styles.filterPill} ${commercialActiveView === 'budget' ? styles.filterPillActive : ''}`}
+              onClick={() => setCommercialActiveView('budget')}
+            >
+              Budget <ChevronDown size={14} />
+            </button>
+            <button
+              type="button"
+              className={`${styles.filterPill} ${commercialActiveView === 'area' ? styles.filterPillActive : ''}`}
+              onClick={() => setCommercialActiveView('area')}
+            >
+              Area <ChevronDown size={14} />
+            </button>
+            {commercialTrade !== 'Lease' && (
+              <button
+                type="button"
+                className={`${styles.filterPill} ${commercialActiveView === 'construction' ? styles.filterPillActive : ''}`}
+                onClick={() => setCommercialActiveView('construction')}
+              >
+                Construction Status <ChevronDown size={14} />
+              </button>
+            )}
+            <button
+              type="button"
+              className={`${styles.filterPill} ${commercialActiveView === 'postedby' ? styles.filterPillActive : ''}`}
+              onClick={() => setCommercialActiveView('postedby')}
+            >
+              Posted By <ChevronDown size={14} />
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.subViewContent}>
+          {commercialActiveView === 'budget' && (
+            <div className={styles.subViewPanel}>
+              <div className={styles.budgetHeader}>
+                <strong>Select Price Range</strong>
+                <span className={styles.budgetSubtext}>{budgetRange[0]} - {budgetRange[1] >= 100 ? '100+' : budgetRange[1]} Crore</span>
+              </div>
+              <div className={styles.budgetSliderContainer}>
+                <span className={styles.budgetLabel}>{budgetRange[0]}</span>
+                <div className={styles.budgetSliderTrack}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={budgetRange[0]}
+                    onChange={(e) => setBudgetRange([Math.min(Number(e.target.value), budgetRange[1] - 1), budgetRange[1]])}
+                    className={styles.budgetRangeInput}
+                  />
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={budgetRange[1]}
+                    onChange={(e) => setBudgetRange([budgetRange[0], Math.max(Number(e.target.value), budgetRange[0] + 1)])}
+                    className={styles.budgetRangeInput}
+                  />
+                </div>
+                <span className={styles.budgetLabel}>100+ Crores</span>
+              </div>
+            </div>
+          )}
+
+          {commercialActiveView === 'area' && (
+            <div className={styles.subViewPanel}>
+              <div className={styles.budgetHeader}>
+                <strong>Select Area Range (sq ft)</strong>
+                <span className={styles.budgetSubtext}>{commercialArea[0]} - {commercialArea[1] >= 10000 ? '10,000+' : commercialArea[1]} sq ft</span>
+              </div>
+              <div className={styles.budgetSliderContainer}>
+                <span className={styles.budgetLabel}>{commercialArea[0]}</span>
+                <div className={styles.budgetSliderTrack}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={10000}
+                    step={100}
+                    value={commercialArea[0]}
+                    onChange={(e) => setCommercialArea([Math.min(Number(e.target.value), commercialArea[1] - 100), commercialArea[1]])}
+                    className={styles.budgetRangeInput}
+                  />
+                  <input
+                    type="range"
+                    min={0}
+                    max={10000}
+                    step={100}
+                    value={commercialArea[1]}
+                    onChange={(e) => setCommercialArea([commercialArea[0], Math.max(Number(e.target.value), commercialArea[0] + 100)])}
+                    className={styles.budgetRangeInput}
+                  />
+                </div>
+                <span className={styles.budgetLabel}>10,000+ sq ft</span>
+              </div>
+            </div>
+          )}
+
+          {commercialActiveView === 'construction' && (
+            <div className={styles.subViewPanel}>
+              <h4 className={styles.subViewPanelTitle}>Construction Status</h4>
+              <div className={styles.subViewPanelOptions}>
+                {[
+                  { label: 'New Launch', value: 'New Launch' },
+                  { label: 'Under Construction', value: 'Under Construction' },
+                  { label: 'Ready to move', value: 'Ready to Move' }
+                ].map((opt) => {
+                  const isActive = selectedConstructionStatus === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                      onClick={() => setSelectedConstructionStatus(isActive ? 'Any' : opt.value)}
+                    >
+                      <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {commercialActiveView === 'postedby' && (
+            <div className={styles.subViewPanel}>
+              <h4 className={styles.subViewPanelTitle}>Posted By</h4>
+              <div className={styles.subViewPanelOptions}>
+                {[
+                  { label: 'Owner', value: 'Owner' },
+                  { label: 'Dealer', value: 'Dealer' },
+                  { label: 'Builder', value: 'Builder' }
+                ].map((opt) => {
+                  const isActive = selectedPostedBy === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                      onClick={() => setSelectedPostedBy(isActive ? 'Any' : opt.value)}
+                    >
+                      <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
 
   const handleLocateMe = () => {
     if (navigator.geolocation) {
@@ -526,19 +714,38 @@ export default function Home() {
       params.set('type', 'rent');
     } else if (activeTab === 'Commercial') {
       params.set('type', 'commercial');
+      params.set('commercial_trade', commercialTrade.toLowerCase());
+      if (commercialType === 'Office Spaces') params.set('property_type', 'OFFICE');
+      else if (commercialType === 'Shops & Retail') params.set('property_type', 'SHOP');
+      else if (commercialType === 'Other commercial spaces') params.set('property_type', 'WAREHOUSE');
+      else if (commercialType === 'Factory & Manufacturing') params.set('property_type', 'COMMERCIAL_LAND');
+      
+      // Pass area filters for commercial
+      if (commercialArea[0] > 0) params.set('min_area', commercialArea[0].toString());
+      if (commercialArea[1] < 10000) params.set('max_area', commercialArea[1].toString());
     } else if (activeTab === 'Plots/Land') {
       params.set('property_type', 'PLOT');
     } else {
       params.set('type', 'sale');
     }
 
-    // 4. Resolve selected categories
-    if (checkedCategories.size === 1) {
-      const cat = Array.from(checkedCategories)[0];
-      if (cat === 'Flat/Apartment') params.set('property_type', 'APARTMENT');
-      else if (cat === 'Independent House/Villa') params.set('property_type', 'VILLA');
-      else if (cat === 'Residential Land') params.set('property_type', 'PLOT');
-      else if (cat === 'Builder Floor') params.set('property_type', 'HOUSE');
+    // 4. Resolve selected categories (only if not Commercial or Plots/Land)
+    if (activeTab !== 'Commercial' && activeTab !== 'Plots/Land') {
+      if (checkedCategories.size === 1) {
+        const cat = Array.from(checkedCategories)[0];
+        if (cat === 'Flat/Apartment') params.set('property_type', 'APARTMENT');
+        else if (cat === 'Independent House/Villa') params.set('property_type', 'VILLA');
+        else if (cat === 'Residential Land') params.set('property_type', 'PLOT');
+        else if (cat === 'Builder Floor') params.set('property_type', 'HOUSE');
+      }
+    }
+
+    // 5. Budget Filters
+    if (budgetRange[0] > 0) {
+      params.set('min_price', (budgetRange[0] * 10000000).toString());
+    }
+    if (budgetRange[1] < 100) {
+      params.set('max_price', (budgetRange[1] * 10000000).toString());
     }
 
     // Save to localStorage
@@ -688,7 +895,7 @@ export default function Home() {
 
               {/* Floating Search Bar Container */}
             <div className={`${styles.searchCapsuleContainer} search-capsule-animate`}>
-              <form onSubmit={handleSearchSubmit} className={`${styles.premiumSearchBox} ${isCategoryOpen ? styles.premiumSearchBoxDropdownOpen : ''}`}>
+              <form onSubmit={handleSearchSubmit} className={`${styles.premiumSearchBox} ${(isCategoryOpen || isCommercialTradeOpen || isCommercialTypeOpen) ? styles.premiumSearchBoxDropdownOpen : ''}`}>
                 
                 {/* 1. First Row: Tabs */}
                 <div className={styles.searchTabsRow}>
@@ -717,258 +924,493 @@ export default function Home() {
 
                 {/* 2. Second Row: Inputs */}
                 <div className={styles.searchInputsRow}>
-                  {/* Category Dropdown with Checkbox Panel & Nested Sub-filters */}
-                  <div className={styles.categorySelectWrapper} ref={categoryMenuRef}>
-                    <button
-                      type="button"
-                      className={styles.categorySelectPane}
-                      onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                    >
-                      <span>{categoryLabel}</span>
-                      <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isCategoryOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
-                    </button>
-                    {isCategoryOpen && (
-                      <div className={styles.categoryDropdown}>
-                        {activeDropdownView === 'main' ? (
-                          <>
-                            {/* Main Checkboxes View */}
-                            <div className={styles.categoryDropdownHeader}>
-                              <span className={styles.categoryDropdownTitle}>Property Type</span>
-                              <button
-                                type="button"
-                                className={styles.categoryClearBtn}
-                                onClick={() => setCheckedCategories(new Set())}
-                              >
-                                Clear
-                              </button>
-                            </div>
-                            <div className={styles.categoryCheckboxGrid}>
-                              {Array.from(defaultCategories).map((cat) => (
-                                <label key={cat} className={styles.categoryCheckboxLabel}>
-                                  <input
-                                    type="checkbox"
-                                    checked={checkedCategories.has(cat)}
-                                    onChange={() => toggleCategory(cat)}
-                                    className={styles.categoryCheckbox}
-                                  />
-                                  <span className={styles.categoryCheckboxCustom}>
-                                    {checkedCategories.has(cat) && (
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                    )}
-                                  </span>
-                                  <span className={styles.categoryCheckboxText}>{cat}</span>
-                                </label>
-                              ))}
-                            </div>
-                            <div className={styles.categoryDropdownFooter}>
-                              Looking for commercial properties?{' '}
-                              <button
-                                type="button"
-                                className={styles.commercialLinkButton}
-                                onClick={() => {
-                                  setActiveTab('Commercial');
-                                  setIsCategoryOpen(false);
-                                }}
-                              >
-                                Click here
-                              </button>
-                            </div>
+                  {activeTab === 'New Launch' ? (
+                    <div className={styles.staticPane}>
+                      <span>Residential</span>
+                    </div>
+                  ) : activeTab === 'Commercial' ? (
+                    <>
+                      {/* First Dropdown: Buy / Lease / Invest */}
+                      <div className={styles.categorySelectWrapper} ref={commercialTradeMenuRef}>
+                        <button
+                          type="button"
+                          className={styles.categorySelectPane}
+                          onClick={() => {
+                            setIsCommercialTradeOpen(!isCommercialTradeOpen);
+                            setIsCommercialTypeOpen(false);
+                          }}
+                        >
+                          <span>{commercialTrade}</span>
+                          <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isCommercialTradeOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
+                        </button>
+                        {isCommercialTradeOpen && (
+                          <div className={styles.categoryDropdown}>
+                            {commercialActiveView === 'main' ? (
+                              <div style={{ padding: '20px 24px' }}>
+                                {/* Radio Group */}
+                                <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+                                  {['Buy', 'Lease', 'Invest'].map((t) => (
+                                    <label key={t} className={styles.radioLabel}>
+                                      <input
+                                        type="radio"
+                                        name="commercialTrade"
+                                        checked={commercialTrade === t}
+                                        onChange={() => setCommercialTrade(t as any)}
+                                        className={styles.radioInput}
+                                      />
+                                      <span className={styles.radioText}>{t}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                                <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: '16px', textAlign: 'left' }}>
+                                  Looking to invest?{' '}
+                                  <button
+                                    type="button"
+                                    className={styles.commercialLinkButton}
+                                    onClick={() => setCommercialTrade('Invest')}
+                                  >
+                                    Click here
+                                  </button>
+                                </div>
 
-                            {/* Main Pills Row inside Dropdown */}
-                            <div className={styles.dropdownDivider} />
-                            <div className={styles.dropdownPillsRow}>
-                              <button
-                                type="button"
-                                className={styles.filterPill}
-                                onClick={() => setActiveDropdownView('budget')}
-                              >
-                                Budget <ChevronDown size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.filterPill}
-                                onClick={() => setActiveDropdownView('bedroom')}
-                              >
-                                Bedroom <ChevronDown size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.filterPill}
-                                onClick={() => setActiveDropdownView('construction')}
-                              >
-                                Construction Status <ChevronDown size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.filterPill}
-                                onClick={() => setActiveDropdownView('postedby')}
-                              >
-                                Posted By <ChevronDown size={14} />
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            {/* Sub-filter View (e.g. Budget, Bedrooms, etc.) */}
-                            <div className={styles.subViewHeader}>
-                              <button
-                                type="button"
-                                className={styles.backButton}
-                                onClick={() => setActiveDropdownView('main')}
-                              >
-                                <ArrowLeft size={16} />
-                                <span>Back</span>
-                              </button>
+                                <div className={styles.dropdownDivider} style={{ margin: '0 -24px 16px -24px' }} />
 
-                              <div className={styles.subViewPills}>
+                                {/* Pills */}
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                  <button
+                                    type="button"
+                                    className={styles.filterPill}
+                                    onClick={() => setCommercialActiveView('budget')}
+                                  >
+                                    Budget <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.filterPill}
+                                    onClick={() => setCommercialActiveView('area')}
+                                  >
+                                    Area <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.filterPill}
+                                    onClick={() => setCommercialActiveView('construction')}
+                                  >
+                                    Construction Status <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.filterPill}
+                                    onClick={() => setCommercialActiveView('postedby')}
+                                  >
+                                    Posted By <ChevronDown size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              renderCommercialSubView()
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.verticalDivider} />
+
+                      {/* Second Dropdown: All Commercial */}
+                      <div className={styles.categorySelectWrapper} ref={commercialTypeMenuRef}>
+                        <button
+                          type="button"
+                          className={styles.categorySelectPane}
+                          onClick={() => {
+                            setIsCommercialTypeOpen(!isCommercialTypeOpen);
+                            setIsCommercialTradeOpen(false);
+                          }}
+                        >
+                          <span>{commercialType}</span>
+                          <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isCommercialTypeOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
+                        </button>
+                        {isCommercialTypeOpen && (
+                          <div className={styles.categoryDropdown}>
+                            {commercialActiveView === 'main' ? (
+                              <div style={{ padding: '20px 24px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                  <strong style={{ fontSize: '0.95rem', color: '#1E293B' }}>Property Types</strong>
+                                  <button
+                                    type="button"
+                                    className={styles.categoryClearBtn}
+                                    onClick={() => setCommercialType('All Commercial')}
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+
+                                {/* Radio Group for Property Types */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 24px', marginBottom: '20px' }}>
+                                  {[
+                                    { label: 'Office Spaces', value: 'Office Spaces' },
+                                    { label: 'Shops & Retail', value: 'Shops & Retail' },
+                                    { label: 'Other commercial spaces', value: 'Other commercial spaces' },
+                                    { label: 'Factory & Manufacturing', value: 'Factory & Manufacturing' }
+                                  ].map((pt) => (
+                                    <label key={pt.value} className={styles.radioLabel}>
+                                      <input
+                                        type="radio"
+                                        name="commercialType"
+                                        checked={commercialType === pt.value}
+                                        onChange={() => setCommercialType(pt.value)}
+                                        className={styles.radioInput}
+                                      />
+                                      <span className={styles.radioText}>{pt.label}</span>
+                                    </label>
+                                  ))}
+                                </div>
+
+                                {/* Office Space Types (only if Office Spaces is selected) */}
+                                {commercialType === 'Office Spaces' && (
+                                  <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                                    <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1E293B', marginBottom: '12px', textAlign: 'left' }}>
+                                      Office space type <span style={{ color: 'red' }}>*</span>
+                                    </h5>
+                                    <div style={{ display: 'flex', gap: '20px' }}>
+                                      {[
+                                        'Ready to move offices',
+                                        'Bare shell offices',
+                                        'Co-working office space'
+                                      ].map((ost) => (
+                                        <label key={ost} className={styles.radioLabel}>
+                                          <input
+                                            type="radio"
+                                            name="officeSpaceType"
+                                            checked={officeSpaceType === ost}
+                                            onChange={() => setOfficeSpaceType(ost)}
+                                            className={styles.radioInput}
+                                          />
+                                          <span className={styles.radioText}>{ost}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Footers */}
+                                <div style={{ fontSize: '0.85rem', color: '#64748B', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', textAlign: 'left' }}>
+                                  <div>
+                                    Looking for residential properties?{' '}
+                                    <button
+                                      type="button"
+                                      className={styles.commercialLinkButton}
+                                      onClick={() => {
+                                        setActiveTab('Buy');
+                                        setIsCommercialTypeOpen(false);
+                                      }}
+                                    >
+                                      Click here
+                                    </button>
+                                  </div>
+                                  <div>
+                                    Looking to invest?{' '}
+                                    <button
+                                      type="button"
+                                      className={styles.commercialLinkButton}
+                                      onClick={() => {
+                                        setCommercialTrade('Invest');
+                                        setIsCommercialTypeOpen(false);
+                                        setIsCommercialTradeOpen(true);
+                                      }}
+                                    >
+                                      Click here
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className={styles.dropdownDivider} style={{ margin: '0 -24px 16px -24px' }} />
+
+                                {/* Filter Pills */}
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                  <button
+                                    type="button"
+                                    className={styles.filterPill}
+                                    onClick={() => setCommercialActiveView('budget')}
+                                  >
+                                    Budget <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.filterPill}
+                                    onClick={() => setCommercialActiveView('area')}
+                                  >
+                                    Area <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.filterPill}
+                                    onClick={() => setCommercialActiveView('postedby')}
+                                  >
+                                    Posted By <ChevronDown size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              renderCommercialSubView()
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    /* Category Dropdown with Checkbox Panel & Nested Sub-filters */
+                    <div className={styles.categorySelectWrapper} ref={categoryMenuRef}>
+                      <button
+                        type="button"
+                        className={styles.categorySelectPane}
+                        onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                      >
+                        <span>{categoryLabel}</span>
+                        <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isCategoryOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
+                      </button>
+                      {isCategoryOpen && (
+                        <div className={styles.categoryDropdown}>
+                          {activeDropdownView === 'main' ? (
+                            <>
+                              {/* Main Checkboxes View */}
+                              <div className={styles.categoryDropdownHeader}>
+                                <span className={styles.categoryDropdownTitle}>Property Type</span>
                                 <button
                                   type="button"
-                                  className={`${styles.filterPill} ${activeDropdownView === 'budget' ? styles.filterPillActive : ''}`}
+                                  className={styles.categoryClearBtn}
+                                  onClick={() => setCheckedCategories(new Set())}
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                              <div className={styles.categoryCheckboxGrid}>
+                                {Array.from(defaultCategories).map((cat) => (
+                                  <label key={cat} className={styles.categoryCheckboxLabel}>
+                                    <input
+                                      type="checkbox"
+                                      checked={checkedCategories.has(cat)}
+                                      onChange={() => toggleCategory(cat)}
+                                      className={styles.categoryCheckbox}
+                                    />
+                                    <span className={styles.categoryCheckboxCustom}>
+                                      {checkedCategories.has(cat) && (
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                      )}
+                                    </span>
+                                    <span className={styles.categoryCheckboxText}>{cat}</span>
+                                  </label>
+                                ))}
+                              </div>
+                              <div className={styles.categoryDropdownFooter}>
+                                Looking for commercial properties?{' '}
+                                <button
+                                  type="button"
+                                  className={styles.commercialLinkButton}
+                                  onClick={() => {
+                                    setActiveTab('Commercial');
+                                    setIsCategoryOpen(false);
+                                  }}
+                                >
+                                  Click here
+                                </button>
+                              </div>
+
+                              {/* Main Pills Row inside Dropdown */}
+                              <div className={styles.dropdownDivider} />
+                              <div className={styles.dropdownPillsRow}>
+                                <button
+                                  type="button"
+                                  className={styles.filterPill}
                                   onClick={() => setActiveDropdownView('budget')}
                                 >
                                   Budget <ChevronDown size={14} />
                                 </button>
                                 <button
                                   type="button"
-                                  className={`${styles.filterPill} ${activeDropdownView === 'bedroom' ? styles.filterPillActive : ''}`}
+                                  className={styles.filterPill}
                                   onClick={() => setActiveDropdownView('bedroom')}
                                 >
                                   Bedroom <ChevronDown size={14} />
                                 </button>
                                 <button
                                   type="button"
-                                  className={`${styles.filterPill} ${activeDropdownView === 'construction' ? styles.filterPillActive : ''}`}
+                                  className={styles.filterPill}
                                   onClick={() => setActiveDropdownView('construction')}
                                 >
                                   Construction Status <ChevronDown size={14} />
                                 </button>
                                 <button
                                   type="button"
-                                  className={`${styles.filterPill} ${activeDropdownView === 'postedby' ? styles.filterPillActive : ''}`}
+                                  className={styles.filterPill}
                                   onClick={() => setActiveDropdownView('postedby')}
                                 >
                                   Posted By <ChevronDown size={14} />
                                 </button>
                               </div>
-                            </div>
+                            </>
+                          ) : (
+                            <>
+                              {/* Sub-filter View (e.g. Budget, Bedrooms, etc.) */}
+                              <div className={styles.subViewHeader}>
+                                <button
+                                  type="button"
+                                  className={styles.backButton}
+                                  onClick={() => setActiveDropdownView('main')}
+                                >
+                                  <ArrowLeft size={16} />
+                                  <span>Back</span>
+                                </button>
 
-                            <div className={styles.subViewContent}>
-                              {activeDropdownView === 'budget' && (
-                                <div className={styles.subViewPanel}>
-                                  <div className={styles.budgetHeader}>
-                                    <strong>Select Price Range</strong>
-                                    <span className={styles.budgetSubtext}>{budgetRange[0]} - {budgetRange[1] >= 100 ? '100+' : budgetRange[1]} Crore</span>
-                                  </div>
-                                  <div className={styles.budgetSliderContainer}>
-                                    <span className={styles.budgetLabel}>{budgetRange[0]}</span>
-                                    <div className={styles.budgetSliderTrack}>
-                                      <input
-                                        type="range"
-                                        min={0}
-                                        max={100}
-                                        value={budgetRange[0]}
-                                        onChange={(e) => setBudgetRange([Math.min(Number(e.target.value), budgetRange[1] - 1), budgetRange[1]])}
-                                        className={styles.budgetRangeInput}
-                                      />
-                                      <input
-                                        type="range"
-                                        min={0}
-                                        max={100}
-                                        value={budgetRange[1]}
-                                        onChange={(e) => setBudgetRange([budgetRange[0], Math.max(Number(e.target.value), budgetRange[0] + 1)])}
-                                        className={styles.budgetRangeInput}
-                                      />
+                                <div className={styles.subViewPills}>
+                                  <button
+                                    type="button"
+                                    className={`${styles.filterPill} ${activeDropdownView === 'budget' ? styles.filterPillActive : ''}`}
+                                    onClick={() => setActiveDropdownView('budget')}
+                                  >
+                                    Budget <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`${styles.filterPill} ${activeDropdownView === 'bedroom' ? styles.filterPillActive : ''}`}
+                                    onClick={() => setActiveDropdownView('bedroom')}
+                                  >
+                                    Bedroom <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`${styles.filterPill} ${activeDropdownView === 'construction' ? styles.filterPillActive : ''}`}
+                                    onClick={() => setActiveDropdownView('construction')}
+                                  >
+                                    Construction Status <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`${styles.filterPill} ${activeDropdownView === 'postedby' ? styles.filterPillActive : ''}`}
+                                    onClick={() => setActiveDropdownView('postedby')}
+                                  >
+                                    Posted By <ChevronDown size={14} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className={styles.subViewContent}>
+                                {activeDropdownView === 'budget' && (
+                                  <div className={styles.subViewPanel}>
+                                    <div className={styles.budgetHeader}>
+                                      <strong>Select Price Range</strong>
+                                      <span className={styles.budgetSubtext}>{budgetRange[0]} - {budgetRange[1] >= 100 ? '100+' : budgetRange[1]} Crore</span>
                                     </div>
-                                    <span className={styles.budgetLabel}>100+ Crores</span>
+                                    <div className={styles.budgetSliderContainer}>
+                                      <span className={styles.budgetLabel}>{budgetRange[0]}</span>
+                                      <div className={styles.budgetSliderTrack}>
+                                        <input
+                                          type="range"
+                                          min={0}
+                                          max={100}
+                                          value={budgetRange[0]}
+                                          onChange={(e) => setBudgetRange([Math.min(Number(e.target.value), budgetRange[1] - 1), budgetRange[1]])}
+                                          className={styles.budgetRangeInput}
+                                        />
+                                        <input
+                                          type="range"
+                                          min={0}
+                                          max={100}
+                                          value={budgetRange[1]}
+                                          onChange={(e) => setBudgetRange([budgetRange[0], Math.max(Number(e.target.value), budgetRange[0] + 1)])}
+                                          className={styles.budgetRangeInput}
+                                        />
+                                      </div>
+                                      <span className={styles.budgetLabel}>100+ Crores</span>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                              {activeDropdownView === 'bedroom' && (
-                                <div className={styles.subViewPanel}>
-                                  <h4 className={styles.subViewPanelTitle}>Number of Bedrooms</h4>
-                                  <div className={styles.subViewPanelOptions}>
-                                    {[
-                                      { label: '1 RK/1 BHK', value: '1' },
-                                      { label: '2 BHK', value: '2' },
-                                      { label: '3 BHK', value: '3' },
-                                      { label: '4 BHK', value: '4' },
-                                      { label: '4+ BHK', value: '5' }
-                                    ].map((opt) => {
-                                      const isActive = selectedBedrooms === opt.value;
-                                      return (
-                                        <button
-                                          key={opt.value}
-                                          type="button"
-                                          className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
-                                          onClick={() => setSelectedBedrooms(isActive ? 'Any' : opt.value)}
-                                        >
-                                          <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
-                                          <span>{opt.label}</span>
-                                        </button>
-                                      );
-                                    })}
+                                {activeDropdownView === 'bedroom' && (
+                                  <div className={styles.subViewPanel}>
+                                    <h4 className={styles.subViewPanelTitle}>Number of Bedrooms</h4>
+                                    <div className={styles.subViewPanelOptions}>
+                                      {[
+                                        { label: '1 RK/1 BHK', value: '1' },
+                                        { label: '2 BHK', value: '2' },
+                                        { label: '3 BHK', value: '3' },
+                                        { label: '4 BHK', value: '4' },
+                                        { label: '4+ BHK', value: '5' }
+                                      ].map((opt) => {
+                                        const isActive = selectedBedrooms === opt.value;
+                                        return (
+                                          <button
+                                            key={opt.value}
+                                            type="button"
+                                            className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                                            onClick={() => setSelectedBedrooms(isActive ? 'Any' : opt.value)}
+                                          >
+                                            <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                                            <span>{opt.label}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                              {activeDropdownView === 'construction' && (
-                                <div className={styles.subViewPanel}>
-                                  <h4 className={styles.subViewPanelTitle}>Construction Status</h4>
-                                  <div className={styles.subViewPanelOptions}>
-                                    {[
-                                      { label: 'New Launch', value: 'New Launch' },
-                                      { label: 'Under Construction', value: 'Under Construction' },
-                                      { label: 'Ready to move', value: 'Ready to Move' }
-                                    ].map((opt) => {
-                                      const isActive = selectedConstructionStatus === opt.value;
-                                      return (
-                                        <button
-                                          key={opt.value}
-                                          type="button"
-                                          className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
-                                          onClick={() => setSelectedConstructionStatus(isActive ? 'Any' : opt.value)}
-                                        >
-                                          <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
-                                          <span>{opt.label}</span>
-                                        </button>
-                                      );
-                                    })}
+                                {activeDropdownView === 'construction' && (
+                                  <div className={styles.subViewPanel}>
+                                    <h4 className={styles.subViewPanelTitle}>Construction Status</h4>
+                                    <div className={styles.subViewPanelOptions}>
+                                      {[
+                                        { label: 'New Launch', value: 'New Launch' },
+                                        { label: 'Under Construction', value: 'Under Construction' },
+                                        { label: 'Ready to move', value: 'Ready to Move' }
+                                      ].map((opt) => {
+                                        const isActive = selectedConstructionStatus === opt.value;
+                                        return (
+                                          <button
+                                            key={opt.value}
+                                            type="button"
+                                            className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                                            onClick={() => setSelectedConstructionStatus(isActive ? 'Any' : opt.value)}
+                                          >
+                                            <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                                            <span>{opt.label}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                              {activeDropdownView === 'postedby' && (
-                                <div className={styles.subViewPanel}>
-                                  <h4 className={styles.subViewPanelTitle}>Posted By</h4>
-                                  <div className={styles.subViewPanelOptions}>
-                                    {[
-                                      { label: 'Owner', value: 'Owner' },
-                                      { label: 'Dealer', value: 'Dealer' },
-                                      { label: 'Builder', value: 'Builder' }
-                                    ].map((opt) => {
-                                      const isActive = selectedPostedBy === opt.value;
-                                      return (
-                                        <button
-                                          key={opt.value}
-                                          type="button"
-                                          className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
-                                          onClick={() => setSelectedPostedBy(isActive ? 'Any' : opt.value)}
-                                        >
-                                          <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
-                                          <span>{opt.label}</span>
-                                        </button>
-                                      );
-                                    })}
+                                {activeDropdownView === 'postedby' && (
+                                  <div className={styles.subViewPanel}>
+                                    <h4 className={styles.subViewPanelTitle}>Posted By</h4>
+                                    <div className={styles.subViewPanelOptions}>
+                                      {[
+                                        { label: 'Owner', value: 'Owner' },
+                                        { label: 'Dealer', value: 'Dealer' },
+                                        { label: 'Builder', value: 'Builder' }
+                                      ].map((opt) => {
+                                        const isActive = selectedPostedBy === opt.value;
+                                        return (
+                                          <button
+                                            key={opt.value}
+                                            type="button"
+                                            className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                                            onClick={() => setSelectedPostedBy(isActive ? 'Any' : opt.value)}
+                                          >
+                                            <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                                            <span>{opt.label}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className={styles.verticalDivider} />
 

@@ -83,6 +83,12 @@ export async function GET(request: NextRequest) {
         where.propertyType = {
           in: [PropertyType.OFFICE, PropertyType.SHOP, PropertyType.WAREHOUSE, PropertyType.COMMERCIAL_LAND],
         };
+        const commercialTrade = searchParams.get('commercial_trade');
+        if (commercialTrade === 'lease' || commercialTrade === 'rent') {
+          where.listingFor = ListingFor.RENT;
+        } else if (commercialTrade === 'buy' || commercialTrade === 'sale' || commercialTrade === 'invest') {
+          where.listingFor = ListingFor.SALE;
+        }
       }
     }
 
