@@ -885,47 +885,82 @@ export default function Home() {
                               )}
 
                               {activeDropdownView === 'bedroom' && (
-                                <div className={styles.subViewPanelOptions}>
-                                  {['Any', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'].map((opt) => (
-                                    <button
-                                      key={opt}
-                                      type="button"
-                                      className={`${styles.pillOption} ${selectedBedrooms === opt ? styles.pillOptionActive : ''}`}
-                                      onClick={() => setSelectedBedrooms(opt)}
-                                    >
-                                      {opt}
-                                    </button>
-                                  ))}
+                                <div className={styles.subViewPanel}>
+                                  <h4 className={styles.subViewPanelTitle}>Number of Bedrooms</h4>
+                                  <div className={styles.subViewPanelOptions}>
+                                    {[
+                                      { label: '1 RK/1 BHK', value: '1' },
+                                      { label: '2 BHK', value: '2' },
+                                      { label: '3 BHK', value: '3' },
+                                      { label: '4 BHK', value: '4' },
+                                      { label: '4+ BHK', value: '5' }
+                                    ].map((opt) => {
+                                      const isActive = selectedBedrooms === opt.value;
+                                      return (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                                          onClick={() => setSelectedBedrooms(isActive ? 'Any' : opt.value)}
+                                        >
+                                          <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                                          <span>{opt.label}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               )}
 
                               {activeDropdownView === 'construction' && (
-                                <div className={styles.subViewPanelOptions}>
-                                  {['Any', 'Ready to Move', 'Under Construction', 'New Launch'].map((opt) => (
-                                    <button
-                                      key={opt}
-                                      type="button"
-                                      className={`${styles.pillOption} ${selectedConstructionStatus === opt ? styles.pillOptionActive : ''}`}
-                                      onClick={() => setSelectedConstructionStatus(opt)}
-                                    >
-                                      {opt}
-                                    </button>
-                                  ))}
+                                <div className={styles.subViewPanel}>
+                                  <h4 className={styles.subViewPanelTitle}>Construction Status</h4>
+                                  <div className={styles.subViewPanelOptions}>
+                                    {[
+                                      { label: 'New Launch', value: 'New Launch' },
+                                      { label: 'Under Construction', value: 'Under Construction' },
+                                      { label: 'Ready to move', value: 'Ready to Move' }
+                                    ].map((opt) => {
+                                      const isActive = selectedConstructionStatus === opt.value;
+                                      return (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                                          onClick={() => setSelectedConstructionStatus(isActive ? 'Any' : opt.value)}
+                                        >
+                                          <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                                          <span>{opt.label}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               )}
 
                               {activeDropdownView === 'postedby' && (
-                                <div className={styles.subViewPanelOptions}>
-                                  {['Any', 'Owner', 'Dealer', 'Builder'].map((opt) => (
-                                    <button
-                                      key={opt}
-                                      type="button"
-                                      className={`${styles.pillOption} ${selectedPostedBy === opt ? styles.pillOptionActive : ''}`}
-                                      onClick={() => setSelectedPostedBy(opt)}
-                                    >
-                                      {opt}
-                                    </button>
-                                  ))}
+                                <div className={styles.subViewPanel}>
+                                  <h4 className={styles.subViewPanelTitle}>Posted By</h4>
+                                  <div className={styles.subViewPanelOptions}>
+                                    {[
+                                      { label: 'Owner', value: 'Owner' },
+                                      { label: 'Dealer', value: 'Dealer' },
+                                      { label: 'Builder', value: 'Builder' }
+                                    ].map((opt) => {
+                                      const isActive = selectedPostedBy === opt.value;
+                                      return (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                                          onClick={() => setSelectedPostedBy(isActive ? 'Any' : opt.value)}
+                                        >
+                                          <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                                          <span>{opt.label}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               )}
                             </div>
