@@ -188,10 +188,38 @@ export default function Home() {
   const [isCommercialTypeOpen, setIsCommercialTypeOpen] = useState(false);
   const [officeSpaceType, setOfficeSpaceType] = useState<string | null>(null);
   const [commercialArea, setCommercialArea] = useState<[number, number]>([0, 10000]);
-  const [commercialActiveView, setCommercialActiveView] = useState<'main' | 'budget' | 'area' | 'construction' | 'postedby'>('main');
+  const [commercialActiveView, setCommercialActiveView] = useState<'main' | 'budget' | 'area' | 'construction' | 'postedby' | 'seats'>('main');
+
+  // Lease seat/grade-A States
+  const [leaseSeats, setLeaseSeats] = useState<string>('Any');
+  const [isGradeAOnly, setIsGradeAOnly] = useState<boolean>(false);
+
+  // Commercial Buy checkbox states
+  const [selectedBuySubtypes, setSelectedBuySubtypes] = useState<Set<string>>(new Set([
+    'Ready to move offices', 'Shops & Retail', 'Agricultural/Farm Land', 'Warehouse', 'Factory & Manufacturing', 'Others',
+    'Bare shell offices', 'Commercial/Inst. Land', 'Industrial Land/Plots', 'Cold Storage', 'Hotel/Resorts'
+  ]));
+  const [selectedBuyInvestmentOptions, setSelectedBuyInvestmentOptions] = useState<Set<string>>(new Set());
+
+  // Plots/Land States
+  const [plotsType, setPlotsType] = useState<'Residential' | 'Commercial'>('Residential');
+  const [isPlotsTypeOpen, setIsPlotsTypeOpen] = useState(false);
+  const [plotsTrade, setPlotsTrade] = useState<'Buy' | 'Lease' | 'Invest'>('Buy');
+  const [isPlotsTradeOpen, setIsPlotsTradeOpen] = useState(false);
+  const [selectedPlotsSubtypes, setSelectedPlotsSubtypes] = useState<Set<string>>(new Set([
+    'Agricultural / Farm Land', 'Industrial Plots/Land', 'Commercial / Inst. Land'
+  ]));
+
+  // Project States
+  const [projectType, setProjectType] = useState<'Residential Project' | 'Commercial Project'>('Residential Project');
+  const [isProjectTypeOpen, setIsProjectTypeOpen] = useState(false);
+  const [selectedProjectStatuses, setSelectedProjectStatuses] = useState<Set<string>>(new Set(['New Launch', 'Under Construction', 'Ready to move']));
+  const projectMenuRef = useRef<HTMLDivElement>(null);
 
   const commercialTradeMenuRef = useRef<HTMLDivElement>(null);
   const commercialTypeMenuRef = useRef<HTMLDivElement>(null);
+  const plotsTypeMenuRef = useRef<HTMLDivElement>(null);
+  const plotsTradeMenuRef = useRef<HTMLDivElement>(null);
 
   // Category label helper
   const categoryLabel = checkedCategories.size === defaultCategories.size
@@ -225,6 +253,15 @@ export default function Home() {
         setIsCommercialTypeOpen(false);
         setCommercialActiveView('main');
       }
+      if (plotsTypeMenuRef.current && !plotsTypeMenuRef.current.contains(e.target as Node)) {
+        setIsPlotsTypeOpen(false);
+      }
+      if (plotsTradeMenuRef.current && !plotsTradeMenuRef.current.contains(e.target as Node)) {
+        setIsPlotsTradeOpen(false);
+      }
+      if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
+        setIsProjectTypeOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -251,14 +288,25 @@ export default function Home() {
             >
               Budget <ChevronDown size={14} />
             </button>
-            <button
-              type="button"
-              className={`${styles.filterPill} ${commercialActiveView === 'area' ? styles.filterPillActive : ''}`}
-              onClick={() => setCommercialActiveView('area')}
-            >
-              Area <ChevronDown size={14} />
-            </button>
-            {commercialTrade !== 'Lease' && (
+            {commercialTrade !== 'Invest' && (
+              <button
+                type="button"
+                className={`${styles.filterPill} ${commercialActiveView === 'area' ? styles.filterPillActive : ''}`}
+                onClick={() => setCommercialActiveView('area')}
+              >
+                Area <ChevronDown size={14} />
+              </button>
+            )}
+            {commercialTrade === 'Lease' && commercialType === 'Office Spaces' && (
+              <button
+                type="button"
+                className={`${styles.filterPill} ${commercialActiveView === 'seats' ? styles.filterPillActive : ''}`}
+                onClick={() => setCommercialActiveView('seats')}
+              >
+                Number of Seats <ChevronDown size={14} />
+              </button>
+            )}
+            {commercialTrade === 'Buy' && (
               <button
                 type="button"
                 className={`${styles.filterPill} ${commercialActiveView === 'construction' ? styles.filterPillActive : ''}`}
@@ -267,13 +315,15 @@ export default function Home() {
                 Construction Status <ChevronDown size={14} />
               </button>
             )}
-            <button
-              type="button"
-              className={`${styles.filterPill} ${commercialActiveView === 'postedby' ? styles.filterPillActive : ''}`}
-              onClick={() => setCommercialActiveView('postedby')}
-            >
-              Posted By <ChevronDown size={14} />
-            </button>
+            {commercialTrade !== 'Invest' && (
+              <button
+                type="button"
+                className={`${styles.filterPill} ${commercialActiveView === 'postedby' ? styles.filterPillActive : ''}`}
+                onClick={() => setCommercialActiveView('postedby')}
+              >
+                Posted By <ChevronDown size={14} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -342,6 +392,34 @@ export default function Home() {
             </div>
           )}
 
+          {commercialActiveView === 'seats' && (
+            <div className={styles.subViewPanel}>
+              <h4 className={styles.subViewPanelTitle}>Number of Seats</h4>
+              <div className={styles.subViewPanelOptions}>
+                {[
+                  { label: 'Any', value: 'Any' },
+                  { label: 'Under 10', value: '10' },
+                  { label: '10 - 50', value: '50' },
+                  { label: '50 - 100', value: '100' },
+                  { label: '100+ seats', value: '200' }
+                ].map((opt) => {
+                  const isActive = leaseSeats === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                      onClick={() => setLeaseSeats(opt.value)}
+                    >
+                      <span style={{ fontWeight: 800 }}>{isActive ? '✓' : '+'}</span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {commercialActiveView === 'construction' && (
             <div className={styles.subViewPanel}>
               <h4 className={styles.subViewPanelTitle}>Construction Status</h4>
@@ -395,6 +473,105 @@ export default function Home() {
           )}
         </div>
       </>
+    );
+  };
+
+  const renderCommercialPills = () => {
+    if (commercialTrade === 'Invest') {
+      return (
+        <div className={styles.dropdownPillsRow}>
+          <button
+            type="button"
+            className={styles.filterPill}
+            onClick={() => setCommercialActiveView('budget')}
+          >
+            Budget <ChevronDown size={14} />
+          </button>
+        </div>
+      );
+    }
+
+    if (commercialTrade === 'Lease') {
+      if (commercialType === 'Office Spaces') {
+        return (
+          <div className={styles.dropdownPillsRow}>
+            <button
+              type="button"
+              className={styles.filterPill}
+              onClick={() => setCommercialActiveView('budget')}
+            >
+              Budget <ChevronDown size={14} />
+            </button>
+            <button
+              type="button"
+              className={styles.filterPill}
+              onClick={() => setCommercialActiveView('seats')}
+            >
+              Number of Seats <ChevronDown size={14} />
+            </button>
+            <button
+              type="button"
+              className={`${styles.filterPill} ${isGradeAOnly ? styles.filterPillActive : ''}`}
+              onClick={() => setIsGradeAOnly(!isGradeAOnly)}
+            >
+              Show Grade A offices
+            </button>
+          </div>
+        );
+      } else {
+        return (
+          <div className={styles.dropdownPillsRow}>
+            <button
+              type="button"
+              className={styles.filterPill}
+              onClick={() => setCommercialActiveView('budget')}
+            >
+              Budget <ChevronDown size={14} />
+            </button>
+            <button
+              type="button"
+              className={styles.filterPill}
+              onClick={() => setCommercialActiveView('area')}
+            >
+              Area <ChevronDown size={14} />
+            </button>
+            <button
+              type="button"
+              className={styles.filterPill}
+              onClick={() => setCommercialActiveView('postedby')}
+            >
+              Posted By <ChevronDown size={14} />
+            </button>
+          </div>
+        );
+      }
+    }
+
+    // Default for 'Buy' trade
+    return (
+      <div className={styles.dropdownPillsRow}>
+        <button
+          type="button"
+          className={styles.filterPill}
+          onClick={() => setCommercialActiveView('budget')}
+        >
+          Budget <ChevronDown size={14} />
+        </button>
+        <button
+          type="button"
+          className={styles.filterPill}
+          onClick={() => setCommercialActiveView('area')}
+        >
+          Area <ChevronDown size={14} />
+        </button>
+        <button
+          type="button"
+          className={styles.filterPill}
+          onClick={() => setCommercialActiveView('postedby')}
+        >
+          Posted By <ChevronDown size={14} />
+        </button>
+      </div>
     );
   };
 
@@ -715,22 +892,54 @@ export default function Home() {
     } else if (activeTab === 'Commercial') {
       params.set('type', 'commercial');
       params.set('commercial_trade', commercialTrade.toLowerCase());
-      if (commercialType === 'Office Spaces') params.set('property_type', 'OFFICE');
-      else if (commercialType === 'Shops & Retail') params.set('property_type', 'SHOP');
-      else if (commercialType === 'Other commercial spaces') params.set('property_type', 'WAREHOUSE');
-      else if (commercialType === 'Factory & Manufacturing') params.set('property_type', 'COMMERCIAL_LAND');
       
+      if (commercialTrade === 'Invest') {
+        params.set('property_type', 'INVESTMENT');
+      } else if (commercialTrade === 'Lease') {
+        if (commercialType === 'Office Spaces') {
+          params.set('property_type', 'OFFICE');
+          if (officeSpaceType) params.set('office_type', officeSpaceType);
+          if (leaseSeats !== 'Any') params.set('seats', leaseSeats);
+          if (isGradeAOnly) params.set('grade_a', 'true');
+        } else if (commercialType === 'Shops & Retail') params.set('property_type', 'SHOP');
+        else if (commercialType === 'Other commercial spaces') params.set('property_type', 'WAREHOUSE');
+        else if (commercialType === 'Factory & Manufacturing') params.set('property_type', 'COMMERCIAL_LAND');
+      } else { // Buy
+        params.set('property_type', 'COMMERCIAL');
+        if (selectedBuySubtypes.size > 0) {
+          params.set('commercial_subtypes', Array.from(selectedBuySubtypes).join(','));
+        }
+        if (selectedBuyInvestmentOptions.size > 0) {
+          params.set('investment_options', Array.from(selectedBuyInvestmentOptions).join(','));
+        }
+      }
+
       // Pass area filters for commercial
-      if (commercialArea[0] > 0) params.set('min_area', commercialArea[0].toString());
-      if (commercialArea[1] < 10000) params.set('max_area', commercialArea[1].toString());
+      if (commercialTrade !== 'Invest') {
+        if (commercialArea[0] > 0) params.set('min_area', commercialArea[0].toString());
+        if (commercialArea[1] < 10000) params.set('max_area', commercialArea[1].toString());
+      }
     } else if (activeTab === 'Plots/Land') {
       params.set('property_type', 'PLOT');
+      params.set('plot_class', plotsType.toLowerCase());
+      if (plotsType === 'Commercial') {
+        params.set('plots_trade', plotsTrade.toLowerCase());
+        if (selectedPlotsSubtypes.size > 0) {
+          params.set('plot_subtypes', Array.from(selectedPlotsSubtypes).join(','));
+        }
+      }
+    } else if (activeTab === 'Projects') {
+      params.set('type', 'project');
+      params.set('project_class', projectType.includes('Residential') ? 'residential' : 'commercial');
+      if (selectedProjectStatuses.size > 0) {
+        params.set('project_statuses', Array.from(selectedProjectStatuses).join(','));
+      }
     } else {
       params.set('type', 'sale');
     }
 
-    // 4. Resolve selected categories (only if not Commercial or Plots/Land)
-    if (activeTab !== 'Commercial' && activeTab !== 'Plots/Land') {
+    // 4. Resolve selected categories (only if not Commercial, Plots/Land, or Projects)
+    if (activeTab !== 'Commercial' && activeTab !== 'Plots/Land' && activeTab !== 'Projects') {
       if (checkedCategories.size === 1) {
         const cat = Array.from(checkedCategories)[0];
         if (cat === 'Flat/Apartment') params.set('property_type', 'APARTMENT');
@@ -895,7 +1104,7 @@ export default function Home() {
 
               {/* Floating Search Bar Container */}
             <div className={`${styles.searchCapsuleContainer} search-capsule-animate`}>
-              <form onSubmit={handleSearchSubmit} className={`${styles.premiumSearchBox} ${(isCategoryOpen || isCommercialTradeOpen || isCommercialTypeOpen) ? styles.premiumSearchBoxDropdownOpen : ''}`}>
+              <form onSubmit={handleSearchSubmit} className={`${styles.premiumSearchBox} ${(isCategoryOpen || isCommercialTradeOpen || isCommercialTypeOpen || isPlotsTypeOpen || isPlotsTradeOpen || isProjectTypeOpen) ? styles.premiumSearchBoxDropdownOpen : ''}`}>
                 
                 {/* 1. First Row: Tabs */}
                 <div className={styles.searchTabsRow}>
@@ -955,7 +1164,12 @@ export default function Home() {
                                         type="radio"
                                         name="commercialTrade"
                                         checked={commercialTrade === t}
-                                        onChange={() => setCommercialTrade(t as any)}
+                                        onChange={() => {
+                                          setCommercialTrade(t as any);
+                                          if (t === 'Invest') {
+                                            setCommercialType('All Commercial');
+                                          }
+                                        }}
                                         className={styles.radioInput}
                                       />
                                       <span className={styles.radioText}>{t}</span>
@@ -967,7 +1181,10 @@ export default function Home() {
                                   <button
                                     type="button"
                                     className={styles.commercialLinkButton}
-                                    onClick={() => setCommercialTrade('Invest')}
+                                    onClick={() => {
+                                      setCommercialTrade('Invest');
+                                      setCommercialType('All Commercial');
+                                    }}
                                   >
                                     Click here
                                   </button>
@@ -976,6 +1193,285 @@ export default function Home() {
                                 <div className={styles.dropdownDivider} style={{ margin: '0 -24px 16px -24px' }} />
 
                                 {/* Pills */}
+                                {renderCommercialPills()}
+                              </div>
+                            ) : (
+                              renderCommercialSubView()
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Only render Second Dropdown if not Invest */}
+                      {commercialTrade !== 'Invest' && (
+                        <>
+                          <div className={styles.verticalDivider} />
+
+                          {/* Second Dropdown: All Commercial */}
+                          <div className={styles.categorySelectWrapper} ref={commercialTypeMenuRef}>
+                            <button
+                              type="button"
+                              className={styles.categorySelectPane}
+                              onClick={() => {
+                                setIsCommercialTypeOpen(!isCommercialTypeOpen);
+                                setIsCommercialTradeOpen(false);
+                              }}
+                            >
+                              <span>{commercialType}</span>
+                              <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isCommercialTypeOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
+                            </button>
+                            {isCommercialTypeOpen && (
+                              <div className={styles.categoryDropdown} style={{ minWidth: commercialTrade === 'Buy' ? '640px' : '480px' }}>
+                                {commercialActiveView === 'main' ? (
+                                  <div style={{ padding: '20px 24px' }}>
+                                    
+                                    {commercialTrade === 'Buy' ? (
+                                      /* --- TWO COLUMN BUY LAYOUT --- */
+                                      <div style={{ display: 'flex', gap: '32px', marginBottom: '20px' }}>
+                                        {/* Left Column: Property Types (65% width) */}
+                                        <div style={{ flex: '0 0 65%' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                            <strong style={{ fontSize: '0.95rem', color: '#1E293B' }}>Property Types</strong>
+                                            <button
+                                              type="button"
+                                              className={styles.categoryClearBtn}
+                                              onClick={() => setSelectedBuySubtypes(new Set())}
+                                            >
+                                              Clear
+                                            </button>
+                                          </div>
+                                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', textAlign: 'left' }}>
+                                            {[
+                                              'Ready to move offices',
+                                              'Shops & Retail',
+                                              'Agricultural/Farm Land',
+                                              'Warehouse',
+                                              'Factory & Manufacturing',
+                                              'Others',
+                                              'Bare shell offices',
+                                              'Commercial/Inst. Land',
+                                              'Industrial Land/Plots',
+                                              'Cold Storage',
+                                              'Hotel/Resorts'
+                                            ].map((sub) => {
+                                              const isChecked = selectedBuySubtypes.has(sub);
+                                              return (
+                                                <label key={sub} className={styles.categoryCheckboxLabel}>
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                      setSelectedBuySubtypes(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(sub)) next.delete(sub);
+                                                        else next.add(sub);
+                                                        return next;
+                                                      });
+                                                    }}
+                                                    className={styles.categoryCheckbox}
+                                                  />
+                                                  <span className={styles.categoryCheckboxCustom}>
+                                                    {isChecked && (
+                                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                    )}
+                                                  </span>
+                                                  <span className={styles.categoryCheckboxText}>{sub}</span>
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+
+                                        {/* Right Column: Investment Options (35% width) */}
+                                        <div style={{ flex: '0 0 35%', borderLeft: '1px solid #E2E8F0', paddingLeft: '24px', textAlign: 'left' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                                            <strong style={{ fontSize: '0.95rem', color: '#1E293B' }}>Investment Options</strong>
+                                            <span style={{ backgroundColor: '#FFF1F2', color: '#E11D48', fontSize: '0.65rem', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>New</span>
+                                          </div>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            {[
+                                              'Pre Leased Spaces',
+                                              'Food Courts',
+                                              'Restaurants',
+                                              'Multiplexes',
+                                              'SCO Plots',
+                                              'Co-working',
+                                              'Business Center'
+                                            ].map((inv) => {
+                                              const isChecked = selectedBuyInvestmentOptions.has(inv);
+                                              return (
+                                                <label key={inv} className={styles.categoryCheckboxLabel}>
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                      setSelectedBuyInvestmentOptions(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(inv)) next.delete(inv);
+                                                        else next.add(inv);
+                                                        return next;
+                                                      });
+                                                    }}
+                                                    className={styles.categoryCheckbox}
+                                                  />
+                                                  <span className={styles.categoryCheckboxCustom}>
+                                                    {isChecked && (
+                                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                    )}
+                                                  </span>
+                                                  <span className={styles.categoryCheckboxText}>{inv}</span>
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      /* --- STANDARD LEASE LAYOUT --- */
+                                      <>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                          <strong style={{ fontSize: '0.95rem', color: '#1E293B' }}>Property Types</strong>
+                                          <button
+                                            type="button"
+                                            className={styles.categoryClearBtn}
+                                            onClick={() => setCommercialType('All Commercial')}
+                                          >
+                                            Clear
+                                          </button>
+                                        </div>
+
+                                        {/* Radio Group for Property Types */}
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 24px', marginBottom: '20px' }}>
+                                          {[
+                                            { label: 'Office Spaces', value: 'Office Spaces' },
+                                            { label: 'Shops & Retail', value: 'Shops & Retail' },
+                                            { label: 'Other commercial spaces', value: 'Other commercial spaces' },
+                                            { label: 'Factory & Manufacturing', value: 'Factory & Manufacturing' }
+                                          ].map((pt) => (
+                                            <label key={pt.value} className={styles.radioLabel}>
+                                              <input
+                                                type="radio"
+                                                name="commercialType"
+                                                checked={commercialType === pt.value}
+                                                onChange={() => setCommercialType(pt.value)}
+                                                className={styles.radioInput}
+                                              />
+                                              <span className={styles.radioText}>{pt.label}</span>
+                                            </label>
+                                          ))}
+                                        </div>
+
+                                        {/* Office Space Types (only if Office Spaces is selected) */}
+                                        {commercialType === 'Office Spaces' && (
+                                          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                                            <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1E293B', marginBottom: '12px', textAlign: 'left' }}>
+                                              Office space type <span style={{ color: 'red' }}>*</span>
+                                            </h5>
+                                            <div style={{ display: 'flex', gap: '20px' }}>
+                                              {[
+                                                'Ready to move offices',
+                                                'Bare shell offices',
+                                                'Co-working office space'
+                                              ].map((ost) => (
+                                                <label key={ost} className={styles.radioLabel}>
+                                                  <input
+                                                    type="radio"
+                                                    name="officeSpaceType"
+                                                    checked={officeSpaceType === ost}
+                                                    onChange={() => setOfficeSpaceType(ost)}
+                                                    className={styles.radioInput}
+                                                  />
+                                                  <span className={styles.radioText}>{ost}</span>
+                                                </label>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {/* Footers */}
+                                    <div style={{ fontSize: '0.85rem', color: '#64748B', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', textAlign: 'left' }}>
+                                      <div>
+                                        Looking for residential properties?{' '}
+                                        <button
+                                          type="button"
+                                          className={styles.commercialLinkButton}
+                                          onClick={() => {
+                                            setActiveTab('Buy');
+                                            setIsCommercialTypeOpen(false);
+                                          }}
+                                        >
+                                          Click here
+                                        </button>
+                                      </div>
+                                      <div>
+                                        Looking to invest?{' '}
+                                        <button
+                                          type="button"
+                                          className={styles.commercialLinkButton}
+                                          onClick={() => {
+                                            setCommercialTrade('Invest');
+                                            setCommercialType('All Commercial');
+                                            setIsCommercialTypeOpen(false);
+                                            setIsCommercialTradeOpen(true);
+                                          }}
+                                        >
+                                          Click here
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className={styles.dropdownDivider} style={{ margin: '0 -24px 16px -24px' }} />
+
+                                    {/* Filter Pills */}
+                                    {renderCommercialPills()}
+                                  </div>
+                                ) : (
+                                  renderCommercialSubView()
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : activeTab === 'Plots/Land' ? (
+                    <>
+                      {/* Trade Dropdown (Only if Plots Type is Commercial) */}
+                      {plotsType === 'Commercial' && (
+                        <div className={styles.categorySelectWrapper} ref={plotsTradeMenuRef}>
+                          <button
+                            type="button"
+                            className={styles.categorySelectPane}
+                            onClick={() => {
+                              setIsPlotsTradeOpen(!isPlotsTradeOpen);
+                              setIsPlotsTypeOpen(false);
+                            }}
+                          >
+                            <span>{plotsTrade}</span>
+                            <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isPlotsTradeOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
+                          </button>
+                          {isPlotsTradeOpen && (
+                            <div className={styles.categoryDropdown}>
+                              <div style={{ padding: '20px 24px' }}>
+                                {/* Radio group for plots trade */}
+                                <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+                                  {['Buy', 'Lease', 'Invest'].map((t) => (
+                                    <label key={t} className={styles.radioLabel}>
+                                      <input
+                                        type="radio"
+                                        name="plotsTrade"
+                                        checked={plotsTrade === t}
+                                        onChange={() => setPlotsTrade(t as any)}
+                                        className={styles.radioInput}
+                                      />
+                                      <span className={styles.radioText}>{t}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                                <div className={styles.dropdownDivider} style={{ margin: '0 -24px 16px -24px' }} />
+                                {/* Bottom pills for plots/land */}
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                   <button
                                     type="button"
@@ -994,169 +1490,220 @@ export default function Home() {
                                   <button
                                     type="button"
                                     className={styles.filterPill}
-                                    onClick={() => setCommercialActiveView('construction')}
-                                  >
-                                    Construction Status <ChevronDown size={14} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={styles.filterPill}
                                     onClick={() => setCommercialActiveView('postedby')}
                                   >
                                     Posted By <ChevronDown size={14} />
                                   </button>
                                 </div>
                               </div>
-                            ) : (
-                              renderCommercialSubView()
-                            )}
-                          </div>
-                        )}
-                      </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                      <div className={styles.verticalDivider} />
+                      {plotsType === 'Commercial' && <div className={styles.verticalDivider} />}
 
-                      {/* Second Dropdown: All Commercial */}
-                      <div className={styles.categorySelectWrapper} ref={commercialTypeMenuRef}>
+                      {/* Plots/Land Type Dropdown */}
+                      <div className={styles.categorySelectWrapper} ref={plotsTypeMenuRef}>
                         <button
                           type="button"
                           className={styles.categorySelectPane}
                           onClick={() => {
-                            setIsCommercialTypeOpen(!isCommercialTypeOpen);
-                            setIsCommercialTradeOpen(false);
+                            setIsPlotsTypeOpen(!isPlotsTypeOpen);
+                            setIsPlotsTradeOpen(false);
                           }}
                         >
-                          <span>{commercialType}</span>
-                          <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isCommercialTypeOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
+                          <span>{plotsType === 'Residential' ? 'Residential Plots/Land' : 'Commercial Plots/Land'}</span>
+                          <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isPlotsTypeOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
                         </button>
-                        {isCommercialTypeOpen && (
+                        {isPlotsTypeOpen && (
                           <div className={styles.categoryDropdown}>
-                            {commercialActiveView === 'main' ? (
-                              <div style={{ padding: '20px 24px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                                  <strong style={{ fontSize: '0.95rem', color: '#1E293B' }}>Property Types</strong>
-                                  <button
-                                    type="button"
-                                    className={styles.categoryClearBtn}
-                                    onClick={() => setCommercialType('All Commercial')}
-                                  >
-                                    Clear
-                                  </button>
-                                </div>
-
-                                {/* Radio Group for Property Types */}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 24px', marginBottom: '20px' }}>
-                                  {[
-                                    { label: 'Office Spaces', value: 'Office Spaces' },
-                                    { label: 'Shops & Retail', value: 'Shops & Retail' },
-                                    { label: 'Other commercial spaces', value: 'Other commercial spaces' },
-                                    { label: 'Factory & Manufacturing', value: 'Factory & Manufacturing' }
-                                  ].map((pt) => (
-                                    <label key={pt.value} className={styles.radioLabel}>
-                                      <input
-                                        type="radio"
-                                        name="commercialType"
-                                        checked={commercialType === pt.value}
-                                        onChange={() => setCommercialType(pt.value)}
-                                        className={styles.radioInput}
-                                      />
-                                      <span className={styles.radioText}>{pt.label}</span>
-                                    </label>
-                                  ))}
-                                </div>
-
-                                {/* Office Space Types (only if Office Spaces is selected) */}
-                                {commercialType === 'Office Spaces' && (
-                                  <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                                    <h5 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1E293B', marginBottom: '12px', textAlign: 'left' }}>
-                                      Office space type <span style={{ color: 'red' }}>*</span>
-                                    </h5>
-                                    <div style={{ display: 'flex', gap: '20px' }}>
-                                      {[
-                                        'Ready to move offices',
-                                        'Bare shell offices',
-                                        'Co-working office space'
-                                      ].map((ost) => (
-                                        <label key={ost} className={styles.radioLabel}>
-                                          <input
-                                            type="radio"
-                                            name="officeSpaceType"
-                                            checked={officeSpaceType === ost}
-                                            onChange={() => setOfficeSpaceType(ost)}
-                                            className={styles.radioInput}
-                                          />
-                                          <span className={styles.radioText}>{ost}</span>
-                                        </label>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Footers */}
-                                <div style={{ fontSize: '0.85rem', color: '#64748B', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', textAlign: 'left' }}>
-                                  <div>
-                                    Looking for residential properties?{' '}
-                                    <button
-                                      type="button"
-                                      className={styles.commercialLinkButton}
-                                      onClick={() => {
-                                        setActiveTab('Buy');
-                                        setIsCommercialTypeOpen(false);
-                                      }}
-                                    >
-                                      Click here
-                                    </button>
-                                  </div>
-                                  <div>
-                                    Looking to invest?{' '}
-                                    <button
-                                      type="button"
-                                      className={styles.commercialLinkButton}
-                                      onClick={() => {
-                                        setCommercialTrade('Invest');
-                                        setIsCommercialTypeOpen(false);
-                                        setIsCommercialTradeOpen(true);
-                                      }}
-                                    >
-                                      Click here
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className={styles.dropdownDivider} style={{ margin: '0 -24px 16px -24px' }} />
-
-                                {/* Filter Pills */}
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                  <button
-                                    type="button"
-                                    className={styles.filterPill}
-                                    onClick={() => setCommercialActiveView('budget')}
-                                  >
-                                    Budget <ChevronDown size={14} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={styles.filterPill}
-                                    onClick={() => setCommercialActiveView('area')}
-                                  >
-                                    Area <ChevronDown size={14} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={styles.filterPill}
-                                    onClick={() => setCommercialActiveView('postedby')}
-                                  >
-                                    Posted By <ChevronDown size={14} />
-                                  </button>
-                                </div>
+                            <div style={{ padding: '20px 24px' }}>
+                              <strong style={{ display: 'block', fontSize: '0.95rem', color: '#1E293B', marginBottom: '14px', textAlign: 'left' }}>Plots/Land</strong>
+                              {/* Radios to choose Residential or Commercial */}
+                              <div style={{ display: 'flex', gap: '24px', marginBottom: plotsType === 'Commercial' ? '20px' : '16px' }}>
+                                <label className={styles.radioLabel}>
+                                  <input
+                                    type="radio"
+                                    name="plotsType"
+                                    checked={plotsType === 'Residential'}
+                                    onChange={() => setPlotsType('Residential')}
+                                    className={styles.radioInput}
+                                  />
+                                  <span className={styles.radioText}>Residential Plots/Land</span>
+                                </label>
+                                <label className={styles.radioLabel}>
+                                  <input
+                                    type="radio"
+                                    name="plotsType"
+                                    checked={plotsType === 'Commercial'}
+                                    onChange={() => setPlotsType('Commercial')}
+                                    className={styles.radioInput}
+                                  />
+                                  <span className={styles.radioText}>Commercial Plots/Land</span>
+                                </label>
                               </div>
-                            ) : (
-                              renderCommercialSubView()
-                            )}
+
+                              {/* Commercial Sub-types (Checkboxes, only shown if Plots Type is Commercial) */}
+                              {plotsType === 'Commercial' && (
+                                <div style={{ display: 'flex', gap: '24px', marginBottom: '20px' }}>
+                                  {[
+                                    'Agricultural / Farm Land',
+                                    'Industrial Plots/Land',
+                                    'Commercial / Inst. Land'
+                                  ].map((sub) => {
+                                    const isChecked = selectedPlotsSubtypes.has(sub);
+                                    return (
+                                      <label key={sub} className={styles.categoryCheckboxLabel}>
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => {
+                                            setSelectedPlotsSubtypes(prev => {
+                                              const next = new Set(prev);
+                                              if (next.has(sub)) next.delete(sub);
+                                              else next.add(sub);
+                                              return next;
+                                            });
+                                          }}
+                                          className={styles.categoryCheckbox}
+                                        />
+                                        <span className={styles.categoryCheckboxCustom}>
+                                          {isChecked && (
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                          )}
+                                        </span>
+                                        <span className={styles.categoryCheckboxText}>{sub}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              <div className={styles.dropdownDivider} style={{ margin: '0 -24px 16px -24px' }} />
+                              {/* Bottom pills */}
+                              <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                  type="button"
+                                  className={styles.filterPill}
+                                  onClick={() => setCommercialActiveView('budget')}
+                                >
+                                  Budget <ChevronDown size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.filterPill}
+                                  onClick={() => setCommercialActiveView('area')}
+                                >
+                                  Area <ChevronDown size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.filterPill}
+                                  onClick={() => setCommercialActiveView('postedby')}
+                                >
+                                  Posted By <ChevronDown size={14} />
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
                     </>
+                  ) : activeTab === 'Projects' ? (
+                    <div className={styles.categorySelectWrapper} ref={projectMenuRef}>
+                      <button
+                        type="button"
+                        className={styles.categorySelectPane}
+                        onClick={() => setIsProjectTypeOpen(!isProjectTypeOpen)}
+                      >
+                        <span>{projectType}</span>
+                        <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isProjectTypeOpen ? 'rotate(180deg)' : 'rotate(0)' }} />
+                      </button>
+                      {isProjectTypeOpen && (
+                        <div className={styles.categoryDropdown}>
+                          <div style={{ padding: '20px 24px' }}>
+                            <strong style={{ display: 'block', fontSize: '0.95rem', color: '#1E293B', marginBottom: '14px', textAlign: 'left' }}>{projectType}</strong>
+                            
+                            {/* Checkboxes for Project status */}
+                            <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+                              {['New Launch', 'Under Construction', 'Ready to move'].map((status) => {
+                                const isChecked = selectedProjectStatuses.has(status);
+                                return (
+                                  <label key={status} className={styles.categoryCheckboxLabel}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setSelectedProjectStatuses(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(status)) next.delete(status);
+                                          else next.add(status);
+                                          return next;
+                                        });
+                                      }}
+                                      className={styles.categoryCheckbox}
+                                    />
+                                    <span className={styles.categoryCheckboxCustom}>
+                                      {isChecked && (
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                      )}
+                                    </span>
+                                    <span className={styles.categoryCheckboxText}>{status}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+
+                            {/* Footer link to toggle residential/commercial project */}
+                            <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: '16px', textAlign: 'left' }}>
+                              {projectType === 'Residential Project' ? (
+                                <>
+                                  Looking for commercial projects ?{' '}
+                                  <button
+                                    type="button"
+                                    className={styles.commercialLinkButton}
+                                    onClick={() => setProjectType('Commercial Project')}
+                                  >
+                                    Click here
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  Looking for residential projects ?{' '}
+                                  <button
+                                    type="button"
+                                    className={styles.commercialLinkButton}
+                                    onClick={() => setProjectType('Residential Project')}
+                                  >
+                                    Click here
+                                  </button>
+                                </>
+                              )}
+                            </div>
+
+                            <div className={styles.dropdownDivider} style={{ margin: '0 -24px 16px -24px' }} />
+                            {/* Bottom pills for projects */}
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              <button
+                                type="button"
+                                className={styles.filterPill}
+                                onClick={() => setCommercialActiveView('budget')}
+                              >
+                                Budget <ChevronDown size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.filterPill}
+                                onClick={() => setCommercialActiveView('postedby')}
+                              >
+                                Posted By <ChevronDown size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     /* Category Dropdown with Checkbox Panel & Nested Sub-filters */
                     <div className={styles.categorySelectWrapper} ref={categoryMenuRef}>
