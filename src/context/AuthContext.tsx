@@ -141,9 +141,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('[AuthContext] Resolved activeUser:', activeUser?.id || 'null');
       if (activeUser) {
         setUser(activeUser);
+        setLoading(false); // Unblock UI immediately so layouts don't freeze on spinner
         await fetchProfile(activeUser.id);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
       console.log('[AuthContext] Auth initialization complete.');
     };
 
@@ -153,8 +155,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         setUser(session.user);
+        setLoading(false); // Unblock UI immediately on auth change
         await fetchProfile(session.user.id);
-        setLoading(false);
       } else {
         // Only clear if not in mock mode
         const isPlaceholder = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
