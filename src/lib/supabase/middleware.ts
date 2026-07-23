@@ -41,10 +41,11 @@ export async function updateSession(request: NextRequest) {
   if (!user) {
     const mockUserIdCookie = request.cookies.get('sb-mock-user-id')?.value;
     if (mockUserIdCookie) {
+      const isAdminMock = mockUserIdCookie === 'e19cb90a-58f6-40ca-be05-04eff6d0134f' || mockUserIdCookie === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6';
       user = {
-        id: mockUserIdCookie,
-        phone: mockUserIdCookie === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? '+917777777777' : '+919876543210',
-        email: mockUserIdCookie === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'admin@test.com' : 'user@test.com',
+        id: isAdminMock ? 'e19cb90a-58f6-40ca-be05-04eff6d0134f' : mockUserIdCookie,
+        phone: isAdminMock ? '+917777777777' : '+919876543210',
+        email: isAdminMock ? 'admin@test.com' : 'user@test.com',
       };
     }
   }
@@ -66,6 +67,7 @@ export async function updateSession(request: NextRequest) {
     const isAdminUser = 
       user.phone === '+917777777777' || 
       user.email === 'admin@test.com' || 
+      user.id === 'e19cb90a-58f6-40ca-be05-04eff6d0134f' ||
       user.id === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ||
       user.user_metadata?.role === 'ADMIN' ||
       user.app_metadata?.role === 'ADMIN';

@@ -22,19 +22,21 @@ export async function createClient() {
   }
 
   if (mockUserId) {
-    const isAdmin = mockUserId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6';
+    const isAdmin = mockUserId === 'e19cb90a-58f6-40ca-be05-04eff6d0134f' || mockUserId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6';
+    const finalId = isAdmin ? 'e19cb90a-58f6-40ca-be05-04eff6d0134f' : mockUserId;
+
     return {
       auth: {
         getUser: async () => {
           return {
             data: {
               user: {
-                id: mockUserId,
+                id: finalId,
                 phone: isAdmin ? '+917777777777' : '+919876543210',
                 email: isAdmin ? 'admin@test.com' : 'user@test.com',
                 user_metadata: {
-                  name: isAdmin ? 'System Admin' : 'Standard User',
-                  full_name: isAdmin ? 'System Admin' : 'Standard User',
+                  name: isAdmin ? 'Kanha' : 'Standard User',
+                  full_name: isAdmin ? 'Kanha' : 'Standard User',
                   role: isAdmin ? 'ADMIN' : 'USER',
                 },
                 app_metadata: {

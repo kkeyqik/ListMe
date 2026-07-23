@@ -34,13 +34,6 @@ interface AuthContextType {
   loginMockUser: (userId: string, profileData: DbProfile) => void;
 }
 
-interface PendingSignup {
-  name: string;
-  phone: string;
-  email: string;
-  city?: string;
-}
-
 const PENDING_SIGNUP_KEY = 'listme_pending_signup';
 const formatIndiaPhone = (phone: string) => (phone.startsWith('+') ? phone : `+91${phone}`);
 
@@ -54,18 +47,18 @@ export const useAuth = () => {
   return context;
 };
 
-// Generate deterministic fallback profile from Supabase user object to prevent null profile delays
+// Generate deterministic fallback profile from Supabase user object matching DB profile ID
 function createFallbackProfile(user: User): DbProfile {
   const isAdmin = 
     user.phone === '+917777777777' || 
     user.email === 'admin@test.com' || 
-    user.id === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ||
+    user.id === 'e19cb90a-58f6-40ca-be05-04eff6d0134f' ||
     user.user_metadata?.role === 'ADMIN' ||
     user.app_metadata?.role === 'ADMIN';
 
   return {
     id: user.id,
-    name: user.user_metadata?.name || user.user_metadata?.full_name || (isAdmin ? 'System Admin' : 'User'),
+    name: user.user_metadata?.name || user.user_metadata?.full_name || (isAdmin ? 'Kanha' : 'User'),
     email: user.email || null,
     phone: user.phone || null,
     phoneVerified: true,
@@ -126,17 +119,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!mockId) {
           mockId = localStorage.getItem('listme_mock_user_id');
           if (mockId) {
-            document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
+            document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000; SameSite=Lax;`;
           }
         }
         if (mockId) {
+          const isAdminMock = mockId === 'e19cb90a-58f6-40ca-be05-04eff6d0134f' || mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6';
+          const finalId = isAdminMock ? 'e19cb90a-58f6-40ca-be05-04eff6d0134f' : mockId;
+
           activeUser = {
-            id: mockId,
-            phone: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? '+917777777777' : '+919876543210',
-            email: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'admin@test.com' : 'user@test.com',
+            id: finalId,
+            phone: isAdminMock ? '+917777777777' : '+919876543210',
+            email: isAdminMock ? 'admin@test.com' : 'user@test.com',
             user_metadata: {
-              name: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'System Admin' : 'Standard User',
-              full_name: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'System Admin' : 'Standard User',
+              name: isAdminMock ? 'Kanha' : 'Standard User',
+              full_name: isAdminMock ? 'Kanha' : 'Standard User',
             },
           } as any;
         }
@@ -206,10 +202,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (cleanNum === '7777777777' || cleanNum === '9999999999' || cleanNum === '8888888888') {
         if (token === '123456') {
           const mockId = cleanNum === '7777777777' 
-            ? 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' 
-            : 'b1b2b3b4-c5c6-d7d8-e9e0-f1f2f3f4f5f6';
+            ? 'e19cb90a-58f6-40ca-be05-04eff6d0134f'  // Live DB Admin Profile ID
+            : 'd8bf34a5-12a8-4bb9-a35c-7f89b9dcd872'; // Live DB User Profile ID
 
-          const metaName = cleanNum === '7777777777' ? 'System Admin' : 'Standard User';
+          const metaName = cleanNum === '7777777777' ? 'Kanha' : 'Standard User';
           const mockUser: any = {
             id: mockId,
             phone: formatIndiaPhone(phone),
@@ -221,7 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
 
           if (typeof document !== 'undefined') {
-            document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
+            document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000; SameSite=Lax;`;
           }
           if (typeof window !== 'undefined') {
             localStorage.setItem('listme_mock_user_id', mockId);
@@ -267,16 +263,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       if (token === '123456') {
-        const mockId = 'd9e87fb4-9c02-4217-ba5d-' + email.split('@')[0].padEnd(12, '0').slice(-12);
+        const mockId = email === 'admin@test.com'
+          ? 'e19cb90a-58f6-40ca-be05-04eff6d0134f'
+          : 'd9e87fb4-9c02-4217-ba5d-' + email.split('@')[0].padEnd(12, '0').slice(-12);
+
         const mockUser: any = {
           id: mockId,
           email,
-          phone: null,
-          user_metadata: { name: email.split('@')[0] },
+          phone: email === 'admin@test.com' ? '+917777777777' : null,
+          user_metadata: { name: email === 'admin@test.com' ? 'Kanha' : email.split('@')[0] },
         };
 
         if (typeof document !== 'undefined') {
-          document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
+          document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000; SameSite=Lax;`;
         }
         if (typeof window !== 'undefined') {
           localStorage.setItem('listme_mock_user_id', mockId);
@@ -375,7 +374,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
       if (typeof window !== 'undefined') {
         localStorage.removeItem('listme_mock_user_id');
-        document.cookie = 'sb-mock-user-id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        document.cookie = 'sb-mock-user-id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax;';
       }
       setUser(null);
       setProfile(null);
@@ -389,7 +388,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Mock User Login helper
   const loginMockUser = (userId: string, profileData: DbProfile) => {
     if (typeof document !== 'undefined') {
-      document.cookie = `sb-mock-user-id=${userId}; path=/; max-age=31536000;`;
+      document.cookie = `sb-mock-user-id=${userId}; path=/; max-age=31536000; SameSite=Lax;`;
     }
     if (typeof window !== 'undefined') {
       localStorage.setItem('listme_mock_user_id', userId);
