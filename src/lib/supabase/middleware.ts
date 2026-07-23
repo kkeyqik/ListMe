@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -67,46 +66,25 @@ export async function updateSession(request: NextRequest) {
 
   // 3. Authenticated user checks
   if (user) {
-    // Check DB profile for role and account status
-    try {
-      const dbProfile = await prisma.profile.findUnique({
-        where: { id: user.id },
-        select: { role: true, status: true, phone: true, email: true },
-      });
+    const isAdminUser = 
+      user.phone === '+917777777777' || 
+      user.email === 'admin@test.com' || 
+      user.id === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ||
+      user.user_metadata?.role === 'ADMIN' ||
+      user.app_metadata?.role === 'ADMIN';
 
-      // Account Suspended / Banned lockout
-      if (dbProfile && (dbProfile.status === 'SUSPENDED' || dbProfile.status === 'BANNED')) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/login';
-        url.searchParams.set('error', 'suspended');
-        const response = NextResponse.redirect(url);
-        response.cookies.delete('sb-mock-user-id');
-        return response;
-      }
-
-      // Admin route protection: Require ADMIN or SUPER_ADMIN role
-      if (isAdminPath) {
-        const role = dbProfile?.role || (
-          user.phone === '+917777777777' || user.email === 'admin@test.com' || user.id === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6'
-            ? 'ADMIN'
-            : 'USER'
-        );
-
-        if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-          const url = request.nextUrl.clone();
-          url.pathname = '/dashboard';
-          return NextResponse.redirect(url);
-        }
-      }
-    } catch (err) {
-      console.warn('[Middleware] Profile verification check error:', err);
+    // Admin route protection: Require ADMIN or SUPER_ADMIN role
+    if (isAdminPath && !isAdminUser) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
     }
 
     // Redirect logged-in user away from /login & /signup
     const isAuthPath = pathname.startsWith('/login') || pathname.startsWith('/signup');
     if (isAuthPath) {
       const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
+      url.pathname = isAdminUser ? '/admin' : '/dashboard';
       return NextResponse.redirect(url);
     }
   }
