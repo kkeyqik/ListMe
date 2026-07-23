@@ -17,7 +17,7 @@ import { useToast, Card, Button, Badge } from '@/components/ui';
 import styles from './dashboard.module.css';
 
 export default function DashboardHome() {
-  const { profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
   
   const [listings, setListings] = useState<any[]>([]);
@@ -59,8 +59,10 @@ export default function DashboardHome() {
       }
     };
 
-    fetchDashboardData();
-  }, [showToast]);
+    if (!authLoading && user) {
+      fetchDashboardData();
+    }
+  }, [user, authLoading, showToast]);
 
   const formatPrice = (price: string) => {
     const val = parseFloat(price);

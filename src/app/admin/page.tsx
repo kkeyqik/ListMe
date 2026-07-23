@@ -13,10 +13,12 @@ import {
   Eye
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Card, Badge, Modal } from '@/components/ui';
 import styles from './admin.module.css';
 
 export default function AdminHome() {
+  const { user, loading: authLoading } = useAuth();
   const { showToast } = useToast();
   
   const [metrics, setMetrics] = useState<any>({
@@ -67,8 +69,10 @@ export default function AdminHome() {
   };
 
   useEffect(() => {
-    fetchAdminData();
-  }, []);
+    if (!authLoading && user) {
+      fetchAdminData();
+    }
+  }, [user, authLoading]);
 
   // Moderation: Approve or Reject Property
   const handleModerate = async (id: string, newStatus: 'ACTIVE' | 'REJECTED', reason?: string) => {
