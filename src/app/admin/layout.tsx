@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu, Shield } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AdminSidebar } from '@/components/layout';
 import styles from '../dashboard/layout.module.css';
@@ -35,14 +35,6 @@ export default function AdminLayout({
     }
   }, [user, isAdmin, loading, router]);
 
-  if (loading || !user || !isAdmin) {
-    return (
-      <div className={styles.loadingScreen}>
-        <div className={styles.spinner} role="status" aria-label="loading" />
-      </div>
-    );
-  }
-
   return (
     <div className={styles.dashboardLayout}>
       {/* Admin Sidebar Navigation */}
@@ -51,44 +43,35 @@ export default function AdminLayout({
       {/* Main Content Area */}
       <div className={styles.mainContent}>
         {/* Mobile Top Bar */}
-        <div className={styles.mobileTopBar} style={{ borderBottomColor: 'var(--color-secondary-light)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Link href="/" className={`${styles.logo} text-gradient`}>
-              ListMe
-            </Link>
-            <Badge variant="secondary" size="sm" style={{ backgroundColor: 'var(--color-secondary-fade)', color: 'var(--color-secondary)' }}>
+        <div className={styles.mobileTopBar}>
+          <Link href="/" className={`${styles.logo} text-gradient`}>
+            ListMe Admin
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--color-primary)', color: '#fff', fontWeight: 600 }}>
               ADMIN
-            </Badge>
+            </span>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className={styles.menuButton}
+              aria-label="Open navigation menu"
+            >
+              <Menu size={24} />
+            </button>
           </div>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className={styles.menuButton}
-            aria-label="Open administration menu"
-          >
-            <Menu size={24} />
-          </button>
         </div>
 
         {/* Dynamic page contents */}
-        <main className={styles.pageContainer}>{children}</main>
+        <main className={styles.pageContainer}>
+          {loading || !user ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+              <div className={styles.spinner} role="status" aria-label="loading" />
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </div>
-  );
-}
-
-// Simple local Badge component for layout
-function Badge({ children, variant, size, style }: any) {
-  return (
-    <span 
-      style={{
-        padding: '0.125rem 0.5rem',
-        borderRadius: 'var(--radius-full)',
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        ...style
-      }}
-    >
-      {children}
-    </span>
   );
 }

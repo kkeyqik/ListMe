@@ -29,12 +29,16 @@ export async function updateSession(request: NextRequest) {
 
   // 1. Resolve active user session
   let user: any = null;
-  const isPlaceholder = 
-    process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL === '';
 
-  if (isPlaceholder) {
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (err) {
+    console.warn('[Middleware] Supabase getUser error:', err);
+  }
+
+  // Fallback: Check mock user ID cookie in all environments
+  if (!user) {
     const mockUserIdCookie = request.cookies.get('sb-mock-user-id')?.value;
     if (mockUserIdCookie) {
       user = {
@@ -42,13 +46,6 @@ export async function updateSession(request: NextRequest) {
         phone: mockUserIdCookie === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? '+917777777777' : '+919876543210',
         email: mockUserIdCookie === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'admin@test.com' : 'user@test.com',
       };
-    }
-  } else {
-    try {
-      const { data } = await supabase.auth.getUser();
-      user = data.user;
-    } catch (err) {
-      console.warn('[Middleware] Supabase getUser error:', err);
     }
   }
 

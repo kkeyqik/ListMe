@@ -19,21 +19,11 @@ export default function DashboardLayout({
 
   // Client-side authentication check
   useEffect(() => {
-    console.log('[DashboardLayout] Auth check:', { user, loading, path: window.location.pathname });
     if (!loading && !user) {
-      console.warn('[DashboardLayout] Redirecting to login because user is null and loading is false');
       const currentPath = window.location.pathname + window.location.search;
       router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
     }
   }, [user, loading, router]);
-
-  if (loading || !user) {
-    return (
-      <div className={styles.loadingScreen}>
-        <div className={styles.spinner} role="status" aria-label="loading" />
-      </div>
-    );
-  }
 
   return (
     <div className={styles.dashboardLayout}>
@@ -57,7 +47,15 @@ export default function DashboardLayout({
         </div>
 
         {/* Dynamic page contents */}
-        <main className={styles.pageContainer}>{children}</main>
+        <main className={styles.pageContainer}>
+          {loading || !user ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+              <div className={styles.spinner} role="status" aria-label="loading" />
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </div>
   );
