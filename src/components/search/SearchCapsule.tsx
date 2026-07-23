@@ -975,6 +975,58 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                       </div>
                     </div>
                   )}
+
+                  {activeDropdownView === 'construction' && (
+                    <div className={styles.subViewPanel}>
+                      <h4 className={styles.subViewPanelTitle}>Construction Status</h4>
+                      <div className={styles.subViewPanelOptions}>
+                        {[
+                          { label: 'New Launch', value: 'New Launch' },
+                          { label: 'Under Construction', value: 'Under Construction' },
+                          { label: 'Ready to Move', value: 'Ready to Move' }
+                        ].map((opt) => {
+                          const isActive = selectedConstructionStatus === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                              onClick={() => setSelectedConstructionStatus(isActive ? 'Any' : opt.value)}
+                            >
+                              <span className={styles.optionCheck}>{isActive ? '✓' : '+'}</span>
+                              <span>{opt.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeDropdownView === 'postedby' && (
+                    <div className={styles.subViewPanel}>
+                      <h4 className={styles.subViewPanelTitle}>Posted By</h4>
+                      <div className={styles.subViewPanelOptions}>
+                        {[
+                          { label: 'Owner', value: 'Owner' },
+                          { label: 'Builder', value: 'Builder' },
+                          { label: 'Dealer', value: 'Dealer' }
+                        ].map((opt) => {
+                          const isActive = selectedPostedBy === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                              onClick={() => setSelectedPostedBy(isActive ? 'Any' : opt.value)}
+                            >
+                              <span className={styles.optionCheck}>{isActive ? '✓' : '+'}</span>
+                              <span>{opt.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
