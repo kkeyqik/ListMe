@@ -26,6 +26,24 @@ const pool =
     connectionTimeoutMillis: 5000,
   });
 
+// Handle pool-level errors to prevent silent connection drops
+pool.on('error', (err) => {
+  console.error('[Prisma Pool] Unexpected pool error:', err.message);
+});
+
+// Optional: Log pool metrics for debugging (enable via DEBUG_DB=true)
+if (process.env.DEBUG_DB === 'true') {
+  const logPoolMetrics = () => {
+    console.log(`[Prisma Pool] total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`);
+    if (pool.waitingCount > 0) {
+      console.warn(`[Prisma Pool] WARNING: ${pool.waitingCount} queries waiting for connections`);
+    }
+  };
+
+  pool.on('connect', logPoolMetrics);
+  pool.on('release', logPoolMetrics);
+}
+
 // Cache on globalThis across warm serverless invocations in ALL environments
 globalForPrisma.pool = pool;
 

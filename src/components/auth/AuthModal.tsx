@@ -39,7 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSuccess,
   redirectPath,
 }) => {
-  const { signInWithGoogle, signInWithEmail, verifyEmailOtp, refreshProfile, loginMockUser } = useAuth();
+  const { signInWithGoogle, signInWithEmail, verifyEmailOtp, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const { settings } = useSettings();
@@ -363,9 +363,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
             process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
             process.env.NEXT_PUBLIC_SUPABASE_URL === '';
-          if (isPlaceholder && data?.profile) {
-            loginMockUser(data.profile.id, data.profile);
-          }
+          
           await refreshProfile();
           showToast('Welcome!', 'You are now logged in and verified.', 'success');
           onClose();

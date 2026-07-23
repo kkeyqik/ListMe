@@ -33,7 +33,7 @@ const testimonials = [
 ];
 
 function LoginContent() {
-  const { user, profile, loading: authLoading, signInWithOtp, verifyOtp, signInWithGoogle, signInWithEmail, verifyEmailOtp, loginMockUser, refreshProfile, signUp } = useAuth();
+  const { user, profile, loading: authLoading, signInWithOtp, verifyOtp, signInWithGoogle, signInWithEmail, verifyEmailOtp, refreshProfile, signUp } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -316,10 +316,6 @@ function LoginContent() {
         } catch (err) {
           console.error('Error fetching user profile role:', err);
         }
-      }
-
-      if (isPlaceholder && userId && profileData) {
-        loginMockUser(userId, profileData);
       }
 
       if (role === 'ADMIN' || role === 'SUPER_ADMIN') {

@@ -9,13 +9,14 @@ datasource db {
 
 model Profile {
   id            String             @id @db.Uuid
-  name          String?
+  name          String
   email         String?            @unique
   phone         String?            @unique
   phoneVerified Boolean            @default(false) @map("phone_verified")
   avatarUrl     String?            @map("avatar_url")
   city          String?
   address       String?
+  roleMetadata  Json?              @map("role_metadata")
   role          Role               @default(USER)
   status        UserStatus         @default(ACTIVE)
   createdAt     DateTime           @default(now()) @map("created_at")

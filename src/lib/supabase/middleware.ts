@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { verifySessionToken } from '@/lib/session';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -27,7 +28,7 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // 1. Resolve active user session
+  // 1. Resolve active user session — check Supabase first
   let user: any = null;
 
   try {
@@ -37,15 +38,31 @@ export async function updateSession(request: NextRequest) {
     console.warn('[Middleware] Supabase getUser error:', err);
   }
 
-  // Fallback: Check mock user ID cookie in all environments
+  // 2. Fallback: Check signed session cookie (set by firebase-login and OAuth callback)
   if (!user) {
+    const sessionCookie = request.cookies.get('listme-session')?.value;
+    if (sessionCookie) {
+      const sessionData = verifySessionToken(sessionCookie);
+      if (sessionData) {
+        user = {
+          id: sessionData.userId,
+          app_metadata: { role: sessionData.role },
+        };
+      }
+    }
+  }
+
+  // 3. Dev-only: Check mock user ID cookie (ONLY in development with explicit opt-in)
+  if (!user && process.env.ENABLE_MOCK_AUTH === 'true') {
     const mockUserIdCookie = request.cookies.get('sb-mock-user-id')?.value;
     if (mockUserIdCookie) {
-      const isAdminMock = mockUserIdCookie === 'e19cb90a-58f6-40ca-be05-04eff6d0134f' || mockUserIdCookie === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6';
+      const mockAdminId = process.env.MOCK_ADMIN_ID;
+      const isAdminMock = mockAdminId && mockUserIdCookie === mockAdminId;
       user = {
-        id: isAdminMock ? 'e19cb90a-58f6-40ca-be05-04eff6d0134f' : mockUserIdCookie,
+        id: isAdminMock ? mockAdminId : mockUserIdCookie,
         phone: isAdminMock ? '+917777777777' : '+919876543210',
         email: isAdminMock ? 'admin@test.com' : 'user@test.com',
+        app_metadata: { role: isAdminMock ? 'ADMIN' : 'USER' },
       };
     }
   }
@@ -54,7 +71,7 @@ export async function updateSession(request: NextRequest) {
   const isProtectedPath = pathname.startsWith('/dashboard') || pathname.startsWith('/admin');
   const isAdminPath = pathname.startsWith('/admin');
 
-  // 2. Unauthenticated user accessing protected routes
+  // 4. Unauthenticated user accessing protected routes → redirect to login
   if (!user && isProtectedPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
@@ -62,15 +79,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 3. Authenticated user checks
+  // 5. Authenticated user checks — role from metadata only, no hardcoded values
   if (user) {
-    const isAdminUser = 
-      user.phone === '+917777777777' || 
-      user.email === 'admin@test.com' || 
-      user.id === 'e19cb90a-58f6-40ca-be05-04eff6d0134f' ||
-      user.id === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ||
-      user.user_metadata?.role === 'ADMIN' ||
-      user.app_metadata?.role === 'ADMIN';
+    const userRole = user.app_metadata?.role || user.user_metadata?.role || 'USER';
+    const isAdminUser = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
 
     // Admin route protection: Require ADMIN or SUPER_ADMIN role
     if (isAdminPath && !isAdminUser) {

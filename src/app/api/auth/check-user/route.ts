@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 
 export async function GET(request: NextRequest) {
+  // Rate limiting: 10 requests per minute per IP
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
+  const rateLimitResult = rateLimit(`check-user:${ip}`, 10, 60 * 1000);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { registered: false, message: 'Too many requests. Please try again later.' },
+      { status: 429, headers: getRateLimitHeaders(rateLimitResult, 10) }
+    );
+  }
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const identifier = searchParams.get('identifier')?.trim();
@@ -20,7 +31,8 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-      return NextResponse.json({ registered: !!profile, userId: profile?.id || null });
+      // Only return registration status — do NOT leak userId
+      return NextResponse.json({ registered: !!profile });
     } else {
       // Check phone number
       const cleanPhone = identifier.replace(/\D/g, '');
@@ -33,12 +45,12 @@ export async function GET(request: NextRequest) {
         where: {
           OR: [
             { phone: `+91${localNum}` },
-            { phone: `+1${localNum}` },
             { phone: localNum },
           ],
         },
       });
-      return NextResponse.json({ registered: !!profile, userId: profile?.id || null });
+      // Only return registration status — do NOT leak userId
+      return NextResponse.json({ registered: !!profile });
     }
   } catch (error: any) {
     return NextResponse.json(
