@@ -852,9 +852,11 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                   className={`${styles.chevronIcon} ${isCategoryOpen ? styles.chevronRotated : ''}`}
                 />
               </button>
+            </div>
+          )}
 
-              {isCategoryOpen && (
-                <div className={`${styles.categoryDropdown} ${styles.fullWidthDropdown}`} role="listbox">
+          {isCategoryOpen && (activeTab === 'Buy' || activeTab === 'Rent') && (
+            <div className={styles.categoryDropdownFullWidth} role="listbox">
                   {activeDropdownView === 'main' ? (
                     <div className={styles.dropdownPaddingBox}>
                       <div className={styles.columnHeaderRow}>
@@ -1046,8 +1048,6 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                   )}
                 </div>
               )}
-            </div>
-          )}
 
           <div className={styles.verticalDivider} aria-hidden="true" />
 
