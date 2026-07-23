@@ -3,29 +3,26 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies, headers } from 'next/headers';
 
 export async function createClient() {
-  const isPlaceholder = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
-  const allowMockAuth =
-    isPlaceholder || (process.env.NODE_ENV !== 'production' && process.env.ENABLE_MOCK_AUTH === 'true');
   let mockUserId: string | null = null;
 
-  if (allowMockAuth) {
+  try {
+    const headersList = await headers();
+    mockUserId = headersList.get('x-mock-user-id');
+  } catch {
+    // ignore: headers() might throw outside request context
+  }
+
+  if (!mockUserId) {
     try {
-      const headersList = await headers();
-      mockUserId = headersList.get('x-mock-user-id');
+      const cookieStore = await cookies();
+      mockUserId = cookieStore.get('sb-mock-user-id')?.value || null;
     } catch {
-      // ignore: headers() might throw outside request context
-    }
-    if (!mockUserId) {
-      try {
-        const cookieStore = await cookies();
-        mockUserId = cookieStore.get('sb-mock-user-id')?.value || null;
-      } catch {
-        // ignore
-      }
+      // ignore
     }
   }
 
   if (mockUserId) {
+    const isAdmin = mockUserId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6';
     return {
       auth: {
         getUser: async () => {
@@ -33,7 +30,16 @@ export async function createClient() {
             data: {
               user: {
                 id: mockUserId,
-                email: mockUserId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'admin@test.com' : 'user@test.com',
+                phone: isAdmin ? '+917777777777' : '+919876543210',
+                email: isAdmin ? 'admin@test.com' : 'user@test.com',
+                user_metadata: {
+                  name: isAdmin ? 'System Admin' : 'Standard User',
+                  full_name: isAdmin ? 'System Admin' : 'Standard User',
+                  role: isAdmin ? 'ADMIN' : 'USER',
+                },
+                app_metadata: {
+                  role: isAdmin ? 'ADMIN' : 'USER',
+                },
               }
             },
             error: null
@@ -60,8 +66,6 @@ export async function createClient() {
             );
           } catch {
             // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
       },
