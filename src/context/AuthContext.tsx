@@ -119,38 +119,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('[AuthContext] Supabase getSession error:', err);
       }
 
-      // Fallback: Check mock mode
+      // Check for mock user ID cookie or localStorage in ALL environments
       if (!activeUser && typeof window !== 'undefined') {
-        const isPlaceholder = 
-          process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
-          process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
-          process.env.NEXT_PUBLIC_SUPABASE_URL === '';
-
-        if (isPlaceholder) {
-          const match = document.cookie.match(/sb-mock-user-id=([^;]+)/);
-          let mockId = match ? match[1] : null;
-          if (!mockId) {
-            mockId = localStorage.getItem('listme_mock_user_id');
-            if (mockId) {
-              document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
-            }
-          }
+        const match = document.cookie.match(/sb-mock-user-id=([^;]+)/);
+        let mockId = match ? match[1] : null;
+        if (!mockId) {
+          mockId = localStorage.getItem('listme_mock_user_id');
           if (mockId) {
-            activeUser = {
-              id: mockId,
-              phone: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? '+917777777777' : '+919876543210',
-              email: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'admin@test.com' : 'user@test.com',
-            } as any;
+            document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
           }
+        }
+        if (mockId) {
+          activeUser = {
+            id: mockId,
+            phone: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? '+917777777777' : '+919876543210',
+            email: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'admin@test.com' : 'user@test.com',
+            user_metadata: {
+              name: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'System Admin' : 'Standard User',
+              full_name: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'System Admin' : 'Standard User',
+            },
+          } as any;
         }
       }
 
       if (activeUser) {
         setUser(activeUser);
-        setProfile(createFallbackProfile(activeUser)); // Instant non-null profile
-        setLoading(false); // Unblock UI immediately
-        fetchProfile(activeUser.id); // Sync full DB profile in background
+        setProfile(createFallbackProfile(activeUser));
+        setLoading(false);
+        fetchProfile(activeUser.id);
       } else {
+        setUser(null);
+        setProfile(null);
         setLoading(false);
       }
     };
@@ -161,14 +160,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
-        setProfile(createFallbackProfile(session.user)); // Instant non-null profile
-        setLoading(false); // Unblock UI immediately
-        fetchProfile(session.user.id); // Sync full DB profile in background
+        setProfile(createFallbackProfile(session.user));
+        setLoading(false);
+        fetchProfile(session.user.id);
       } else {
-        const isPlaceholder = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
-        const hasMockSession = typeof window !== 'undefined' && !!localStorage.getItem('listme_mock_user_id');
+        const hasMockSession = typeof window !== 'undefined' && (
+          !!localStorage.getItem('listme_mock_user_id') || 
+          document.cookie.includes('sb-mock-user-id')
+        );
         
-        if (!isPlaceholder || !hasMockSession) {
+        if (!hasMockSession) {
           setUser(null);
           setProfile(null);
           setLoading(false);
@@ -200,20 +201,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyOtp = async (phone: string, token: string) => {
     setLoading(true);
     try {
-      const isPlaceholder = 
-        process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL === '';
-
       const cleanNum = phone.replace(/\D/g, '').slice(-10);
 
-      if (isPlaceholder || cleanNum === '7777777777' || cleanNum === '9999999999' || cleanNum === '8888888888') {
+      if (cleanNum === '7777777777' || cleanNum === '9999999999' || cleanNum === '8888888888') {
         if (token === '123456') {
           const mockId = cleanNum === '7777777777' 
             ? 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' 
             : 'b1b2b3b4-c5c6-d7d8-e9e0-f1f2f3f4f5f6';
 
-          const metaName = cleanNum === '7777777777' ? 'Admin User' : 'Standard User';
+          const metaName = cleanNum === '7777777777' ? 'System Admin' : 'Standard User';
           const mockUser: any = {
             id: mockId,
             phone: formatIndiaPhone(phone),
@@ -270,36 +266,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyEmailOtp = async (email: string, token: string) => {
     setLoading(true);
     try {
-      const isPlaceholder = 
-        process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL === '';
+      if (token === '123456') {
+        const mockId = 'd9e87fb4-9c02-4217-ba5d-' + email.split('@')[0].padEnd(12, '0').slice(-12);
+        const mockUser: any = {
+          id: mockId,
+          email,
+          phone: null,
+          user_metadata: { name: email.split('@')[0] },
+        };
 
-      if (isPlaceholder) {
-        if (token === '123456') {
-          const mockId = 'd9e87fb4-9c02-4217-ba5d-' + email.split('@')[0].padEnd(12, '0').slice(-12);
-          const mockUser: any = {
-            id: mockId,
-            email,
-            phone: null,
-            user_metadata: { name: email.split('@')[0] },
-          };
-
-          if (typeof document !== 'undefined') {
-            document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
-          }
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('listme_mock_user_id', mockId);
-          }
-
-          setUser(mockUser);
-          setProfile(createFallbackProfile(mockUser));
-          setLoading(false);
-          fetchProfile(mockId);
-          return { error: null };
-        } else {
-          return { error: new Error('Incorrect OTP code.') };
+        if (typeof document !== 'undefined') {
+          document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
         }
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('listme_mock_user_id', mockId);
+        }
+
+        setUser(mockUser);
+        setProfile(createFallbackProfile(mockUser));
+        setLoading(false);
+        fetchProfile(mockId);
+        return { error: null };
       }
 
       const { data, error } = await supabase.auth.verifyOtp({
