@@ -43,6 +43,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { ErrorMonitor } from "@/components/ErrorMonitor";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -62,6 +64,7 @@ export default function RootLayout({
         <SettingsProvider>
           <AuthProvider>
             <ToastProvider>
+              <ErrorMonitor />
               {children}
             </ToastProvider>
           </AuthProvider>

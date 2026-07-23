@@ -323,9 +323,9 @@ function LoginContent() {
       }
 
       if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
-        router.push('/admin');
+        window.location.href = '/admin';
       } else {
-        router.push(redirectPath);
+        window.location.href = redirectPath;
       }
     }
   };

@@ -29,7 +29,7 @@ export default function AdminActivityLog() {
   const [emailLogs, setEmailLogs] = useState<any[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'seeker' | 'operations' | 'emails'>('seeker');
+  const [activeTab, setActiveTab] = useState<'seeker' | 'operations' | 'emails' | 'errors'>('seeker');
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -262,6 +262,15 @@ export default function AdminActivityLog() {
           }}
         >
           Emails Sent (SMTP Audit)
+        </button>
+        <button
+          className={`${pageStyles.tabButton} ${activeTab === 'errors' ? pageStyles.tabButtonActive : ''}`}
+          onClick={() => {
+            setActiveTab('errors');
+            setActionFilter('ALL');
+          }}
+        >
+          🚨 System Errors ({userLogs.filter(l => l.action === 'SYSTEM_ERROR').length})
         </button>
       </div>
 
@@ -506,6 +515,74 @@ export default function AdminActivityLog() {
               </table>
             </div>
           )}
+        </Card>
+      )}
+
+      {activeTab === 'errors' && (
+        <Card padding="none" className="animate-fade-in">
+          <div className={pageStyles.tableContainer}>
+            <table className={pageStyles.table}>
+              <thead>
+                <tr>
+                  <th className={pageStyles.th}>Error Details</th>
+                  <th className={pageStyles.th}>Source & URL</th>
+                  <th className={pageStyles.th}>User / IP</th>
+                  <th className={pageStyles.th}>Timestamp</th>
+                  <th className={pageStyles.th}>Stack Trace</th>
+                </tr>
+              </thead>
+              <tbody>
+                {userLogs.filter((l) => l.action === 'SYSTEM_ERROR').length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className={pageStyles.emptyTd}>
+                      No system errors logged. Everything is running smoothly!
+                    </td>
+                  </tr>
+                ) : (
+                  userLogs
+                    .filter((l) => l.action === 'SYSTEM_ERROR')
+                    .map((log) => (
+                      <tr key={log.id} className={pageStyles.tr}>
+                        <td className={pageStyles.td}>
+                          <div style={{ fontWeight: 700, color: '#DC2626' }}>
+                            {log.metadata?.errorMessage || 'System Error'}
+                          </div>
+                        </td>
+                        <td className={pageStyles.td}>
+                          <Badge variant="neutral" size="sm">
+                            {log.metadata?.errorSource || 'unknown'}
+                          </Badge>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '2px', wordBreak: 'break-all' }}>
+                            {log.metadata?.pageUrl || '-'}
+                          </div>
+                        </td>
+                        <td className={pageStyles.td}>
+                          <div style={{ fontWeight: 600 }}>{log.user?.name || 'Anonymous User'}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{log.ipAddress || 'IP N/A'}</div>
+                        </td>
+                        <td className={pageStyles.td}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                            {new Date(log.createdAt).toLocaleString('en-IN')}
+                          </span>
+                        </td>
+                        <td className={pageStyles.td}>
+                          {log.metadata?.errorStack ? (
+                            <details style={{ fontSize: '0.75rem', cursor: 'pointer' }}>
+                              <summary style={{ color: 'var(--color-primary)', fontWeight: 600 }}>View Stack</summary>
+                              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#F8FAFC', padding: '8px', borderRadius: '6px', marginTop: '4px', border: '1px solid var(--color-neutral-200)' }}>
+                                {log.metadata.errorStack}
+                              </pre>
+                            </details>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>No stack details</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
 

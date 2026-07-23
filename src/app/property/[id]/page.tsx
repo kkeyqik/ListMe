@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   const { id } = await params;
 
   const listing = await prisma.listing.findUnique({
-    where: { id, status: 'ACTIVE' },
+    where: { id },
   });
 
   if (!listing) {
@@ -47,7 +47,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   // Fetch listing details including nested amenities
   const listing = await prisma.listing.findUnique({
-    where: { id, status: 'ACTIVE' },
+    where: { id },
     include: {
       images: { orderBy: { displayOrder: 'asc' } },
       documents: true,
