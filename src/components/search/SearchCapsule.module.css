@@ -1,0 +1,617 @@
+.searchCapsuleContainer {
+  position: relative;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  z-index: var(--z-dropdown, 1000);
+}
+
+.premiumSearchBox {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: var(--radius-xl, 24px);
+  box-shadow: 0 20px 40px -15px rgba(10, 17, 40, 0.12);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible;
+}
+
+.premiumSearchBoxDropdownOpen {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.searchTabsRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.searchTabsLeft {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.searchTabsLeft::-webkit-scrollbar {
+  display: none;
+}
+
+.searchTabItem {
+  position: relative;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #525252);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full, 999px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.searchTabItem:hover {
+  color: var(--color-primary, #0A1128);
+  background: rgba(10, 17, 40, 0.04);
+}
+
+.searchTabActive {
+  color: #ffffff !important;
+  background: var(--color-primary, #0A1128) !important;
+}
+
+.tabNotificationDot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  background: var(--color-accent, #F43F5E);
+  border-radius: 50%;
+}
+
+.searchTabsRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tabsSeparator {
+  width: 1px;
+  height: 20px;
+  background: #E2E8F0;
+}
+
+.postPropertyTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-secondary, #607A66);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-full, 999px);
+  transition: background 0.2s ease;
+}
+
+.postPropertyTab:hover {
+  background: rgba(96, 122, 102, 0.08);
+}
+
+.freeBadge {
+  background: #10B981;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.searchInputsRow {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  gap: 12px;
+  position: relative;
+}
+
+.staticPane {
+  padding: 10px 16px;
+  font-weight: 700;
+  color: var(--color-primary, #0A1128);
+  font-size: 0.95rem;
+}
+
+.categorySelectWrapper {
+  position: relative;
+}
+
+.categorySelectPane {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-md, 12px);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1E293B;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.categorySelectPane:hover {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+}
+
+.chevronIcon {
+  transition: transform 0.2s ease;
+}
+
+.chevronRotated {
+  transform: rotate(180deg);
+}
+
+.categoryDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: #ffffff;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.15);
+  z-index: var(--z-modal, 1050);
+  min-width: 440px;
+}
+
+.dropdownPaddingBox {
+  padding: 20px 24px;
+}
+
+.dropdownWide {
+  min-width: 640px;
+}
+
+.dropdownMedium {
+  min-width: 480px;
+}
+
+.radioRow {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.radioLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.radioInput {
+  accent-color: var(--color-primary, #0A1128);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.radioText {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.investmentLinkBox {
+  font-size: 0.85rem;
+  color: #64748B;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.commercialLinkButton {
+  background: none;
+  border: none;
+  color: var(--color-secondary, #607A66);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.dropdownDivider {
+  height: 1px;
+  background: #E2E8F0;
+  margin: 0 -24px 16px -24px;
+}
+
+.verticalDivider {
+  width: 1px;
+  height: 28px;
+  background: #E2E8F0;
+  flex-shrink: 0;
+}
+
+.splitLayoutRow {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 20px;
+}
+
+.leftColumnPane {
+  flex: 0 0 65%;
+}
+
+.rightColumnPane {
+  flex: 0 0 35%;
+  border-left: 1px solid #E2E8F0;
+  padding-left: 24px;
+  text-align: left;
+}
+
+.columnHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.columnTitle {
+  font-size: 0.95rem;
+  color: #1E293B;
+}
+
+.categoryClearBtn {
+  background: none;
+  border: none;
+  color: #64748B;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.categoryClearBtn:hover {
+  color: var(--color-accent, #F43F5E);
+}
+
+.checkboxGridTwoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  text-align: left;
+}
+
+.checkboxStackCol {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.categoryCheckboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.categoryCheckbox {
+  display: none;
+}
+
+.categoryCheckboxCustom {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  transition: all 0.15s ease;
+}
+
+.categoryCheckbox:checked + .categoryCheckboxCustom {
+  background: var(--color-primary, #0A1128);
+  border-color: var(--color-primary, #0A1128);
+}
+
+.categoryCheckboxText {
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+.newBadgeMini {
+  background-color: #FFF1F2;
+  color: #E11D48;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.radioFlexRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-bottom: 20px;
+}
+
+.officeTypeSubBox {
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: #F8FAFC;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+}
+
+.officeTypeTitle {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.requiredAsterisk {
+  color: #EF4444;
+}
+
+.radioRowGap {
+  display: flex;
+  gap: 20px;
+}
+
+.subViewHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-primary, #0A1128);
+  cursor: pointer;
+}
+
+.subViewPills {
+  display: flex;
+  gap: 8px;
+}
+
+.filterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filterPillActive {
+  background: var(--color-primary, #0A1128);
+  color: #ffffff;
+  border-color: var(--color-primary, #0A1128);
+}
+
+.dropdownPillsRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.subViewContent {
+  padding: 20px 24px;
+}
+
+.subViewPanel {
+  text-align: left;
+}
+
+.budgetHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  color: #1E293B;
+}
+
+.budgetSubtext {
+  font-weight: 700;
+  color: var(--color-secondary, #607A66);
+}
+
+.budgetSliderContainer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.budgetLabel {
+  font-size: 0.8rem;
+  color: #64748B;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.budgetSliderTrack {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.budgetRangeInput {
+  width: 100%;
+  accent-color: var(--color-primary, #0A1128);
+  cursor: pointer;
+}
+
+.subViewPanelTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 14px;
+}
+
+.subViewPanelOptions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.subViewOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.subViewOptionActive {
+  background: var(--color-primary, #0A1128);
+  color: #ffffff;
+  border-color: var(--color-primary, #0A1128);
+}
+
+.optionCheck {
+  font-weight: 800;
+}
+
+.searchQueryPane {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  padding: 0 8px;
+}
+
+.searchQueryIcon {
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+.searchQueryInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.95rem;
+  color: #1E293B;
+}
+
+.searchQueryInput::placeholder {
+  color: #94A3B8;
+}
+
+.actionsGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tooltipWrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.actionCircleBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.actionCircleBtn:hover {
+  background: #F1F5F9;
+  color: var(--color-primary, #0A1128);
+}
+
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1E293B;
+  color: #ffffff;
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tooltipWrapper:hover .tooltip {
+  opacity: 1;
+}
+
+.tooltipIcon {
+  flex-shrink: 0;
+}
+
+.newBadge {
+  background: #EF4444;
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.solidBlueSearchBtn {
+  padding: 10px 24px;
+  background: var(--color-primary, #0A1128);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: var(--radius-md, 12px);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.solidBlueSearchBtn:hover {
+  background: var(--color-primary-dark, #060A19);
+}
