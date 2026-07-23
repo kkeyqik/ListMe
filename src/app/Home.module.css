@@ -978,6 +978,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2rem;
+  align-items: stretch;
 }
 
 @media (max-width: 1199px) {
@@ -1015,7 +1016,8 @@
 .cardImageWrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 210px;
+  flex-shrink: 0;
   overflow: hidden;
 }
 
@@ -1055,7 +1057,7 @@
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 auto;
 }
 
 .priceRow {
@@ -1075,13 +1077,18 @@
   color: var(--color-neutral-900);
   margin-bottom: 0.5rem;
   line-height: 1.3;
+  min-height: 2.6em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .locationRow {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  margin-top: auto;
+  margin-top: 0.5rem;
 }
 
 .locationIcon {
@@ -1098,6 +1105,7 @@
   height: 1px;
   background-color: var(--color-border);
   margin: 1.25rem 0;
+  margin-top: auto;
 }
 
 .paramsRow {
@@ -1123,6 +1131,7 @@
   align-items: center;
   justify-content: space-between;
   background-color: var(--color-neutral-50);
+  margin-top: auto;
 }
 
 .verifiedBadge {
