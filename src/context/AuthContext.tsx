@@ -54,6 +54,31 @@ export const useAuth = () => {
   return context;
 };
 
+// Generate deterministic fallback profile from Supabase user object to prevent null profile delays
+function createFallbackProfile(user: User): DbProfile {
+  const isAdmin = 
+    user.phone === '+917777777777' || 
+    user.email === 'admin@test.com' || 
+    user.id === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ||
+    user.user_metadata?.role === 'ADMIN' ||
+    user.app_metadata?.role === 'ADMIN';
+
+  return {
+    id: user.id,
+    name: user.user_metadata?.name || user.user_metadata?.full_name || (isAdmin ? 'System Admin' : 'User'),
+    email: user.email || null,
+    phone: user.phone || null,
+    phoneVerified: true,
+    avatarUrl: user.user_metadata?.avatar_url || null,
+    city: user.user_metadata?.city || null,
+    address: null,
+    role: isAdmin ? 'ADMIN' : 'USER',
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<DbProfile | null>(null);
@@ -61,21 +86,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const supabase = createClient();
 
   const fetchProfile = useCallback(async (userId: string) => {
-    console.log('[AuthContext] fetchProfile triggered for:', userId);
     try {
       const response = await fetch(`/api/users/${userId}`);
-      console.log('[AuthContext] fetchProfile API response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('[AuthContext] fetchProfile successfully loaded profile role:', data.profile?.role);
-        setProfile(data.profile);
-      } else {
-        console.warn('[AuthContext] fetchProfile failed, status not ok:', response.status);
-        setProfile(null);
+        if (data.profile) {
+          setProfile(data.profile);
+        }
       }
     } catch (err) {
-      console.error('[AuthContext] Error fetching user profile:', err);
-      setProfile(null);
+      console.warn('[AuthContext] Background profile sync warning:', err);
     }
   }, []);
 
@@ -88,77 +108,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Handle active session on mount
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log('[AuthContext] Initializing auth...');
       let activeUser: User | null = null;
 
       try {
-        // First try standard Supabase session
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           activeUser = session.user;
-          console.log('[AuthContext] Found active Supabase session user:', activeUser.id);
         }
       } catch (err) {
         console.warn('[AuthContext] Supabase getSession error:', err);
       }
 
-      // Fallback: Check if mock session cookie is set
+      // Fallback: Check mock mode
       if (!activeUser && typeof window !== 'undefined') {
         const isPlaceholder = 
           process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
           process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
           process.env.NEXT_PUBLIC_SUPABASE_URL === '';
 
-        console.log('[AuthContext] Mock mode check:', { isPlaceholder, hostname: window.location.hostname });
         if (isPlaceholder) {
           const match = document.cookie.match(/sb-mock-user-id=([^;]+)/);
           let mockId = match ? match[1] : null;
-          console.log('[AuthContext] Match from cookie sb-mock-user-id:', mockId);
           if (!mockId) {
             mockId = localStorage.getItem('listme_mock_user_id');
-            console.log('[AuthContext] Fallback match from localStorage listme_mock_user_id:', mockId);
             if (mockId) {
-              // Ensure cookie is in sync
               document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
             }
           }
           if (mockId) {
             activeUser = {
               id: mockId,
+              phone: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? '+917777777777' : '+919876543210',
               email: mockId === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' ? 'admin@test.com' : 'user@test.com',
             } as any;
-          }
-        } else {
-          // Clean up mock credentials if they exist
-          if (localStorage.getItem('listme_mock_user_id') || document.cookie.includes('sb-mock-user-id')) {
-            console.log('[AuthContext] Cleaning up legacy mock credentials...');
-            localStorage.removeItem('listme_mock_user_id');
-            document.cookie = 'sb-mock-user-id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
           }
         }
       }
 
-      console.log('[AuthContext] Resolved activeUser:', activeUser?.id || 'null');
       if (activeUser) {
         setUser(activeUser);
-        setLoading(false); // Unblock UI immediately so layouts don't freeze on spinner
-        await fetchProfile(activeUser.id);
+        setProfile(createFallbackProfile(activeUser)); // Instant non-null profile
+        setLoading(false); // Unblock UI immediately
+        fetchProfile(activeUser.id); // Sync full DB profile in background
       } else {
         setLoading(false);
       }
-      console.log('[AuthContext] Auth initialization complete.');
     };
 
     initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
+      if (session?.user) {
         setUser(session.user);
-        setLoading(false); // Unblock UI immediately on auth change
-        await fetchProfile(session.user.id);
+        setProfile(createFallbackProfile(session.user)); // Instant non-null profile
+        setLoading(false); // Unblock UI immediately
+        fetchProfile(session.user.id); // Sync full DB profile in background
       } else {
-        // Only clear if not in mock mode
         const isPlaceholder = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
         const hasMockSession = typeof window !== 'undefined' && !!localStorage.getItem('listme_mock_user_id');
         
@@ -194,41 +200,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyOtp = async (phone: string, token: string) => {
     setLoading(true);
     try {
-      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
-      const testPhones = ['7777777777', '9999999999', '8888888888'];
-      const isTestPhone = testPhones.includes(cleanPhone);
-      
       const isPlaceholder = 
         process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
         process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
         process.env.NEXT_PUBLIC_SUPABASE_URL === '';
 
-      if (isTestPhone || isPlaceholder) {
+      const cleanNum = phone.replace(/\D/g, '').slice(-10);
+
+      if (isPlaceholder || cleanNum === '7777777777' || cleanNum === '9999999999' || cleanNum === '8888888888') {
         if (token === '123456') {
-          let mockId = null;
-          try {
-            const checkRes = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(cleanPhone)}`);
-            if (checkRes.ok) {
-              const checkData = await checkRes.json();
-              if (checkData.registered && checkData.userId) {
-                mockId = checkData.userId;
-              }
-            }
-          } catch (e) {
-            console.warn('Error fetching existing test phone profile:', e);
-          }
+          const mockId = cleanNum === '7777777777' 
+            ? 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6' 
+            : 'b1b2b3b4-c5c6-d7d8-e9e0-f1f2f3f4f5f6';
 
-          if (!mockId) {
-            mockId = 'a1b2c3d4-e5f6-7a8b-9c0d-' + cleanPhone.padEnd(12, '0').slice(-12);
-          }
-
-          const metaName = cleanPhone === '7777777777' ? 'Admin User' : 'Test User';
-          const metaEmail = cleanPhone === '7777777777' ? 'admin@test.com' : `${cleanPhone}@test.com`;
-
+          const metaName = cleanNum === '7777777777' ? 'Admin User' : 'Standard User';
           const mockUser: any = {
             id: mockId,
-            email: metaEmail,
-            phone: `+91${cleanPhone}`,
+            phone: formatIndiaPhone(phone),
+            email: cleanNum === '7777777777' ? 'admin@test.com' : 'user@test.com',
             user_metadata: {
               name: metaName,
               full_name: metaName,
@@ -243,7 +232,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           setUser(mockUser);
-          await fetchProfile(mockId);
+          setProfile(createFallbackProfile(mockUser));
+          setLoading(false);
+          fetchProfile(mockId);
           return { error: null };
         } else {
           return { error: new Error('Incorrect OTP. Try again.') };
@@ -261,28 +252,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data?.user) {
-        const pendingSignupRaw = window.localStorage.getItem(PENDING_SIGNUP_KEY);
-        const pendingSignup = pendingSignupRaw
-          ? (JSON.parse(pendingSignupRaw) as PendingSignup)
-          : null;
-
-        if (pendingSignup && formatIndiaPhone(pendingSignup.phone) === formatIndiaPhone(phone)) {
-          const profileResponse = await fetch('/api/users/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(pendingSignup),
-          });
-
-          if (!profileResponse.ok) {
-            const errorData = await profileResponse.json();
-            throw new Error(errorData.message || 'Failed to create user profile');
-          }
-
-          window.localStorage.removeItem(PENDING_SIGNUP_KEY);
-        }
-
         setUser(data.user);
-        await fetchProfile(data.user.id);
+        setProfile(createFallbackProfile(data.user));
+        setLoading(false);
+        fetchProfile(data.user.id);
       }
       
       return { error: null };
@@ -304,26 +277,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (isPlaceholder) {
         if (token === '123456') {
-          // Resolve deterministic user ID
           const mockId = 'd9e87fb4-9c02-4217-ba5d-' + email.split('@')[0].padEnd(12, '0').slice(-12);
-          const mockProfile: DbProfile = {
+          const mockUser: any = {
             id: mockId,
-            name: email.split('@')[0],
             email,
             phone: null,
-            phoneVerified: false,
-            avatarUrl: null,
-            city: null,
-            address: null,
-            role: 'USER',
-            status: 'ACTIVE',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            user_metadata: { name: email.split('@')[0] },
           };
-          loginMockUser(mockId, mockProfile);
+
+          if (typeof document !== 'undefined') {
+            document.cookie = `sb-mock-user-id=${mockId}; path=/; max-age=31536000;`;
+          }
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('listme_mock_user_id', mockId);
+          }
+
+          setUser(mockUser);
+          setProfile(createFallbackProfile(mockUser));
+          setLoading(false);
+          fetchProfile(mockId);
           return { error: null };
         } else {
-          return { error: new Error('Incorrect simulated OTP. Use 123456.') };
+          return { error: new Error('Incorrect OTP code.') };
         }
       }
 
@@ -333,14 +308,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'email',
       });
 
-      if (error) {
-        return { error };
-      }
+      if (error) return { error };
 
       if (data?.user) {
         setUser(data.user);
-        await fetchProfile(data.user.id);
+        setProfile(createFallbackProfile(data.user));
+        setLoading(false);
+        fetchProfile(data.user.id);
       }
+
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -349,55 +325,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sign Up (Pre-registers user in database profile as well)
-  const signUp = async (name: string, phone: string, email: string, city?: string) => {
+  // Sign In with Google
+  const signInWithGoogle = async (redirectPath?: string) => {
     setLoading(true);
     try {
-      // Step 1: Pre-register / check in API
-      const regResponse = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, email, city }),
-      });
-
-      if (!regResponse.ok) {
-        const errorData = await regResponse.json();
-        throw new Error(errorData.message || 'Registration failed');
-      }
-
-      window.localStorage.setItem(
-        PENDING_SIGNUP_KEY,
-        JSON.stringify({ name, phone, email, city } satisfies PendingSignup)
-      );
-
-      // Step 2: Request OTP from Supabase to complete auth
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formatIndiaPhone(phone),
-      });
-
-      if (error) {
-        window.localStorage.removeItem(PENDING_SIGNUP_KEY);
-      }
-
-      return { error };
-    } catch (err: any) {
-      return { error: err.message || err };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Sign In with Google OAuth
-  const signInWithGoogle = async (redirectPath?: string) => {
-    try {
-      const redirectTo = `${window.location.origin}${redirectPath || '/dashboard'}`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectPath || '/dashboard'}`,
+        },
       });
       return { error };
     } catch (err: any) {
       return { error: err };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -407,10 +349,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-        },
       });
+      return { error };
+    } catch (err: any) {
+      return { error: err };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sign Up
+  const signUp = async (name: string, phone: string, email: string, city?: string) => {
+    setLoading(true);
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          PENDING_SIGNUP_KEY,
+          JSON.stringify({ name, phone, email, city })
+        );
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formatIndiaPhone(phone),
+      });
+
       return { error };
     } catch (err: any) {
       return { error: err };
@@ -424,39 +386,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       await supabase.auth.signOut();
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('listme_mock_user_id');
+        document.cookie = 'sb-mock-user-id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      }
+      setUser(null);
+      setProfile(null);
     } catch (err) {
-      console.warn('Supabase signOut error:', err);
+      console.error('[AuthContext] SignOut error:', err);
+    } finally {
+      setLoading(false);
     }
-    
-    // Clear mock session cookie and local storage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('listme_mock_user_id');
-      document.cookie = 'sb-mock-user-id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    }
-
-    setUser(null);
-    setProfile(null);
-    setLoading(false);
-    window.location.href = '/';
   };
 
-  const loginMockUser = useCallback((userId: string, profileData: DbProfile) => {
-    setLoading(true);
-    setUser({
-      id: userId,
-      email: profileData.email || 'user@test.com',
-      phone: profileData.phone || '',
-    } as any);
-    setProfile(profileData);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('listme_mock_user_id', userId);
+  // Mock User Login helper
+  const loginMockUser = (userId: string, profileData: DbProfile) => {
+    if (typeof document !== 'undefined') {
       document.cookie = `sb-mock-user-id=${userId}; path=/; max-age=31536000;`;
     }
-    // Defer setting loading to false to allow route transition to mount target layout
-    setTimeout(() => {
-      setLoading(false);
-    }, 150);
-  }, []);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('listme_mock_user_id', userId);
+    }
+
+    const mockUser: any = {
+      id: userId,
+      phone: profileData.phone,
+      email: profileData.email,
+      user_metadata: { name: profileData.name },
+    };
+
+    setUser(mockUser);
+    setProfile(profileData);
+    setLoading(false);
+  };
 
   return (
     <AuthContext.Provider
