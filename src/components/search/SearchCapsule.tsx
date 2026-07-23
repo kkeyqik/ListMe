@@ -90,27 +90,35 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     });
   };
 
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+
+      // If the click is inside any full-width dropdown panel, don't close anything
+      if (target instanceof HTMLElement && target.closest('[data-dropdown-panel]')) {
+        return;
+      }
+
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(target)) {
         setIsCategoryOpen(false);
         setActiveDropdownView('main');
       }
-      if (commercialTradeMenuRef.current && !commercialTradeMenuRef.current.contains(e.target as Node)) {
+      if (commercialTradeMenuRef.current && !commercialTradeMenuRef.current.contains(target)) {
         setIsCommercialTradeOpen(false);
         setCommercialActiveView('main');
       }
-      if (commercialTypeMenuRef.current && !commercialTypeMenuRef.current.contains(e.target as Node)) {
+      if (commercialTypeMenuRef.current && !commercialTypeMenuRef.current.contains(target)) {
         setIsCommercialTypeOpen(false);
         setCommercialActiveView('main');
       }
-      if (plotsTypeMenuRef.current && !plotsTypeMenuRef.current.contains(e.target as Node)) {
+      if (plotsTypeMenuRef.current && !plotsTypeMenuRef.current.contains(target)) {
         setIsPlotsTypeOpen(false);
       }
-      if (plotsTradeMenuRef.current && !plotsTradeMenuRef.current.contains(e.target as Node)) {
+      if (plotsTradeMenuRef.current && !plotsTradeMenuRef.current.contains(target)) {
         setIsPlotsTradeOpen(false);
       }
-      if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(target)) {
         setIsProjectTypeOpen(false);
       }
     }
@@ -614,54 +622,6 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                     className={`${styles.chevronIcon} ${isCommercialTradeOpen ? styles.chevronRotated : ''}`}
                   />
                 </button>
-                {isCommercialTradeOpen && (
-                  <div className={styles.categoryDropdown} role="listbox">
-                    {commercialActiveView === 'main' ? (
-                      <div className={styles.dropdownPaddingBox}>
-                        <div className={styles.radioRow}>
-                          {['Buy', 'Lease', 'Invest'].map((t) => (
-                            <label key={t} className={styles.radioLabel}>
-                              <input
-                                type="radio"
-                                name="commercialTrade"
-                                checked={commercialTrade === t}
-                                onChange={() => {
-                                  setCommercialTrade(t as any);
-                                  if (t === 'Invest') {
-                                    setCommercialType('All Commercial');
-                                  } else if (t === 'Lease') {
-                                    setCommercialType('Office Spaces');
-                                  } else if (t === 'Buy') {
-                                    setCommercialType('All Commercial');
-                                  }
-                                }}
-                                className={styles.radioInput}
-                              />
-                              <span className={styles.radioText}>{t}</span>
-                            </label>
-                          ))}
-                        </div>
-                        <div className={styles.investmentLinkBox}>
-                          Looking to invest?{' '}
-                          <button
-                            type="button"
-                            className={styles.commercialLinkButton}
-                            onClick={() => {
-                              setCommercialTrade('Invest');
-                              setCommercialType('All Commercial');
-                            }}
-                          >
-                            Click here
-                          </button>
-                        </div>
-                        <div className={styles.dropdownDivider} />
-                        {renderCommercialPills()}
-                      </div>
-                    ) : (
-                      renderCommercialSubView()
-                    )}
-                  </div>
-                )}
               </div>
 
               {commercialTrade !== 'Invest' && (
@@ -684,159 +644,72 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                         className={`${styles.chevronIcon} ${isCommercialTypeOpen ? styles.chevronRotated : ''}`}
                       />
                     </button>
-                    {isCommercialTypeOpen && (
-                      <div
-                        className={`${styles.categoryDropdown} ${commercialTrade === 'Buy' ? styles.dropdownWide : styles.dropdownMedium}`}
-                        role="listbox"
-                      >
-                        {commercialActiveView === 'main' ? (
-                          <div className={styles.dropdownPaddingBox}>
-                            {commercialTrade === 'Buy' ? (
-                              <div className={styles.splitLayoutRow}>
-                                <div className={styles.leftColumnPane}>
-                                  <div className={styles.columnHeaderRow}>
-                                    <strong className={styles.columnTitle}>Property Types</strong>
-                                    <button
-                                      type="button"
-                                      className={styles.categoryClearBtn}
-                                      onClick={() => setSelectedBuySubtypes(new Set())}
-                                    >
-                                      Clear
-                                    </button>
-                                  </div>
-                                  <div className={styles.checkboxGridTwoCol}>
-                                    {[
-                                      'Ready to move offices', 'Shops & Retail', 'Agricultural/Farm Land', 
-                                      'Warehouse', 'Factory & Manufacturing', 'Others', 
-                                      'Bare shell offices', 'Commercial/Inst. Land', 'Industrial Land/Plots', 
-                                      'Cold Storage', 'Hotel/Resorts'
-                                    ].map((sub) => {
-                                      const isChecked = selectedBuySubtypes.has(sub);
-                                      return (
-                                        <label key={sub} className={styles.categoryCheckboxLabel}>
-                                          <input
-                                            type="checkbox"
-                                            checked={isChecked}
-                                            onChange={() => {
-                                              setSelectedBuySubtypes(prev => {
-                                                const next = new Set(prev);
-                                                if (next.has(sub)) next.delete(sub);
-                                                else next.add(sub);
-                                                return next;
-                                              });
-                                            }}
-                                            className={styles.categoryCheckbox}
-                                          />
-                                          <span className={styles.categoryCheckboxCustom}>
-                                            {isChecked && (
-                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                            )}
-                                          </span>
-                                          <span className={styles.categoryCheckboxText}>{sub}</span>
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                                <div className={styles.rightColumnPane}>
-                                  <div className={styles.columnHeaderRow}>
-                                    <strong className={styles.columnTitle}>Investment Options</strong>
-                                    <span className={styles.newBadgeMini}>New</span>
-                                  </div>
-                                  <div className={styles.checkboxStackCol}>
-                                    {[
-                                      'Pre Leased Spaces', 'Food Courts', 'Restaurants', 
-                                      'Multiplexes', 'SCO Plots', 'Co-working', 'Business Center'
-                                    ].map((inv) => {
-                                      const isChecked = selectedBuyInvestmentOptions.has(inv);
-                                      return (
-                                        <label key={inv} className={styles.categoryCheckboxLabel}>
-                                          <input
-                                            type="checkbox"
-                                            checked={isChecked}
-                                            onChange={() => {
-                                              setSelectedBuyInvestmentOptions(prev => {
-                                                const next = new Set(prev);
-                                                if (next.has(inv)) next.delete(inv);
-                                                else next.add(inv);
-                                                return next;
-                                              });
-                                            }}
-                                            className={styles.categoryCheckbox}
-                                          />
-                                          <span className={styles.categoryCheckboxCustom}>
-                                            {isChecked && (
-                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                            )}
-                                          </span>
-                                          <span className={styles.categoryCheckboxText}>{inv}</span>
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <div className={styles.columnHeaderRow}>
-                                  <strong className={styles.columnTitle}>Property Types</strong>
-                                </div>
-                                <div className={styles.radioFlexRow}>
-                                  {[
-                                    { label: 'Office Spaces', value: 'Office Spaces' },
-                                    { label: 'Shops & Retail', value: 'Shops & Retail' },
-                                    { label: 'Other commercial spaces', value: 'Other commercial spaces' },
-                                    { label: 'Factory & Manufacturing', value: 'Factory & Manufacturing' }
-                                  ].map((pt) => (
-                                    <label key={pt.value} className={styles.radioLabel}>
-                                      <input
-                                        type="radio"
-                                        name="commercialType"
-                                        checked={commercialType === pt.value}
-                                        onChange={() => setCommercialType(pt.value)}
-                                        className={styles.radioInput}
-                                      />
-                                      <span className={styles.radioText}>{pt.label}</span>
-                                    </label>
-                                  ))}
-                                </div>
-
-                                {commercialType === 'Office Spaces' && (
-                                  <div className={styles.officeTypeSubBox}>
-                                    <h5 className={styles.officeTypeTitle}>
-                                      Office space type <span className={styles.requiredAsterisk}>*</span>
-                                    </h5>
-                                    <div className={styles.radioRowGap}>
-                                      {['Ready to move offices', 'Bare shell offices', 'Co-working office space'].map((ost) => (
-                                        <label key={ost} className={styles.radioLabel}>
-                                          <input
-                                            type="radio"
-                                            name="officeSpaceType"
-                                            checked={officeSpaceType === ost}
-                                            onChange={() => setOfficeSpaceType(ost)}
-                                            className={styles.radioInput}
-                                          />
-                                          <span className={styles.radioText}>{ost}</span>
-                                        </label>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </>
-                            )}
-
-                            <div className={styles.dropdownDivider} />
-                            {renderCommercialPills()}
-                          </div>
-                        ) : (
-                          renderCommercialSubView()
-                        )}
-                      </div>
-                    )}
                   </div>
                 </>
               )}
             </>
+          ) : activeTab === 'Plots/Land' ? (
+            <>
+              {/* Plots type: Residential / Commercial */}
+              <div className={styles.categorySelectWrapper} ref={plotsTypeMenuRef}>
+                <button
+                  type="button"
+                  aria-expanded={isPlotsTypeOpen}
+                  aria-haspopup="listbox"
+                  className={styles.categorySelectPane}
+                  onClick={() => {
+                    setIsPlotsTypeOpen(!isPlotsTypeOpen);
+                    setIsPlotsTradeOpen(false);
+                  }}
+                >
+                  <span>{plotsType}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`${styles.chevronIcon} ${isPlotsTypeOpen ? styles.chevronRotated : ''}`}
+                  />
+                </button>
+              </div>
+
+              {plotsType === 'Commercial' && (
+                <>
+                  <div className={styles.verticalDivider} aria-hidden="true" />
+                  <div className={styles.categorySelectWrapper} ref={plotsTradeMenuRef}>
+                    <button
+                      type="button"
+                      aria-expanded={isPlotsTradeOpen}
+                      aria-haspopup="listbox"
+                      className={styles.categorySelectPane}
+                      onClick={() => {
+                        setIsPlotsTradeOpen(!isPlotsTradeOpen);
+                        setIsPlotsTypeOpen(false);
+                      }}
+                    >
+                      <span>{plotsTrade}</span>
+                      <ChevronDown
+                        size={16}
+                        className={`${styles.chevronIcon} ${isPlotsTradeOpen ? styles.chevronRotated : ''}`}
+                      />
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          ) : activeTab === 'Projects' ? (
+            <div className={styles.categorySelectWrapper} ref={projectMenuRef}>
+              <button
+                type="button"
+                aria-expanded={isProjectTypeOpen}
+                aria-haspopup="listbox"
+                className={styles.categorySelectPane}
+                onClick={() => setIsProjectTypeOpen(!isProjectTypeOpen)}
+              >
+                <span>{projectType}</span>
+                <ChevronDown
+                  size={16}
+                  className={`${styles.chevronIcon} ${isProjectTypeOpen ? styles.chevronRotated : ''}`}
+                />
+              </button>
+            </div>
           ) : (
             <div className={styles.categorySelectWrapper} ref={categoryMenuRef}>
               <button
@@ -854,200 +727,6 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
               </button>
             </div>
           )}
-
-          {isCategoryOpen && (activeTab === 'Buy' || activeTab === 'Rent') && (
-            <div className={styles.categoryDropdownFullWidth} role="listbox">
-                  {activeDropdownView === 'main' ? (
-                    <div className={styles.dropdownPaddingBox}>
-                      <div className={styles.columnHeaderRow}>
-                        <button
-                          type="button"
-                          className={styles.categoryClearBtn}
-                          onClick={() => setCheckedCategories(new Set())}
-                        >
-                          Clear
-                        </button>
-                      </div>
-
-                      <div className={styles.checkboxGridThreeCol}>
-                        {Array.from(defaultCategories).map((cat) => {
-                          const isChecked = checkedCategories.has(cat);
-                          return (
-                            <label key={cat} className={styles.categoryCheckboxLabel}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => toggleCategory(cat)}
-                                className={styles.categoryCheckbox}
-                              />
-                              <span className={styles.categoryCheckboxCustom}>
-                                {isChecked && (
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                )}
-                              </span>
-                              <span className={styles.categoryCheckboxText}>{cat}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-
-                      <div className={styles.commercialLinkBox}>
-                        Looking for commercial properties ?{' '}
-                        <button
-                          type="button"
-                          className={styles.commercialLinkButton}
-                          onClick={() => {
-                            setActiveTab('Commercial');
-                            setIsCategoryOpen(false);
-                          }}
-                        >
-                          Click here
-                        </button>
-                      </div>
-
-                      <div className={styles.dropdownDivider} />
-
-                      <div className={styles.dropdownPillsRow}>
-                        <button
-                          type="button"
-                          className={styles.filterPill}
-                          onClick={() => setActiveDropdownView('budget')}
-                        >
-                          Budget <ChevronDown size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.filterPill}
-                          onClick={() => setActiveDropdownView('bedroom')}
-                        >
-                          Bedroom <ChevronDown size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.filterPill}
-                          onClick={() => setActiveDropdownView('construction')}
-                        >
-                          Construction Status <ChevronDown size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.filterPill}
-                          onClick={() => setActiveDropdownView('postedby')}
-                        >
-                          Posted By <ChevronDown size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className={styles.subViewHeader}>
-                        <button
-                          type="button"
-                          className={styles.backButton}
-                          onClick={() => setActiveDropdownView('main')}
-                        >
-                          <ArrowLeft size={16} />
-                          <span>Back</span>
-                        </button>
-
-                        <div className={styles.subViewPills}>
-                          <button
-                            type="button"
-                            className={`${styles.filterPill} ${activeDropdownView === 'budget' ? styles.filterPillActive : ''}`}
-                            onClick={() => setActiveDropdownView('budget')}
-                          >
-                            Budget <ChevronDown size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.filterPill} ${activeDropdownView === 'bedroom' ? styles.filterPillActive : ''}`}
-                            onClick={() => setActiveDropdownView('bedroom')}
-                          >
-                            Bedroom <ChevronDown size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.filterPill} ${activeDropdownView === 'construction' ? styles.filterPillActive : ''}`}
-                            onClick={() => setActiveDropdownView('construction')}
-                          >
-                            Construction Status <ChevronDown size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.filterPill} ${activeDropdownView === 'postedby' ? styles.filterPillActive : ''}`}
-                            onClick={() => setActiveDropdownView('postedby')}
-                          >
-                            Posted By <ChevronDown size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className={styles.subViewContent}>
-                        {activeDropdownView === 'budget' && (
-                          <div className={styles.subViewPanel}>
-                            <div className={styles.budgetHeader}>
-                              <strong>Select Price Range</strong>
-                              <span className={styles.budgetSubtext}>
-                                {budgetRange[0]} - {budgetRange[1] >= 100 ? '100+' : budgetRange[1]} Crore
-                              </span>
-                            </div>
-                            <div className={styles.budgetSliderContainer}>
-                              <span className={styles.budgetLabel}>{budgetRange[0]}</span>
-                              <div className={styles.budgetSliderTrack}>
-                                <input
-                                  type="range"
-                                  min={0}
-                                  max={100}
-                                  value={budgetRange[0]}
-                                  onChange={(e) => setBudgetRange([Math.min(Number(e.target.value), budgetRange[1] - 1), budgetRange[1]])}
-                                  className={styles.budgetRangeInput}
-                                />
-                                <input
-                                  type="range"
-                                  min={0}
-                                  max={100}
-                                  value={budgetRange[1]}
-                                  onChange={(e) => setBudgetRange([budgetRange[0], Math.max(Number(e.target.value), budgetRange[0] + 1)])}
-                                  className={styles.budgetRangeInput}
-                                />
-                              </div>
-                              <span className={styles.budgetLabel}>100+ Crores</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {activeDropdownView === 'bedroom' && (
-                          <div className={styles.subViewPanel}>
-                            <h4 className={styles.subViewPanelTitle}>Number of Bedrooms</h4>
-                            <div className={styles.subViewPanelOptions}>
-                              {[
-                                { label: '1 BHK', value: '1' },
-                                { label: '2 BHK', value: '2' },
-                                { label: '3 BHK', value: '3' },
-                                { label: '4 BHK', value: '4' },
-                                { label: '4+ BHK', value: '5' }
-                              ].map((opt) => {
-                                const isActive = selectedBedrooms === opt.value;
-                                return (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
-                                    onClick={() => setSelectedBedrooms(isActive ? 'Any' : opt.value)}
-                                  >
-                                    <span className={styles.optionCheck}>{isActive ? '✓' : '+'}</span>
-                                    <span>{opt.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
 
           <div className={styles.verticalDivider} aria-hidden="true" />
 
@@ -1099,6 +778,591 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
             </button>
           </div>
         </div>
+
+        {/* ========== FULL-WIDTH DROPDOWN PANELS (rendered outside searchInputsRow) ========== */}
+
+        {/* Buy / Rent / New Launch dropdown */}
+        {isCategoryOpen && (activeTab === 'Buy' || activeTab === 'Rent' || activeTab === 'New Launch') && (
+          <div
+            className={styles.categoryDropdownFullWidth}
+            data-dropdown-panel
+            role="listbox"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {activeDropdownView === 'main' ? (
+              <div className={styles.dropdownPaddingBox}>
+                <div className={styles.columnHeaderRow}>
+                  <button
+                    type="button"
+                    className={styles.categoryClearBtn}
+                    onClick={() => setCheckedCategories(new Set())}
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                <div className={styles.checkboxGridThreeCol}>
+                  {Array.from(defaultCategories).map((cat) => {
+                    const isChecked = checkedCategories.has(cat);
+                    return (
+                      <label key={cat} className={styles.categoryCheckboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleCategory(cat)}
+                          className={styles.categoryCheckbox}
+                        />
+                        <span className={styles.categoryCheckboxCustom}>
+                          {isChecked && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                          )}
+                        </span>
+                        <span className={styles.categoryCheckboxText}>{cat}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className={styles.commercialLinkBox}>
+                  Looking for commercial properties ?{' '}
+                  <button
+                    type="button"
+                    className={styles.commercialLinkButton}
+                    onClick={() => {
+                      setActiveTab('Commercial');
+                      setIsCategoryOpen(false);
+                    }}
+                  >
+                    Click here
+                  </button>
+                </div>
+
+                <div className={styles.dropdownDivider} />
+
+                <div className={styles.dropdownPillsRow}>
+                  <button
+                    type="button"
+                    className={styles.filterPill}
+                    onClick={() => setActiveDropdownView('budget')}
+                  >
+                    Budget <ChevronDown size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.filterPill}
+                    onClick={() => setActiveDropdownView('bedroom')}
+                  >
+                    Bedroom <ChevronDown size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.filterPill}
+                    onClick={() => setActiveDropdownView('construction')}
+                  >
+                    Construction Status <ChevronDown size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.filterPill}
+                    onClick={() => setActiveDropdownView('postedby')}
+                  >
+                    Posted By <ChevronDown size={14} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={styles.subViewHeader}>
+                  <button
+                    type="button"
+                    className={styles.backButton}
+                    onClick={() => setActiveDropdownView('main')}
+                  >
+                    <ArrowLeft size={16} />
+                    <span>Back</span>
+                  </button>
+
+                  <div className={styles.subViewPills}>
+                    <button
+                      type="button"
+                      className={`${styles.filterPill} ${activeDropdownView === 'budget' ? styles.filterPillActive : ''}`}
+                      onClick={() => setActiveDropdownView('budget')}
+                    >
+                      Budget <ChevronDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.filterPill} ${activeDropdownView === 'bedroom' ? styles.filterPillActive : ''}`}
+                      onClick={() => setActiveDropdownView('bedroom')}
+                    >
+                      Bedroom <ChevronDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.filterPill} ${activeDropdownView === 'construction' ? styles.filterPillActive : ''}`}
+                      onClick={() => setActiveDropdownView('construction')}
+                    >
+                      Construction Status <ChevronDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.filterPill} ${activeDropdownView === 'postedby' ? styles.filterPillActive : ''}`}
+                      onClick={() => setActiveDropdownView('postedby')}
+                    >
+                      Posted By <ChevronDown size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.subViewContent}>
+                  {activeDropdownView === 'budget' && (
+                    <div className={styles.subViewPanel}>
+                      <div className={styles.budgetHeader}>
+                        <strong>Select Price Range</strong>
+                        <span className={styles.budgetSubtext}>
+                          {budgetRange[0]} - {budgetRange[1] >= 100 ? '100+' : budgetRange[1]} Crore
+                        </span>
+                      </div>
+                      <div className={styles.budgetSliderContainer}>
+                        <span className={styles.budgetLabel}>{budgetRange[0]}</span>
+                        <div className={styles.budgetSliderTrack}>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={budgetRange[0]}
+                            onChange={(e) => setBudgetRange([Math.min(Number(e.target.value), budgetRange[1] - 1), budgetRange[1]])}
+                            className={styles.budgetRangeInput}
+                          />
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={budgetRange[1]}
+                            onChange={(e) => setBudgetRange([budgetRange[0], Math.max(Number(e.target.value), budgetRange[0] + 1)])}
+                            className={styles.budgetRangeInput}
+                          />
+                        </div>
+                        <span className={styles.budgetLabel}>100+ Crores</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeDropdownView === 'bedroom' && (
+                    <div className={styles.subViewPanel}>
+                      <h4 className={styles.subViewPanelTitle}>Number of Bedrooms</h4>
+                      <div className={styles.subViewPanelOptions}>
+                        {[
+                          { label: '1 BHK', value: '1' },
+                          { label: '2 BHK', value: '2' },
+                          { label: '3 BHK', value: '3' },
+                          { label: '4 BHK', value: '4' },
+                          { label: '4+ BHK', value: '5' }
+                        ].map((opt) => {
+                          const isActive = selectedBedrooms === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className={`${styles.subViewOption} ${isActive ? styles.subViewOptionActive : ''}`}
+                              onClick={() => setSelectedBedrooms(isActive ? 'Any' : opt.value)}
+                            >
+                              <span className={styles.optionCheck}>{isActive ? '✓' : '+'}</span>
+                              <span>{opt.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Commercial Trade dropdown (Buy/Lease/Invest) — full-width */}
+        {isCommercialTradeOpen && activeTab === 'Commercial' && (
+          <div
+            className={styles.categoryDropdownFullWidth}
+            data-dropdown-panel
+            role="listbox"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {commercialActiveView === 'main' ? (
+              <div className={styles.dropdownPaddingBox}>
+                <div className={styles.radioRow}>
+                  {['Buy', 'Lease', 'Invest'].map((t) => (
+                    <label key={t} className={styles.radioLabel}>
+                      <input
+                        type="radio"
+                        name="commercialTrade"
+                        checked={commercialTrade === t}
+                        onChange={() => {
+                          setCommercialTrade(t as any);
+                          if (t === 'Invest') {
+                            setCommercialType('All Commercial');
+                          } else if (t === 'Lease') {
+                            setCommercialType('Office Spaces');
+                          } else if (t === 'Buy') {
+                            setCommercialType('All Commercial');
+                          }
+                        }}
+                        className={styles.radioInput}
+                      />
+                      <span className={styles.radioText}>{t}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className={styles.investmentLinkBox}>
+                  Looking to invest?{' '}
+                  <button
+                    type="button"
+                    className={styles.commercialLinkButton}
+                    onClick={() => {
+                      setCommercialTrade('Invest');
+                      setCommercialType('All Commercial');
+                    }}
+                  >
+                    Click here
+                  </button>
+                </div>
+                <div className={styles.dropdownDivider} />
+                {renderCommercialPills()}
+              </div>
+            ) : (
+              renderCommercialSubView()
+            )}
+          </div>
+        )}
+
+        {/* Commercial Type dropdown (Office Spaces, Shops, etc.) — full-width */}
+        {isCommercialTypeOpen && activeTab === 'Commercial' && commercialTrade !== 'Invest' && (
+          <div
+            className={styles.categoryDropdownFullWidth}
+            data-dropdown-panel
+            role="listbox"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {commercialActiveView === 'main' ? (
+              <div className={styles.dropdownPaddingBox}>
+                {commercialTrade === 'Buy' ? (
+                  <div className={styles.splitLayoutRow}>
+                    <div className={styles.leftColumnPane}>
+                      <div className={styles.columnHeaderRow}>
+                        <strong className={styles.columnTitle}>Property Types</strong>
+                        <button
+                          type="button"
+                          className={styles.categoryClearBtn}
+                          onClick={() => setSelectedBuySubtypes(new Set())}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className={styles.checkboxGridTwoCol}>
+                        {[
+                          'Ready to move offices', 'Shops & Retail', 'Agricultural/Farm Land', 
+                          'Warehouse', 'Factory & Manufacturing', 'Others', 
+                          'Bare shell offices', 'Commercial/Inst. Land', 'Industrial Land/Plots', 
+                          'Cold Storage', 'Hotel/Resorts'
+                        ].map((sub) => {
+                          const isChecked = selectedBuySubtypes.has(sub);
+                          return (
+                            <label key={sub} className={styles.categoryCheckboxLabel}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setSelectedBuySubtypes(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(sub)) next.delete(sub);
+                                    else next.add(sub);
+                                    return next;
+                                  });
+                                }}
+                                className={styles.categoryCheckbox}
+                              />
+                              <span className={styles.categoryCheckboxCustom}>
+                                {isChecked && (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                )}
+                              </span>
+                              <span className={styles.categoryCheckboxText}>{sub}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className={styles.rightColumnPane}>
+                      <div className={styles.columnHeaderRow}>
+                        <strong className={styles.columnTitle}>Investment Options</strong>
+                        <span className={styles.newBadgeMini}>New</span>
+                      </div>
+                      <div className={styles.checkboxStackCol}>
+                        {[
+                          'Pre Leased Spaces', 'Food Courts', 'Restaurants', 
+                          'Multiplexes', 'SCO Plots', 'Co-working', 'Business Center'
+                        ].map((inv) => {
+                          const isChecked = selectedBuyInvestmentOptions.has(inv);
+                          return (
+                            <label key={inv} className={styles.categoryCheckboxLabel}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setSelectedBuyInvestmentOptions(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(inv)) next.delete(inv);
+                                    else next.add(inv);
+                                    return next;
+                                  });
+                                }}
+                                className={styles.categoryCheckbox}
+                              />
+                              <span className={styles.categoryCheckboxCustom}>
+                                {isChecked && (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                )}
+                              </span>
+                              <span className={styles.categoryCheckboxText}>{inv}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.columnHeaderRow}>
+                      <strong className={styles.columnTitle}>Property Types</strong>
+                    </div>
+                    <div className={styles.radioFlexRow}>
+                      {[
+                        { label: 'Office Spaces', value: 'Office Spaces' },
+                        { label: 'Shops & Retail', value: 'Shops & Retail' },
+                        { label: 'Other commercial spaces', value: 'Other commercial spaces' },
+                        { label: 'Factory & Manufacturing', value: 'Factory & Manufacturing' }
+                      ].map((pt) => (
+                        <label key={pt.value} className={styles.radioLabel}>
+                          <input
+                            type="radio"
+                            name="commercialType"
+                            checked={commercialType === pt.value}
+                            onChange={() => setCommercialType(pt.value)}
+                            className={styles.radioInput}
+                          />
+                          <span className={styles.radioText}>{pt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {commercialType === 'Office Spaces' && (
+                      <div className={styles.officeTypeSubBox}>
+                        <h5 className={styles.officeTypeTitle}>
+                          Office space type <span className={styles.requiredAsterisk}>*</span>
+                        </h5>
+                        <div className={styles.radioRowGap}>
+                          {['Ready to move offices', 'Bare shell offices', 'Co-working office space'].map((ost) => (
+                            <label key={ost} className={styles.radioLabel}>
+                              <input
+                                type="radio"
+                                name="officeSpaceType"
+                                checked={officeSpaceType === ost}
+                                onChange={() => setOfficeSpaceType(ost)}
+                                className={styles.radioInput}
+                              />
+                              <span className={styles.radioText}>{ost}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <div className={styles.dropdownDivider} />
+                {renderCommercialPills()}
+              </div>
+            ) : (
+              renderCommercialSubView()
+            )}
+          </div>
+        )}
+
+        {/* Plots/Land Type dropdown (Residential / Commercial) — full-width */}
+        {isPlotsTypeOpen && activeTab === 'Plots/Land' && (
+          <div
+            className={styles.categoryDropdownFullWidth}
+            data-dropdown-panel
+            role="listbox"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className={styles.dropdownPaddingBox}>
+              <div className={styles.columnHeaderRow}>
+                <strong className={styles.columnTitle}>Plot / Land Type</strong>
+              </div>
+              <div className={styles.radioRow}>
+                {(['Residential', 'Commercial'] as const).map((pt) => (
+                  <label key={pt} className={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      name="plotsType"
+                      checked={plotsType === pt}
+                      onChange={() => setPlotsType(pt)}
+                      className={styles.radioInput}
+                    />
+                    <span className={styles.radioText}>{pt}</span>
+                  </label>
+                ))}
+              </div>
+
+              {plotsType === 'Commercial' && (
+                <>
+                  <div className={styles.dropdownDivider} />
+                  <div className={styles.columnHeaderRow}>
+                    <strong className={styles.columnTitle}>Commercial Plot Subtypes</strong>
+                    <button
+                      type="button"
+                      className={styles.categoryClearBtn}
+                      onClick={() => setSelectedPlotsSubtypes(new Set())}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className={styles.checkboxGridThreeCol}>
+                    {['Agricultural / Farm Land', 'Industrial Plots/Land', 'Commercial / Inst. Land'].map((sub) => {
+                      const isChecked = selectedPlotsSubtypes.has(sub);
+                      return (
+                        <label key={sub} className={styles.categoryCheckboxLabel}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedPlotsSubtypes(prev => {
+                                const next = new Set(prev);
+                                if (next.has(sub)) next.delete(sub);
+                                else next.add(sub);
+                                return next;
+                              });
+                            }}
+                            className={styles.categoryCheckbox}
+                          />
+                          <span className={styles.categoryCheckboxCustom}>
+                            {isChecked && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                            )}
+                          </span>
+                          <span className={styles.categoryCheckboxText}>{sub}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Plots/Land Trade dropdown (Buy / Lease / Invest) — full-width */}
+        {isPlotsTradeOpen && activeTab === 'Plots/Land' && plotsType === 'Commercial' && (
+          <div
+            className={styles.categoryDropdownFullWidth}
+            data-dropdown-panel
+            role="listbox"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className={styles.dropdownPaddingBox}>
+              <div className={styles.columnHeaderRow}>
+                <strong className={styles.columnTitle}>Trade Type</strong>
+              </div>
+              <div className={styles.radioRow}>
+                {(['Buy', 'Lease', 'Invest'] as const).map((t) => (
+                  <label key={t} className={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      name="plotsTrade"
+                      checked={plotsTrade === t}
+                      onChange={() => setPlotsTrade(t)}
+                      className={styles.radioInput}
+                    />
+                    <span className={styles.radioText}>{t}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Projects dropdown (Residential Project / Commercial Project + statuses) — full-width */}
+        {isProjectTypeOpen && activeTab === 'Projects' && (
+          <div
+            className={styles.categoryDropdownFullWidth}
+            data-dropdown-panel
+            role="listbox"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className={styles.dropdownPaddingBox}>
+              <div className={styles.columnHeaderRow}>
+                <strong className={styles.columnTitle}>Project Type</strong>
+              </div>
+              <div className={styles.radioRow}>
+                {(['Residential Project', 'Commercial Project'] as const).map((pt) => (
+                  <label key={pt} className={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      name="projectType"
+                      checked={projectType === pt}
+                      onChange={() => setProjectType(pt)}
+                      className={styles.radioInput}
+                    />
+                    <span className={styles.radioText}>{pt}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className={styles.dropdownDivider} />
+
+              <div className={styles.columnHeaderRow}>
+                <strong className={styles.columnTitle}>Construction Status</strong>
+                <button
+                  type="button"
+                  className={styles.categoryClearBtn}
+                  onClick={() => setSelectedProjectStatuses(new Set())}
+                >
+                  Clear
+                </button>
+              </div>
+              <div className={styles.checkboxGridThreeCol}>
+                {['New Launch', 'Under Construction', 'Ready to move'].map((status) => {
+                  const isChecked = selectedProjectStatuses.has(status);
+                  return (
+                    <label key={status} className={styles.categoryCheckboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          setSelectedProjectStatuses(prev => {
+                            const next = new Set(prev);
+                            if (next.has(status)) next.delete(status);
+                            else next.add(status);
+                            return next;
+                          });
+                        }}
+                        className={styles.categoryCheckbox}
+                      />
+                      <span className={styles.categoryCheckboxCustom}>
+                        {isChecked && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        )}
+                      </span>
+                      <span className={styles.categoryCheckboxText}>{status}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </form>
     </div>
   );
