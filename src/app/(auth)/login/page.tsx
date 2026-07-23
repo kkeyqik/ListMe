@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Phone, ArrowRight, Home, Mail, User, MapPin, ChevronDown } from 'lucide-react';
+import { Phone, ArrowRight, Home, Mail, User, MapPin, ChevronDown, ShieldAlert, Headphones } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
@@ -568,6 +568,24 @@ function LoginContent() {
                   Access your account and continue your journey with us
                 </p>
               </div>
+
+              {searchParams.get('error') === 'suspended' && (
+                <div className={styles.suspendedAlertBox}>
+                  <ShieldAlert size={28} className={styles.suspendedAlertIcon} />
+                  <div>
+                    <h4 className={styles.suspendedAlertTitle}>
+                      Account Suspended or Banned
+                    </h4>
+                    <p className={styles.suspendedAlertText}>
+                      Your account has been suspended or banned due to policy enforcement. Please contact support to resolve this issue.
+                    </p>
+                    <Link href="/contact" className={styles.contactSupportBtn}>
+                      <Headphones size={16} />
+                      Contact Support
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={handleIdentifierSubmit} className={styles.form}>
                 <div>
