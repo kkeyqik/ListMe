@@ -854,7 +854,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
               </button>
 
               {isCategoryOpen && (
-                <div className={styles.categoryDropdown} role="listbox">
+                <div className={`${styles.categoryDropdown} ${styles.fullWidthDropdown}`} role="listbox">
                   {activeDropdownView === 'main' ? (
                     <div className={styles.dropdownPaddingBox}>
                       <div className={styles.columnHeaderRow}>

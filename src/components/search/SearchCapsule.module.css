@@ -179,16 +179,23 @@
 
 .categoryDropdown {
   position: absolute;
-  top: calc(100% + 2px);
+  top: calc(100% + 4px);
   left: 0;
-  right: 0;
-  width: 100%;
   background: #ffffff;
   border: 1px solid #E2E8F0;
-  border-radius: 0 0 16px 16px;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12);
   z-index: 1050;
+  min-width: 440px;
   text-align: left;
+}
+
+.fullWidthDropdown {
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  border-radius: 0 0 16px 16px !important;
 }
 
 .dropdownPaddingBox {
