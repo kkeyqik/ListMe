@@ -858,7 +858,6 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                   {activeDropdownView === 'main' ? (
                     <div className={styles.dropdownPaddingBox}>
                       <div className={styles.columnHeaderRow}>
-                        <strong className={styles.columnTitle}>Property Types</strong>
                         <button
                           type="button"
                           className={styles.categoryClearBtn}
@@ -868,7 +867,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                         </button>
                       </div>
 
-                      <div className={styles.checkboxGridTwoCol}>
+                      <div className={styles.checkboxGridThreeCol}>
                         {Array.from(defaultCategories).map((cat) => {
                           const isChecked = checkedCategories.has(cat);
                           return (
@@ -891,7 +890,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                       </div>
 
                       <div className={styles.commercialLinkBox}>
-                        Looking for commercial properties?{' '}
+                        Looking for commercial properties ?{' '}
                         <button
                           type="button"
                           className={styles.commercialLinkButton}
