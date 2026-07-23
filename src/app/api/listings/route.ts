@@ -234,6 +234,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
+    // 1. Verify user profile, status, and phone verification
+    const userProfile = await prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { phoneVerified: true, status: true, phone: true },
+    });
+
+    if (!userProfile) {
+      return NextResponse.json({ message: 'User profile not found' }, { status: 404 });
+    }
+
+    if (userProfile.status === 'SUSPENDED' || userProfile.status === 'BANNED') {
+      return NextResponse.json({ message: 'Your account has been suspended or banned' }, { status: 403 });
+    }
+
+    if (!userProfile.phoneVerified && !userProfile.phone) {
+      return NextResponse.json(
+        { message: 'Your mobile phone number must be verified before posting a property listing' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     
     // Deconstruct and validate payload details
