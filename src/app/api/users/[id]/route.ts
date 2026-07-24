@@ -37,9 +37,8 @@ export async function GET(
       const metaEmail = user.email || null;
       const metaPhone = user.phone || null;
 
-      // Special check: is this the admin?
-      const finalRole = metaPhone === '+917777777777' || metaEmail === 'admin@test.com' ? 'ADMIN' : 'USER';
-
+      // All new auto-created profiles start as USER.
+      // Admin roles must be assigned manually via the admin panel.
       profile = await prisma.profile.create({
         data: {
           id: user.id,
@@ -47,7 +46,7 @@ export async function GET(
           email: metaEmail,
           phone: metaPhone,
           phoneVerified: !!metaPhone,
-          role: finalRole as any,
+          role: 'USER',
           city: user.user_metadata?.city || null,
         },
       });
@@ -73,8 +72,9 @@ export async function GET(
     
     return NextResponse.json({ profile });
   } catch (error: any) {
+    console.error('[users/id GET] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -37,8 +37,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ users });
   } catch (error: any) {
+    console.error('[admin/users GET] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -149,8 +150,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Create admin user error:', error);
+    console.error('[admin/users POST] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

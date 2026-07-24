@@ -53,8 +53,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ registered: !!profile });
     }
   } catch (error: any) {
+    console.error('[check-user] Error:', error);
     return NextResponse.json(
-      { registered: false, error: error.message || 'Internal server error' },
+      { registered: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

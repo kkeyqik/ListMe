@@ -159,13 +159,16 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
       } catch (error: any) {
         showToast('Verification Failed', error.message || 'Incorrect OTP. Try again.', 'error');
       }
-    } else {
-      // Mock validation
+    } else if (process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true') {
+      // Dev-only: Mock validation (gated behind build-time flag)
       if (activeOtp === '123456') {
         verifySuccess = true;
       } else {
         showToast('Verification Failed', 'Incorrect simulated OTP. Use 123456.', 'error');
       }
+    } else {
+      // Firebase not configured and mock auth not enabled — fail hard
+      showToast('Error', 'Phone verification service is not configured. Please contact support.', 'error');
     }
 
     if (verifySuccess) {

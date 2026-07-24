@@ -113,8 +113,9 @@ export async function GET(
 
     return NextResponse.json({ listing, isOwnerOrAdmin });
   } catch (error: any) {
+    console.error('[listings/id GET] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -338,8 +339,9 @@ export async function PUT(
       listing: updatedListing,
     });
   } catch (error: any) {
+    console.error('[listings/id PUT] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -394,8 +396,9 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Listing deleted successfully' });
   } catch (error: any) {
+    console.error('[listings/id DELETE] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

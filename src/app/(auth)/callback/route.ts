@@ -7,7 +7,9 @@ import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
-  const redirect = searchParams.get('redirect') || '/dashboard';
+  const rawRedirect = searchParams.get('redirect') || '/dashboard';
+  // Prevent open redirect: only allow relative paths, block protocol-relative URLs
+  const redirect = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')) ? rawRedirect : '/dashboard';
 
   if (!code) {
     return NextResponse.redirect(new URL('/login?error=no_code', request.url));

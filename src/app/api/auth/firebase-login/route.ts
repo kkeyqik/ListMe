@@ -95,9 +95,17 @@ export async function POST(request: NextRequest) {
       const sessionToken = createSessionToken(suUserId, existingProfile.role);
       cookieStore.set(SESSION_COOKIE_NAME, sessionToken, getSessionCookieOptions());
 
+      // Return only essential fields — never leak internal metadata
       return NextResponse.json({
         success: true,
-        profile: existingProfile,
+        profile: {
+          id: existingProfile.id,
+          name: existingProfile.name,
+          role: existingProfile.role,
+          phone: existingProfile.phone,
+          email: existingProfile.email,
+          status: existingProfile.status,
+        },
         userId: suUserId,
       });
     }
@@ -208,11 +216,18 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      profile: existingProfile,
+      profile: existingProfile ? {
+        id: existingProfile.id,
+        name: existingProfile.name,
+        role: existingProfile.role,
+        phone: existingProfile.phone,
+        email: existingProfile.email,
+        status: existingProfile.status,
+      } : null,
       userId: suUserId,
     });
   } catch (error: any) {
     console.error('[firebase-login] Error:', error);
-    return NextResponse.json({ message: error.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }

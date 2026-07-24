@@ -217,8 +217,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
+    console.error('[listings GET] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -376,8 +377,9 @@ export async function POST(request: NextRequest) {
       listing: newListing,
     });
   } catch (error: any) {
+    console.error('[listings POST] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

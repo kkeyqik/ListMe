@@ -72,8 +72,9 @@ export async function POST(request: NextRequest) {
     // Success - details are unique and valid to proceed to OTP
     return NextResponse.json({ message: 'Signup details validated successfully' });
   } catch (error: any) {
+    console.error('[signup] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

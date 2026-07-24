@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
-
-const formatIndiaPhone = (phone: string) => (phone.startsWith('+') ? phone : `+91${phone}`);
+import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
+import { validateName, validatePhone, validateEmail } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +13,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limiting: 5 profile creations per hour per user
+    const rateLimitResult = rateLimit(`profile-create:${user.id}`, 5, 60 * 60 * 1000);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { message: 'Too many requests. Please try again later.' },
+        { status: 429, headers: getRateLimitHeaders(rateLimitResult, 5) }
+      );
+    }
+
     const { name, email, phone, city } = await request.json();
 
     if (!name || !email || !phone) {
@@ -21,11 +30,29 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const formattedPhone = validatePhone(phone).normalized || phone;
 
-    const formattedPhone = formatIndiaPhone(phone);
+    // Validate inputs
+    const nameResult = validateName(name);
+    if (!nameResult.valid) {
+      return NextResponse.json({ message: nameResult.error }, { status: 400 });
+    }
+
+    const phoneResult = validatePhone(phone);
+    if (!phoneResult.valid) {
+      return NextResponse.json({ message: phoneResult.error }, { status: 400 });
+    }
+
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) {
+      return NextResponse.json({ message: emailResult.error }, { status: 400 });
+    }
+
+    const sanitizedName = nameResult.sanitized;
+    const normalizedPhone = phoneResult.normalized;
 
     const [phoneOwner, emailOwner] = await Promise.all([
-      prisma.profile.findUnique({ where: { phone: formattedPhone }, select: { id: true } }),
+      prisma.profile.findUnique({ where: { phone: normalizedPhone }, select: { id: true } }),
       prisma.profile.findUnique({ where: { email }, select: { id: true } }),
     ]);
 
@@ -51,17 +78,17 @@ export async function POST(request: NextRequest) {
     const profile = await prisma.profile.upsert({
       where: { id: user.id },
       update: {
-        name,
+        name: sanitizedName,
         email,
-        phone: formattedPhone,
+        phone: normalizedPhone,
         phoneVerified: true,
         city: city || null,
       },
       create: {
         id: user.id,
-        name,
+        name: sanitizedName,
         email,
-        phone: formattedPhone,
+        phone: normalizedPhone,
         phoneVerified: true,
         city: city || null,
       },
@@ -86,8 +113,9 @@ export async function POST(request: NextRequest) {
       profile,
     });
   } catch (error: any) {
+    console.error('[profile POST] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -102,13 +130,28 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limiting: 10 profile updates per hour per user
+    const rateLimitResult = rateLimit(`profile-update:${user.id}`, 10, 60 * 60 * 1000);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { message: 'Too many requests. Please try again later.' },
+        { status: 429, headers: getRateLimitHeaders(rateLimitResult, 10) }
+      );
+    }
+
     const body = await request.json();
     const { name, address } = body;
 
-    // Build update data
+    // Build update data with validation
     const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
-    if (address !== undefined) updateData.address = address;
+    if (name !== undefined) {
+      const nameResult = validateName(name);
+      if (!nameResult.valid) {
+        return NextResponse.json({ message: nameResult.error }, { status: 400 });
+      }
+      updateData.name = nameResult.sanitized;
+    }
+    if (address !== undefined) updateData.address = typeof address === 'string' ? address.trim() : address;
 
     // Update public profiles table
     const updatedProfile = await prisma.profile.update({
@@ -121,8 +164,9 @@ export async function PUT(request: NextRequest) {
       profile: updatedProfile,
     });
   } catch (error: any) {
+    console.error('[profile PUT] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

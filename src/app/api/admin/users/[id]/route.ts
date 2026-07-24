@@ -79,8 +79,9 @@ export async function PUT(
 
     return NextResponse.json({ profile: updatedProfile });
   } catch (error: any) {
+    console.error('[admin/users PUT] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
