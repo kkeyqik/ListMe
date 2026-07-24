@@ -227,7 +227,6 @@ export async function POST(request: NextRequest) {
       userId: suUserId,
     });
   } catch (error: any) {
-    console.error('[firebase-login] Error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ message: `Internal server error: ${error.message || String(error)}` }, { status: 500 });
   }
 }
