@@ -99,14 +99,6 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
 
     setLoading(true);
 
-    const testPhones = ['7777777777', '9999999999', '8888888888'];
-    if (testPhones.includes(phone)) {
-      setStep('otp');
-      setTimer(30);
-      setLoading(false);
-      return;
-    }
-
     const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
 
     if (isFirebaseConfigured) {

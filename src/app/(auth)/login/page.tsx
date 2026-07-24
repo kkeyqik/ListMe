@@ -138,6 +138,7 @@ function LoginContent() {
     }
     if (queryEmail) {
       setEmail(queryEmail);
+      setIdentifier(queryEmail);
     }
     if (queryCountry) {
       setCountryCode(queryCountry);
@@ -145,6 +146,7 @@ function LoginContent() {
 
     if (queryPhone) {
       setPhone(queryPhone);
+      setIdentifier(queryPhone);
     } else if (typeof window !== 'undefined') {
       const storedPhone = window.sessionStorage.getItem('onboarding_phone');
       if (storedPhone) {
@@ -254,13 +256,6 @@ function LoginContent() {
           metadata: { phone: formattedPhone, countryCode },
         }),
       }).catch((e) => console.warn('Activity logging error:', e));
-
-      if (localNum === '7777777777' || localNum === '9999999999' || localNum === '8888888888') {
-        setStep('otp');
-        setTimer(30);
-        setLoading(false);
-        return;
-      }
 
       const { error } = await signInWithOtp(formattedPhone);
       setLoading(false);
@@ -439,13 +434,6 @@ function LoginContent() {
     setPhone(formattedPhone);
 
     setLoading(true);
-
-    if (localNum === '7777777777' || localNum === '9999999999' || localNum === '8888888888') {
-      setStep('signup-otp');
-      setTimer(30);
-      setLoading(false);
-      return;
-    }
 
     const { error } = await signUp(name, formattedPhone, email, selectedCity);
     setLoading(false);

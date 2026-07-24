@@ -270,14 +270,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }),
       }).catch((e) => console.warn('Activity logging error:', e));
 
-      const testPhones = ['7777777777', '9999999999', '8888888888'];
-      if (testPhones.includes(formattedPhoneNum)) {
-        setView('otp');
-        setTimer(30);
-        setLoading(false);
-        return;
-      }
-
       if (isFirebaseConfigured) {
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
