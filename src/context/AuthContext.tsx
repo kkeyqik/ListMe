@@ -215,6 +215,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithOtp = async (phone: string) => {
     setLoading(true);
     try {
+      const cleanNum = phone.replace(/\D/g, '').slice(-10);
+      if (IS_MOCK_AUTH_ENABLED && (cleanNum === '7777777777' || cleanNum === '9999999999' || cleanNum === '8888888888')) {
+        return { error: null };
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         phone: formatIndiaPhone(phone),
       });
