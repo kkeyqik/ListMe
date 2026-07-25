@@ -56,7 +56,14 @@ export default function AdminHome() {
         const listingsData = await listingsRes.json();
         const interestsData = await interestsRes.json();
 
-        setMetrics(metricsData.metrics);
+        setMetrics({
+          totalListings: metricsData.metrics?.listings?.total || 0,
+          activeListings: metricsData.metrics?.listings?.active || 0,
+          pendingReview: metricsData.metrics?.listings?.pending || 0,
+          totalUsers: metricsData.metrics?.users?.total || 0,
+          totalInterests: metricsData.metrics?.interests?.total || 0,
+          estimatedCommissions: metricsData.metrics?.finance?.commissionEarned || 0,
+        });
         setPendingListings(listingsData.listings || []);
         setRecentInterests((interestsData.interests || []).slice(0, 5));
       }
