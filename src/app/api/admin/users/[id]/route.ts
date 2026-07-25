@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { Role, UserStatus } from '@prisma/client';
 import { logAdminActivity } from '@/lib/activity-logger';
@@ -10,16 +10,14 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     // Verify requesting user is admin
     const requesterProfile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
     });
 
     if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
@@ -66,7 +64,7 @@ export async function PUT(
     const actionText = `${adminName} updated User ${id} role to ${finalRole} status to ${finalStatus}`;
 
     await logAdminActivity({
-      adminId: user.id,
+      adminId: userId,
       action: actionText,
       entityType: 'USER_PROFILE',
       entityId: id,

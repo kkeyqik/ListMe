@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { getSecurePassword } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     // Verify requesting user is admin
     const requesterProfile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
     });
 
     if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
@@ -47,16 +45,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     // Verify requesting user is admin
     const requesterProfile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
     });
 
     if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
