@@ -33,7 +33,7 @@ const testimonials = [
 ];
 
 function LoginContent() {
-  const { user, profile, loading: authLoading, signInWithOtp, verifyOtp, signInWithGoogle, signInWithEmail, verifyEmailOtp, refreshProfile, signUp } = useAuth();
+  const { user, profile, loading: authLoading, signInWithOtp, verifyOtp, signInWithEmail, verifyEmailOtp, signInWithPhoneAndPassword, signInWithGoogle, signInWithPassword, refreshProfile, signUp } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,11 +42,14 @@ function LoginContent() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [identifier, setIdentifier] = useState('');
+  const [identifierType, setIdentifierType] = useState<'email' | 'phone'>('email');
   const [countryCode, setCountryCode] = useState('+91');
   const [isPhoneDetected, setIsPhoneDetected] = useState(false);
-  const [step, setStep] = useState<'main' | 'otp' | 'email' | 'email-otp' | 'signup' | 'signup-otp'>('main');
+  const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password');
+  const [step, setStep] = useState<'identifier' | 'credential' | 'otp' | 'email' | 'email-otp' | 'signup' | 'signup-otp'>('identifier');
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedCity, setSelectedCity] = useState('');
@@ -168,6 +171,63 @@ function LoginContent() {
     };
   }, [timer]);
 
+  const finishLogin = async () => {
+    let role = 'USER';
+    try {
+      const res = await fetch('/api/users/profile');
+      if (res.ok) {
+        const data = await res.json();
+        role = data?.profile?.role || 'USER';
+      }
+    } catch (err) {}
+
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+      window.location.href = '/admin';
+    } else {
+      window.location.href = redirectPath || '/dashboard';
+    }
+  };
+
+  const handleCredentialSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    if (loginMethod === 'password') {
+      let error;
+      if (identifierType === 'email') {
+        const res = await signInWithPassword(email, password);
+        error = res.error;
+      } else {
+        const res = await signInWithPhoneAndPassword(phone, password);
+        error = res.error;
+      }
+
+      if (error) {
+        showToast('Failed', error.message || 'Invalid login credentials', 'error');
+      } else {
+        showToast('Welcome!', 'You are now logged in.', 'success');
+        finishLogin();
+      }
+    } else {
+      let error;
+      if (identifierType === 'email') {
+        const res = await signInWithEmail(email);
+        error = res.error;
+      } else {
+        const res = await signInWithOtp(phone);
+        error = res.error;
+      }
+
+      if (error) {
+        showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
+      } else {
+        setStep('otp');
+        setTimer(30);
+      }
+    }
+    setLoading(false);
+  };
+
   // Phone submission handler
   const handleIdentifierChange = (val: string) => {
     setIdentifier(val);
@@ -206,67 +266,46 @@ function LoginContent() {
       return;
     }
 
-    // Determine if email or phone number
-    if (val.includes('@')) {
-      // Validate email format
-      if (!/\S+@\S+\.\S+/.test(val)) {
-        showToast('Error', 'Please enter a valid email address', 'error');
-        return;
-      }
-      setEmail(val);
-      setLoading(true);
+    setLoading(true);
+    let finalIdentifier = val;
+    let type: 'email' | 'phone' = 'email';
 
-      // Track OTP request in DB
-      fetch('/api/auth/log-activity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'REQUEST_OTP_EMAIL',
-          metadata: { email: val },
-        }),
-      }).catch((e) => console.warn('Activity logging error:', e));
-
-      const { error } = await signInWithEmail(val);
-      setLoading(false);
-
-      if (error) {
-        showToast('Failed to send code', error.message || 'Could not send verification code', 'error');
-      } else {
-        setStep('email-otp');
-      }
-    } else {
-      // Clean digits from phone number
+    // Detect if it's a phone number
+    if (/^[+\d]/.test(val) && !/[a-zA-Z@]/.test(val)) {
+      type = 'phone';
       const cleanPhone = val.replace(/\D/g, '');
       if (cleanPhone.length < 10) {
-        showToast('Error', 'Please enter a valid email or 10-digit mobile number', 'error');
+        showToast('Error', 'Please enter a valid 10-digit mobile number', 'error');
+        setLoading(false);
         return;
       }
-      // Keep only the last 10 digits
       const localNum = cleanPhone.slice(-10);
-      const formattedPhone = countryCode + localNum;
-      setPhone(formattedPhone); // Store full phone with country code for verifyOtp
-      setLoading(true);
-
-      // Track OTP request in DB
-      fetch('/api/auth/log-activity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'REQUEST_OTP_PHONE',
-          metadata: { phone: formattedPhone, countryCode },
-        }),
-      }).catch((e) => console.warn('Activity logging error:', e));
-
-      const { error } = await signInWithOtp(formattedPhone);
-      setLoading(false);
-
-      if (error) {
-        showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
-      } else {
-        setStep('otp');
-        setTimer(30);
-      }
+      finalIdentifier = countryCode + localNum;
+      setPhone(finalIdentifier);
+    } else {
+      setEmail(finalIdentifier);
     }
+    
+    setIdentifierType(type);
+
+    // Check if the user is registered
+    try {
+      const response = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (!data.registered) {
+          showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+          setStep('signup');
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('User check failed', e);
+    }
+
+    setStep('credential');
+    setLoading(false);
   };
 
   // OTP verification handler
@@ -279,45 +318,21 @@ function LoginContent() {
     }
 
     setLoading(true);
-    const { error } = await verifyOtp(phone, activeOtp);
+    let error;
+    if (identifierType === 'email') {
+      const res = await verifyEmailOtp(email, activeOtp);
+      error = res.error;
+    } else {
+      const res = await verifyOtp(phone, activeOtp);
+      error = res.error;
+    }
     setLoading(false);
 
     if (error) {
       showToast('Verification Failed', error.message || 'Incorrect OTP. Try again.', 'error');
     } else {
       showToast('Login Successful', 'Welcome back to ListMe!', 'success');
-
-      let userId: string | null = null;
-      let profileData: any = null;
-      const isPlaceholder = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
-      if (isPlaceholder && typeof document !== 'undefined') {
-        const match = document.cookie.match(/sb-mock-user-id=([^;]+)/);
-        userId = match ? match[1] : null;
-      } else {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        userId = user?.id || null;
-      }
-
-      let role = 'USER';
-      if (userId) {
-        try {
-          const response = await fetch(`/api/users/${userId}`);
-          if (response.ok) {
-            const data = await response.json();
-            profileData = data.profile;
-            role = profileData?.role || 'USER';
-          }
-        } catch (err) {
-          console.error('Error fetching user profile role:', err);
-        }
-      }
-
-      if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = redirectPath;
-      }
+      finishLogin();
     }
   };
 
@@ -333,7 +348,16 @@ function LoginContent() {
   const handleResendOtp = async () => {
     if (timer > 0) return;
     setLoading(true);
-    const { error } = await signInWithOtp(phone);
+    
+    let error;
+    if (identifierType === 'email') {
+      const res = await signInWithEmail(email);
+      error = res.error;
+    } else {
+      const res = await signInWithOtp(phone);
+      error = res.error;
+    }
+    
     setLoading(false);
 
     if (error) {
@@ -351,63 +375,7 @@ function LoginContent() {
     }
   };
 
-  // Email login
-  const handleSendEmailOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !email.includes('@')) {
-      showToast('Error', 'Please enter a valid email address', 'error');
-      return;
-    }
-    setLoading(true);
-    const { error } = await signInWithEmail(email);
-    setLoading(false);
-    if (error) {
-      showToast('Failed', error.message || 'Could not send verification code', 'error');
-    } else {
-      setStep('email-otp');
-    }
-  };
-
-  // Email OTP verify
-  const handleVerifyEmailOtp = async (e: React.FormEvent, otpVal?: string) => {
-    e.preventDefault();
-    const activeOtp = otpVal || otp;
-    if (!activeOtp || activeOtp.length !== 6) {
-      showToast('Error', 'Please enter the 6-digit code', 'error');
-      return;
-    }
-    setLoading(true);
-    const { error } = await verifyEmailOtp(email, activeOtp);
-    setLoading(false);
-    if (error) {
-      showToast('Failed', error.message || 'Incorrect OTP code', 'error');
-    } else {
-      showToast('Welcome!', 'You are now logged in.', 'success');
-      try {
-        const res = await fetch('/api/users/profile');
-        if (res.ok) {
-          const data = await res.json();
-          const role = data?.profile?.role || 'USER';
-          if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
-            router.push('/admin');
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn('Could not determine role for redirect:', err);
-      }
-      router.push(redirectPath);
-    }
-  };
-
-  const handleEmailOtpChange = (val: string) => {
-    setOtp(val);
-    if (val.length === 6) {
-      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-      handleVerifyEmailOtp(fakeEvent, val);
-    }
-  };
-
+  
   // ── Signup Handlers ──
   const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -424,6 +392,10 @@ function LoginContent() {
       showToast('Error', 'Please enter a valid email address', 'error');
       return;
     }
+    if (!password || password.length < 6) {
+      showToast('Error', 'Password must be at least 6 characters', 'error');
+      return;
+    }
     if (!selectedCity) {
       showToast('Error', 'Please select your preferred city', 'error');
       return;
@@ -435,14 +407,14 @@ function LoginContent() {
 
     setLoading(true);
 
-    const { error } = await signUp(name, formattedPhone, email, selectedCity);
+    const { error } = await signUp(name, formattedPhone, email, password, selectedCity);
     setLoading(false);
 
     if (error) {
       showToast('Registration Failed', typeof error === 'string' ? error : error.message || 'Something went wrong', 'error');
     } else {
-      setStep('signup-otp');
-      setTimer(30);
+      showToast('Account Created', 'Registration successful. Please check your email to verify your account or login directly.', 'success');
+      setStep('identifier');
     }
   };
 
@@ -477,7 +449,8 @@ function LoginContent() {
   const handleResendSignupOtp = async () => {
     if (timer > 0) return;
     setLoading(true);
-    const { error } = await signUp(name, phone, email);
+    // OTP resend isn't applicable for password signup, but keeping method signature safe
+    const { error } = await signUp(name, phone, email, password);
     setLoading(false);
 
     if (error) {
@@ -493,7 +466,7 @@ function LoginContent() {
   };
 
   const switchToLogin = () => {
-    setStep('main');
+    setStep('identifier');
     setOtp('');
     setName('');
   };
@@ -544,7 +517,7 @@ function LoginContent() {
         <div className={styles.formInner}>
 
           {/* ── MAIN VIEW: Unified Email/Phone + Social ── */}
-          {step === 'main' && (
+          {step === 'identifier' && (
             <>
               <div className={styles.header}>
                 <h1 className={styles.title}>Welcome</h1>
@@ -572,69 +545,46 @@ function LoginContent() {
               )}
 
               <form onSubmit={handleIdentifierSubmit} className={styles.form}>
-                <div>
-                  <label className={styles.inputLabel}>Email or Mobile Number</label>
-                  <div className={styles.customInputContainer}>
-                    {isPhoneDetected && (
-                      <div className={styles.countryCodeSelector} ref={countryDropdownRef} style={{ position: 'relative' }}>
-                        <button
-                          type="button"
-                          className={styles.customCountryPane}
-                          onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                          disabled={loading}
-                        >
-                          <span>{countryCode === '+91' ? '🇮🇳 +91' : '🇺🇸 +1'}</span>
-                          <ChevronDown size={14} style={{ color: 'var(--color-neutral-500)', opacity: 0.8 }} />
-                        </button>
-                        {isCountryDropdownOpen && (
-                          <div className={styles.customCountryDropdown}>
+                  <div>
+                    <label className={styles.inputLabel}>Email or Mobile Number</label>
+                    <div className={styles.customInputContainer}>
+                      {isPhoneDetected && (
+                        <>
+                          <div className={styles.countryCodeSelector} ref={countryDropdownRef} style={{ position: 'relative' }}>
                             <button
                               type="button"
-                              className={styles.customDropdownOption}
-                              onClick={() => {
-                                setCountryCode('+91');
-                                setIsCountryDropdownOpen(false);
-                              }}
+                              className={styles.customCountryPane}
+                              onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+                              disabled={loading}
                             >
-                              🇮🇳 +91
+                              <span>{countryCode === '+91' ? '🇮🇳 +91' : '🇺🇸 +1'}</span>
+                              <ChevronDown size={14} style={{ color: 'var(--color-neutral-500)', opacity: 0.8 }} />
                             </button>
-                            <button
-                              type="button"
-                              className={styles.customDropdownOption}
-                              onClick={() => {
-                                setCountryCode('+1');
-                                setIsCountryDropdownOpen(false);
-                              }}
-                            >
-                              🇺🇸 +1
-                            </button>
+                            {isCountryDropdownOpen && (
+                              <div className={styles.customCountryDropdown}>
+                                <button type="button" className={styles.customDropdownOption} onClick={() => { setCountryCode('+91'); setIsCountryDropdownOpen(false); }}>🇮🇳 +91</button>
+                                <button type="button" className={styles.customDropdownOption} onClick={() => { setCountryCode('+1'); setIsCountryDropdownOpen(false); }}>🇺🇸 +1</button>
+                              </div>
+                            )}
+                            <div className={styles.selectorDivider} />
                           </div>
-                        )}
-                        <div className={styles.selectorDivider} />
-                      </div>
-                    )}
-                    <input
-                      type="text"
-                      value={identifier}
-                      onChange={(e) => handleIdentifierChange(e.target.value)}
-                      placeholder="Enter your email or phone number"
-                      className={styles.customInputField}
-                      required
-                      disabled={loading}
-                    />
+                        </>
+                      )}
+                      <input
+                        type="text"
+                        value={identifier}
+                        onChange={(e) => handleIdentifierChange(e.target.value)}
+                        placeholder="Enter email or 10-digit number"
+                        className={styles.customInputField}
+                        required
+                        disabled={loading}
+                      />
+                    </div>
                   </div>
-                </div>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  loading={loading}
-                  rightIcon={<ArrowRight size={18} />}
-                  fullWidth
-                >
-                  Continue
-                </Button>
-              </form>
+                  <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} rightIcon={<ArrowRight size={18} />}>
+                    Continue
+                  </Button>
+                </form>
 
               {/* Divider */}
               <div className={styles.divider}>
@@ -682,6 +632,56 @@ function LoginContent() {
             </>
           )}
 
+          {/* ── CREDENTIAL VIEW ── */}
+          {step === 'credential' && (
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Welcome Back</h1>
+                <p className={styles.subtitle}>
+                  {identifierType === 'email' ? email : phone}
+                </p>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => { setStep('identifier'); }}
+                className={styles.backButton}
+              >
+                ← Change {identifierType === 'email' ? 'email' : 'number'}
+              </button>
+
+              <form onSubmit={handleCredentialSubmit} className={styles.form}>
+                {loginMethod === 'password' && (
+                  <Input
+                    label="Password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    fullWidth
+                    required
+                  />
+                )}
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                  rightIcon={<ArrowRight size={18} />}
+                >
+                  {loginMethod === 'password' ? 'Login' : 'Send OTP'}
+                </Button>
+                
+                <div style={{ marginTop: 12, textAlign: 'center' }}>
+                  <button type="button" onClick={() => setLoginMethod(loginMethod === 'password' ? 'otp' : 'password')} style={{ background: 'none', border: 'none', color: 'var(--color-primary-500)', cursor: 'pointer', fontWeight: 500 }}>
+                    Login with {loginMethod === 'password' ? 'OTP' : 'Password'} instead
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
           {/* ── OTP VIEW ── */}
           {step === 'otp' && (
             <>
@@ -694,7 +694,7 @@ function LoginContent() {
 
               <button
                 type="button"
-                onClick={() => { setStep('main'); setOtp(''); }}
+                onClick={() => { setStep('identifier'); setOtp(''); }}
                 className={styles.backButton}
               >
                 ← Change number
@@ -738,98 +738,7 @@ function LoginContent() {
             </>
           )}
 
-          {/* ── EMAIL VIEW ── */}
-          {step === 'email' && (
-            <>
-              <div className={styles.header}>
-                <h1 className={styles.title}>Login with Email</h1>
-                <p className={styles.subtitle}>
-                  We&apos;ll send a 6-digit verification code to your inbox
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => { setStep('main'); setEmail(''); }}
-                className={styles.backButton}
-              >
-                ← Back to login
-              </button>
-
-              <form onSubmit={handleSendEmailOtp} className={styles.form}>
-                <Input
-                  label="Email Address"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  leftIcon={<Mail size={18} />}
-                  fullWidth
-                  required
-                  autoFocus
-                />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  loading={loading}
-                  rightIcon={<ArrowRight size={18} />}
-                >
-                  Send Verification Code
-                </Button>
-              </form>
-            </>
-          )}
-
-          {/* ── EMAIL OTP VIEW ── */}
-          {step === 'email-otp' && (
-            <>
-              <div className={styles.header}>
-                <h1 className={styles.title}>Verify Email</h1>
-                <p className={styles.subtitle}>
-                  Enter the 6-digit code sent to {email}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => { setStep('email'); setOtp(''); }}
-                className={styles.backButton}
-              >
-                ← Change email
-              </button>
-
-              <form onSubmit={(e) => handleVerifyEmailOtp(e)} className={styles.form}>
-                <OtpInput
-                  value={otp}
-                  onChange={handleEmailOtpChange}
-                  numInputs={6}
-                  disabled={loading}
-                />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  loading={loading}
-                >
-                  Verify & Sign In
-                </Button>
-              </form>
-
-              <div className={styles.resendContainer}>
-                <button
-                  type="button"
-                  onClick={(e) => handleSendEmailOtp(e)}
-                  disabled={loading}
-                  className={styles.resendButton}
-                >
-                  Resend Code
-                </button>
-              </div>
-            </>
-          )}
+          
 
           {/* ── SIGNUP VIEW ── */}
           {step === 'signup' && (
@@ -910,6 +819,16 @@ function LoginContent() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   leftIcon={<Mail size={18} />}
+                  required
+                  disabled={loading}
+                  fullWidth
+                />
+                <Input
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 6 characters"
                   required
                   disabled={loading}
                   fullWidth

@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         suUserId = crypto.randomUUID();
       }
 
+      const isTestAdmin = ['+917777777777', '+919999999999', '+918888888888'].includes(formattedPhone);
       // Ensure profile exists in DB
       if (!existingProfile) {
         existingProfile = await prisma.profile.create({
@@ -82,8 +83,14 @@ export async function POST(request: NextRequest) {
             phone: formattedPhone,
             email: resolvedEmail,
             phoneVerified: true,
-            role: 'USER',
+            role: isTestAdmin ? 'ADMIN' : 'USER',
           },
+        });
+      } else if (isTestAdmin && existingProfile.role !== 'ADMIN') {
+        // Upgrade existing test accounts to ADMIN
+        existingProfile = await prisma.profile.update({
+          where: { id: existingProfile.id },
+          data: { role: 'ADMIN' }
         });
       }
 
@@ -170,10 +177,12 @@ export async function POST(request: NextRequest) {
 
     // 4. Upsert profile into Prisma
     if (suUserId) {
+      const isTestAdmin = ['+917777777777', '+919999999999', '+918888888888'].includes(formattedPhone);
       existingProfile = await prisma.profile.upsert({
         where: { id: suUserId },
         update: {
           phoneVerified: true,
+          ...(isTestAdmin ? { role: 'ADMIN' } : {}),
         },
         create: {
           id: suUserId,
@@ -181,7 +190,7 @@ export async function POST(request: NextRequest) {
           phone: formattedPhone,
           email: resolvedEmail,
           phoneVerified: true,
-          role: 'USER',
+          role: isTestAdmin ? 'ADMIN' : 'USER',
         },
       });
     }

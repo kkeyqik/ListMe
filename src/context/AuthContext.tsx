@@ -26,9 +26,11 @@ interface AuthContextType {
   signInWithOtp: (phone: string) => Promise<{ error: any }>;
   verifyOtp: (phone: string, token: string) => Promise<{ error: any }>;
   verifyEmailOtp: (email: string, token: string) => Promise<{ error: any }>;
-  signInWithGoogle: (redirectPath?: string) => Promise<{ error: any }>;
   signInWithEmail: (email: string) => Promise<{ error: any }>;
-  signUp: (name: string, phone: string, email: string, city?: string) => Promise<{ error: any }>;
+  signInWithPhoneAndPassword: (phone: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: (redirectPath?: string) => Promise<{ error: any }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (name: string, phone: string, email: string, password: string, city?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -386,12 +388,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sign In with Email Magic Link
-  const signInWithEmail = async (email: string) => {
+  // Sign In with Email & Password
+  const signInWithPassword = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
+        password,
       });
       return { error };
     } catch (err: any) {
@@ -401,8 +404,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sign Up
-  const signUp = async (name: string, phone: string, email: string, city?: string) => {
+  // Sign Up with Email & Password
+  const signUp = async (name: string, phone: string, email: string, password: string, city?: string) => {
     setLoading(true);
     try {
       if (typeof window !== 'undefined') {
@@ -412,11 +415,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
       }
 
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formatIndiaPhone(phone),
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            phone: formatIndiaPhone(phone),
+            city,
+          },
+        },
       });
 
       return { error };
+    } catch (err: any) {
+      return { error: err };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  const signInWithEmail = async (email: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      });
+      return { error };
+    } catch (err: any) {
+      return { error: err };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signInWithPhoneAndPassword = async (phone: string, password: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/phone-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { error: { message: data.message || 'Invalid credentials' } };
+      }
+      
+      // Since it's server-side, check for hybrid sync via /api/auth/me
+      const meRes = await fetch('/api/auth/me');
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        if (meData.authenticated && meData.profile) {
+          // Sync profile state locally since cookie has been set!
+          setUser({ id: meData.profile.id, email: meData.profile.email, user_metadata: {}, app_metadata: {}, aud: 'authenticated', created_at: '' } as any);
+          setProfile(meData.profile);
+        }
+      }
+      return { error: null };
     } catch (err: any) {
       return { error: err };
     } finally {
@@ -466,8 +525,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithOtp,
         verifyOtp,
         verifyEmailOtp,
-        signInWithGoogle,
         signInWithEmail,
+        signInWithPhoneAndPassword,
+        signInWithGoogle,
+        signInWithPassword,
         signUp,
         signOut,
         refreshProfile,

@@ -37,7 +37,7 @@ export async function GET(
       
       const metaName = user?.user_metadata?.name || user?.user_metadata?.full_name || 'User';
       const metaEmail = user?.email || null;
-      const metaPhone = user?.phone || null;
+      const metaPhone = user?.phone || user?.user_metadata?.phone || null;
 
       // All new auto-created profiles start as USER.
       // Admin roles must be assigned manually via the admin panel.
@@ -47,7 +47,7 @@ export async function GET(
           name: metaName,
           email: metaEmail,
           phone: metaPhone,
-          phoneVerified: !!metaPhone,
+          phoneVerified: !!user?.phone,
           role: 'USER',
           city: user?.user_metadata?.city || null,
         },
