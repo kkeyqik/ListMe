@@ -356,18 +356,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           const data = await res.json();
           const isPlaceholder = 
             process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
-        const isPlaceholder = 
-          process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
-          process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
-          process.env.NEXT_PUBLIC_SUPABASE_URL === '';
-        
-        await refreshProfile();
-        showToast('Welcome!', 'You are now logged in and verified.', 'success');
-        onClose();
-        onSuccess?.();
-        
-        if (res.ok) {
-          const data = await res.json();
+            process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
+            process.env.NEXT_PUBLIC_SUPABASE_URL === '';
+          
+          await refreshProfile();
+          showToast('Welcome!', 'You are now logged in and verified.', 'success');
+          onClose();
+          onSuccess?.();
+          
           const role = data?.profile?.role || 'USER';
           if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
             window.location.href = '/admin';

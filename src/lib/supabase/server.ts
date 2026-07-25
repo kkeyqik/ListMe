@@ -49,7 +49,7 @@ export async function createClient() {
   // Real Supabase client
   const cookieStore = await cookies();
 
-  return createServerClient(
+  const client = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -69,12 +69,12 @@ export async function createClient() {
       },
     }
   );
-
   // Patch getUser to fallback to our custom session cookie
   // This ensures all backend routes implicitly support Firebase logins
   const originalGetUser = client.auth.getUser.bind(client.auth);
-  client.auth.getUser = async () => {
-    const { data, error } = await originalGetUser();
+  // @ts-ignore
+  client.auth.getUser = async (jwt?: string) => {
+    const { data, error } = await originalGetUser(jwt);
     if (data.user) {
       return { data, error };
     }
