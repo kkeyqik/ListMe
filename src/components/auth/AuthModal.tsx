@@ -295,7 +295,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (err) {}
 
-    setView('credential');
+    if (type === 'phone') {
+      setLoginMethod('otp');
+      if (isFirebaseConfigured) {
+        const auth = getFirebaseAuth();
+        if (auth && recaptchaVerifier) {
+          try {
+            const result = await signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier);
+            setConfirmationResult(result);
+            setView('otp');
+            setTimer(30);
+          } catch (error: any) {
+            console.error('Firebase AuthModal send SMS error:', error);
+            showToast('Failed to send OTP', error.message || 'OTP delivery error', 'error');
+            setView('credential');
+          }
+        } else {
+          showToast('Error', 'Firebase Auth system is not ready', 'error');
+          setView('credential');
+        }
+      } else {
+        // Mock flow
+        setView('otp');
+        setTimer(30);
+      }
+    } else {
+      setLoginMethod('password');
+      setView('credential');
+    }
     setLoading(false);
   };
 

@@ -304,7 +304,20 @@ function LoginContent() {
       console.warn('User check failed', e);
     }
 
-    setStep('credential');
+    if (type === 'phone') {
+      setLoginMethod('otp');
+      const { error } = await signInWithOtp(finalIdentifier);
+      if (error) {
+        showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
+        setStep('credential');
+      } else {
+        setStep('otp');
+        setTimer(30);
+      }
+    } else {
+      setLoginMethod('password');
+      setStep('credential');
+    }
     setLoading(false);
   };
 
