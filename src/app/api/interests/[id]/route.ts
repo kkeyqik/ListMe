@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { InterestStatus } from '@prisma/client';
@@ -10,10 +11,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -37,12 +36,12 @@ export async function PUT(
 
     // Query database profile to check requester's role
     const profile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
       select: { role: true },
     });
 
     const isAdmin = profile && (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN');
-    const isListingOwner = interest.listing.ownerId === user.id;
+    const isListingOwner = interest.listing.ownerId === userId;
 
     if (!isAdmin && !isListingOwner) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });

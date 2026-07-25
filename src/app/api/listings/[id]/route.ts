@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { ListingStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
@@ -13,8 +14,8 @@ export async function GET(
     const { id } = await params;
     
     // Fetch user session to determine privacy clearance
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const userId = await getAuthenticatedUserId();
+    const user = userId ? { id: userId } : null;
 
     // Fetch the listing with relations
     const listing = await prisma.listing.findUnique({
@@ -56,13 +57,13 @@ export async function GET(
     let canViewPrivateDetails = false;
 
     if (user) {
-      if (user.id === listing.ownerId) {
+      if (userId === listing.ownerId) {
         isOwnerOrAdmin = true;
         canViewPrivateDetails = true;
       } else {
         // Query database profile to check admin status
         const requesterProfile = await prisma.profile.findUnique({
-          where: { id: user.id },
+          where: { id: userId! },
           select: { role: true },
         });
         if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {
@@ -71,7 +72,7 @@ export async function GET(
         } else {
           const interest = await prisma.interest.findFirst({
             where: {
-              userId: user.id,
+              userId: userId!,
               listingId: id,
             },
             select: { id: true },
@@ -128,10 +129,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -149,11 +148,11 @@ export async function PUT(
     let isAdmin = false;
     let requesterProfile = null;
 
-    if (user.id === listing.ownerId) {
+    if (userId === listing.ownerId) {
       isAuthorized = true;
       // Fetch profile to verify if owner is also admin
       requesterProfile = await prisma.profile.findUnique({
-        where: { id: user.id },
+        where: { id: userId! },
         select: { role: true, name: true },
       });
       if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {
@@ -161,7 +160,7 @@ export async function PUT(
       }
     } else {
       requesterProfile = await prisma.profile.findUnique({
-        where: { id: user.id },
+        where: { id: userId! },
         select: { role: true, name: true },
       });
       if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {
@@ -291,7 +290,7 @@ export async function PUT(
             : `${adminName} rejected Listing ${id} with reason ${reason}`;
 
           await logAdminActivity({
-            adminId: user.id,
+            adminId: userId,
             action: actionText,
             entityType: 'LISTING',
             entityId: id,
@@ -354,10 +353,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -373,11 +370,11 @@ export async function DELETE(
     // Verify if owner or admin
     let isAuthorized = false;
 
-    if (user.id === listing.ownerId) {
+    if (userId === listing.ownerId) {
       isAuthorized = true;
     } else {
       const requesterProfile = await prisma.profile.findUnique({
-        where: { id: user.id },
+        where: { id: userId! },
         select: { role: true },
       });
       if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {

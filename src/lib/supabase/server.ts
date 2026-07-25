@@ -69,36 +69,4 @@ export async function createClient() {
       },
     }
   );
-  // Patch getUser to fallback to our custom session cookie
-  // This ensures all backend routes implicitly support Firebase logins
-  const originalGetUser = client.auth.getUser.bind(client.auth);
-  // @ts-ignore
-  client.auth.getUser = async (jwt?: string) => {
-    const { data, error } = await originalGetUser(jwt);
-    if (data.user) {
-      return { data, error };
-    }
-
-    try {
-      // Dynamic import to avoid circular dependencies
-      const { verifySessionToken, SESSION_COOKIE_NAME } = await import('@/lib/session');
-      const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
-      if (sessionCookie?.value) {
-        const session = verifySessionToken(sessionCookie.value);
-        if (session) {
-          return {
-            data: {
-              user: { id: session.userId, role: session.role } as any
-            },
-            error: null
-          };
-        }
-      }
-    } catch (e) {
-      // ignore import/cookie errors
-    }
-
-    return { data, error };
-  };
-
   return client;}

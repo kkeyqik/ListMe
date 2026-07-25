@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { ListingStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
@@ -34,12 +35,11 @@ export async function GET(request: NextRequest) {
 
     const ownerOnly = searchParams.get('owner') === 'true';
     if (ownerOnly) {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-      }
-      where.ownerId = user.id;
+      const userId = await getAuthenticatedUserId();
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+      where.ownerId = userId;
       
       // Optional status filter in owner mode
       const statusFilter = searchParams.get('status');
@@ -49,14 +49,13 @@ export async function GET(request: NextRequest) {
     } else {
       const adminOnly = searchParams.get('admin') === 'true';
       if (adminOnly) {
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
+        const userId = await getAuthenticatedUserId();
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
         const userProfile = await prisma.profile.findUnique({
-          where: { id: user.id },
+          where: { id: userId },
         });
 
         if (!userProfile || (userProfile.role !== 'ADMIN' && userProfile.role !== 'SUPER_ADMIN')) {
@@ -152,8 +151,8 @@ export async function GET(request: NextRequest) {
     if (hasFilters) {
       let loggedInUser = null;
       try {
-        const supabase = await createClient();
-        const { data } = await supabase.auth.getUser();
+        const userId = await getAuthenticatedUserId();
+    const data = { user: userId ? { id: userId } : null };
         loggedInUser = data?.user || null;
       } catch (err) {
         // Ignore errors extracting user details for public search logging
@@ -228,16 +227,14 @@ export async function GET(request: NextRequest) {
 // 2. POST - Create Listing (Protected Route)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     // 1. Verify user profile, status, and phone verification
     const userProfile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
       select: { phoneVerified: true, status: true, phone: true },
     });
 
@@ -312,7 +309,7 @@ export async function POST(request: NextRequest) {
     // Insert new listing inside database
     const newListing = await prisma.listing.create({
       data: {
-        ownerId: user.id,
+        ownerId: userId,
         listingFor: listingFor.toUpperCase() as ListingFor,
         propertyType: propertyType.toUpperCase() as PropertyType,
         title,
@@ -365,7 +362,7 @@ export async function POST(request: NextRequest) {
     // Create system notification for listing submit success
     await prisma.notification.create({
       data: {
-        userId: user.id,
+        userId: userId,
         title: 'Listing Submitted Successfully',
         message: `Your property listing "${title}" has been submitted for review. An admin will verify it shortly.`,
         link: `/dashboard/listings/${newListing.id}`,

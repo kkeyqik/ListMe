@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { DocType } from '@prisma/client';
@@ -22,10 +23,8 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -38,11 +37,11 @@ export async function POST(
       return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
     }
 
-    let isAuthorized = listing.ownerId === user.id;
+    let isAuthorized = listing.ownerId === userId;
 
     if (!isAuthorized) {
       const requesterProfile = await prisma.profile.findUnique({
-        where: { id: user.id },
+        where: { id: userId },
         select: { role: true },
       });
       isAuthorized =

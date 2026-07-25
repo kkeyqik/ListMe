@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 
@@ -6,9 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     let userId: string | null = null;
     try {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      userId = user?.id || null;
+      userId = await getAuthenticatedUserId();
     } catch {
       // User might be unauthenticated when error occurred
     }

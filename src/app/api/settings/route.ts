@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { logAdminActivity } from '@/lib/activity-logger';
@@ -22,15 +23,13 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     const requesterProfile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
     });
 
     if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
@@ -60,7 +59,7 @@ export async function PUT(request: NextRequest) {
     const changedKeys = Object.keys(body).join(', ');
     const adminName = requesterProfile.name || 'Admin';
     await logAdminActivity({
-      adminId: user.id,
+      adminId: userId,
       action: `${adminName} updated system settings [${changedKeys}]`,
       entityType: 'SYSTEM_SETTINGS',
       entityId: 'SYSTEM',

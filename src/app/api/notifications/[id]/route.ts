@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 
@@ -9,10 +10,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -25,7 +24,7 @@ export async function PUT(
       return NextResponse.json({ message: 'Notification not found' }, { status: 404 });
     }
 
-    if (notification.userId !== user.id) {
+    if (notification.userId !== userId) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 

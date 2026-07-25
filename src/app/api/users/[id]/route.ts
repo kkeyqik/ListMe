@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 
@@ -8,19 +9,17 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     const requesterProfile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
       select: { role: true },
     });
 
-    const isSelf = user.id === id;
+    const isSelf = userId === id;
     const isAdmin = requesterProfile?.role === 'ADMIN' || requesterProfile?.role === 'SUPER_ADMIN';
 
     if (!isSelf && !isAdmin) {
@@ -33,21 +32,24 @@ export async function GET(
     
     if (!profile && isSelf) {
       // Auto-create profile using Supabase user details
-      const metaName = user.user_metadata?.name || user.user_metadata?.full_name || 'User';
-      const metaEmail = user.email || null;
-      const metaPhone = user.phone || null;
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const metaName = user?.user_metadata?.name || user?.user_metadata?.full_name || 'User';
+      const metaEmail = user?.email || null;
+      const metaPhone = user?.phone || null;
 
       // All new auto-created profiles start as USER.
       // Admin roles must be assigned manually via the admin panel.
       profile = await prisma.profile.create({
         data: {
-          id: user.id,
+          id: userId,
           name: metaName,
           email: metaEmail,
           phone: metaPhone,
           phoneVerified: !!metaPhone,
           role: 'USER',
-          city: user.user_metadata?.city || null,
+          city: user?.user_metadata?.city || null,
         },
       });
 

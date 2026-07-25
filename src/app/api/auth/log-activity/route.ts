@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { logUserActivity } from '@/lib/activity-logger';
 import { createClient } from '@/lib/supabase/server';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
@@ -9,14 +10,8 @@ export async function POST(request: NextRequest) {
   try {
     const { action, entityId, metadata } = await request.json();
 
-    // Resolve user from session
-    let userId: string | null = null;
-
-    // Try Supabase session
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    userId = user?.id || null;
-
+    // Try session
+    let userId = await getAuthenticatedUserId();
     // Fallback: signed session cookie
     if (!userId) {
       try {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { InterestStatus } from '@prisma/client';
@@ -7,10 +8,8 @@ import { logUserActivity } from '@/lib/activity-logger';
 // 1. GET - Fetch user's expressed/received interests
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     if (mode === 'all') {
       const userProfile = await prisma.profile.findUnique({
-        where: { id: user.id },
+        where: { id: userId },
       });
       if (!userProfile || (userProfile.role !== 'ADMIN' && userProfile.role !== 'SUPER_ADMIN')) {
         return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
@@ -56,7 +55,7 @@ export async function GET(request: NextRequest) {
       const received = await prisma.interest.findMany({
         where: {
           listing: {
-            ownerId: user.id,
+            ownerId: userId,
           },
         },
         include: {
@@ -87,7 +86,7 @@ export async function GET(request: NextRequest) {
       // Fetch interests expressed by the current user on other listings
       const expressed = await prisma.interest.findMany({
         where: {
-          userId: user.id,
+          userId: userId,
         },
         include: {
           listing: {
@@ -118,10 +117,8 @@ export async function GET(request: NextRequest) {
 // 2. POST - Express Interest in a Listing
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -134,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Verify user profile exists and phone is verified
     const profile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
       select: { phoneVerified: true, name: true, phone: true },
     });
 
@@ -167,7 +164,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Owners cannot express interest in their own listings
-    if (listing.ownerId === user.id) {
+    if (listing.ownerId === userId) {
       return NextResponse.json(
         { message: 'You cannot express interest in your own property listing' },
         { status: 400 }
@@ -177,7 +174,7 @@ export async function POST(request: NextRequest) {
     // 3. Check for existing interest
     const existingInterest = await prisma.interest.findFirst({
       where: {
-        userId: user.id,
+        userId: userId,
         listingId,
       },
     });
@@ -192,7 +189,7 @@ export async function POST(request: NextRequest) {
     // 4. Create the expression of interest
     const newInterest = await prisma.interest.create({
       data: {
-        userId: user.id,
+        userId: userId,
         listingId,
         status: InterestStatus.NEW,
       },
@@ -210,7 +207,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Log the user activity
     await logUserActivity({
-      userId: user.id,
+      userId: userId,
       action: 'EXPRESS_INTEREST',
       entityId: newInterest.id,
       request,

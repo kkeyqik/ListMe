@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
@@ -6,15 +7,13 @@ import { validateName, validatePhone, validateEmail } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     // Rate limiting: 5 profile creations per hour per user
-    const rateLimitResult = rateLimit(`profile-create:${user.id}`, 5, 60 * 60 * 1000);
+    const rateLimitResult = rateLimit(`profile-create:${userId}`, 5, 60 * 60 * 1000);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { message: 'Too many requests. Please try again later.' },
@@ -56,14 +55,14 @@ export async function POST(request: NextRequest) {
       prisma.profile.findUnique({ where: { email }, select: { id: true } }),
     ]);
 
-    if (phoneOwner && phoneOwner.id !== user.id) {
+    if (phoneOwner && phoneOwner.id !== userId) {
       return NextResponse.json(
         { message: 'This phone number is already registered' },
         { status: 400 }
       );
     }
 
-    if (emailOwner && emailOwner.id !== user.id) {
+    if (emailOwner && emailOwner.id !== userId) {
       return NextResponse.json(
         { message: 'This email address is already registered' },
         { status: 400 }
@@ -71,12 +70,12 @@ export async function POST(request: NextRequest) {
     }
 
     const existingProfile = await prisma.profile.findUnique({
-      where: { id: user.id },
+      where: { id: userId },
       select: { id: true },
     });
 
     const profile = await prisma.profile.upsert({
-      where: { id: user.id },
+      where: { id: userId },
       update: {
         name: sanitizedName,
         email,
@@ -85,7 +84,7 @@ export async function POST(request: NextRequest) {
         city: city || null,
       },
       create: {
-        id: user.id,
+        id: userId,
         name: sanitizedName,
         email,
         phone: normalizedPhone,
@@ -123,15 +122,13 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     // Rate limiting: 10 profile updates per hour per user
-    const rateLimitResult = rateLimit(`profile-update:${user.id}`, 10, 60 * 60 * 1000);
+    const rateLimitResult = rateLimit(`profile-update:${userId}`, 10, 60 * 60 * 1000);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { message: 'Too many requests. Please try again later.' },
@@ -155,7 +152,7 @@ export async function PUT(request: NextRequest) {
 
     // Update public profiles table
     const updatedProfile = await prisma.profile.update({
-      where: { id: user.id },
+      where: { id: userId },
       data: updateData,
     });
 
