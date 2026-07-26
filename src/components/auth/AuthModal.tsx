@@ -640,6 +640,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   Resend OTP
                 </button>
               )}
+              <div style={{ marginTop: 12, textAlign: 'center', width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMethod('password');
+                    setView('credential');
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-primary-500)', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  Login with Password instead
+                </button>
+              </div>
             </div>
           </div>
         )}

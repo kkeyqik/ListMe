@@ -8,6 +8,8 @@ import { Phone, ArrowRight, Home, Mail, User, MapPin, ChevronDown, ShieldAlert, 
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
+import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { createClient } from '@/lib/supabase/client';
 import styles from '../auth.module.css';
 
@@ -48,6 +50,10 @@ function LoginContent() {
   const [identifierType, setIdentifierType] = useState<'email' | 'phone'>('email');
   const [countryCode, setCountryCode] = useState('+91');
   const [isPhoneDetected, setIsPhoneDetected] = useState(false);
+
+  // Firebase auth state variables
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const [confirmationResult, setConfirmationResult] = useState<any>(null);
   const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password');
   const [step, setStep] = useState<'identifier' | 'credential' | 'otp' | 'email' | 'email-otp' | 'signup' | 'signup-otp'>('identifier');
   const [timer, setTimer] = useState(0);
@@ -61,6 +67,25 @@ function LoginContent() {
   const cityDropdownRef = useRef<HTMLDivElement>(null);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const signupCountryDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isFirebaseConfigured) {
+      try {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          const container = document.getElementById('recaptcha-container');
+          if (container) container.innerHTML = '';
+          const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible',
+            callback: () => {},
+          });
+          setRecaptchaVerifier(verifier);
+        }
+      } catch (err) {
+        console.error('Failed to init recaptcha', err);
+      }
+    }
+  }, []);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -212,17 +237,32 @@ function LoginContent() {
       let error;
       if (identifierType === 'email') {
         const res = await signInWithEmail(email);
-        error = res.error;
+        if (res.error) {
+          showToast('Failed to send OTP', res.error.message || 'Something went wrong', 'error');
+        } else {
+          setStep('otp');
+          setTimer(30);
+        }
       } else {
-        const res = await signInWithOtp(phone);
-        error = res.error;
-      }
-
-      if (error) {
-        showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
-      } else {
-        setStep('otp');
-        setTimer(30);
+        if (isFirebaseConfigured) {
+          const auth = getFirebaseAuth();
+          if (auth && recaptchaVerifier) {
+            try {
+              const result = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
+              setConfirmationResult(result);
+              setStep('otp');
+              setTimer(30);
+            } catch (error: any) {
+              console.error('Firebase send SMS error:', error);
+              showToast('Failed to send OTP', error.message || 'OTP delivery error', 'error');
+            }
+          } else {
+            showToast('Error', 'Firebase Auth system is not ready', 'error');
+          }
+        } else {
+          setStep('otp');
+          setTimer(30);
+        }
       }
     }
     setLoading(false);
@@ -306,11 +346,25 @@ function LoginContent() {
 
     if (type === 'phone') {
       setLoginMethod('otp');
-      const { error } = await signInWithOtp(finalIdentifier);
-      if (error) {
-        showToast('Failed to send OTP', error.message || 'Something went wrong', 'error');
-        setStep('credential');
+      if (isFirebaseConfigured) {
+        const auth = getFirebaseAuth();
+        if (auth && recaptchaVerifier) {
+          try {
+            const result = await signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier);
+            setConfirmationResult(result);
+            setStep('otp');
+            setTimer(30);
+          } catch (error: any) {
+            console.error('Firebase send SMS error:', error);
+            showToast('Failed to send OTP', error.message || 'OTP delivery error', 'error');
+            setStep('credential');
+          }
+        } else {
+          showToast('Error', 'Firebase Auth system is not ready', 'error');
+          setStep('credential');
+        }
       } else {
+        // Mock flow
         setStep('otp');
         setTimer(30);
       }
@@ -331,22 +385,57 @@ function LoginContent() {
     }
 
     setLoading(true);
-    let error;
+    let verifySuccess = false;
+
     if (identifierType === 'email') {
       const res = await verifyEmailOtp(email, activeOtp);
-      error = res.error;
+      if (!res.error) {
+        verifySuccess = true;
+      } else {
+        showToast('Failed', res.error.message || 'Incorrect OTP code', 'error');
+      }
+    } else if (isFirebaseConfigured && confirmationResult) {
+      try {
+        await confirmationResult.confirm(activeOtp);
+        verifySuccess = true;
+      } catch (error: any) {
+        showToast('Failed', error.message || 'Incorrect OTP code', 'error');
+      }
+    } else if (process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true') {
+      if (activeOtp === '123456') {
+        verifySuccess = true;
+      } else {
+        showToast('Failed', 'Incorrect simulated OTP. Use 123456.', 'error');
+      }
     } else {
-      const res = await verifyOtp(phone, activeOtp);
-      error = res.error;
+      showToast('Error', 'Phone verification service is not configured. Please contact support.', 'error');
+    }
+
+    if (verifySuccess) {
+      if (identifierType === 'phone') {
+        try {
+          const res = await fetch('/api/auth/firebase-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone: phone.startsWith('+') ? phone : `+91${phone}`,
+            }),
+          });
+          if (res.ok) {
+            await finishLogin();
+          } else {
+            const errData = await res.json();
+            showToast('Failed to start session', errData.message || 'Database sync error', 'error');
+          }
+        } catch (err) {
+          console.error('Failed to auth session in postgres:', err);
+          showToast('Error', 'Verification session sync failed', 'error');
+        }
+      } else {
+        await finishLogin();
+      }
     }
     setLoading(false);
-
-    if (error) {
-      showToast('Verification Failed', error.message || 'Incorrect OTP. Try again.', 'error');
-    } else {
-      showToast('Login Successful', 'Welcome back to ListMe!', 'success');
-      finishLogin();
-    }
   };
 
   const handleOtpChange = (val: string) => {
@@ -361,23 +450,27 @@ function LoginContent() {
   const handleResendOtp = async () => {
     if (timer > 0) return;
     setLoading(true);
-    
-    let error;
     if (identifierType === 'email') {
       const res = await signInWithEmail(email);
-      error = res.error;
+      if (!res.error) setTimer(30);
     } else {
-      const res = await signInWithOtp(phone);
-      error = res.error;
+      const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
+      if (isFirebaseConfigured) {
+        const auth = getFirebaseAuth();
+        if (auth && recaptchaVerifier) {
+          try {
+            const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+            setConfirmationResult(result);
+            setTimer(30);
+          } catch (error: any) {
+            showToast('Failed to resend OTP', error.message || 'Telephony error', 'error');
+          }
+        }
+      } else {
+        setTimer(30);
+      }
     }
-    
     setLoading(false);
-
-    if (error) {
-      showToast('Failed to resend OTP', error.message || 'Something went wrong', 'error');
-    } else {
-      setTimer(30);
-    }
   };
 
   // Google login
@@ -486,6 +579,7 @@ function LoginContent() {
 
   return (
     <div className={styles.splitContainer}>
+      <div id="recaptcha-container" style={{ display: 'none' }} />
       {/* ── Left Panel: Hero Image + Testimonials ── */}
       <div className={styles.heroPanel}>
         <Image
@@ -747,6 +841,18 @@ function LoginContent() {
                     </button>
                   </>
                 )}
+                <div style={{ marginTop: 12, textAlign: 'center', width: '100%' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginMethod('password');
+                      setStep('credential');
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary-500)', cursor: 'pointer', fontWeight: 500 }}
+                  >
+                    Login with Password instead
+                  </button>
+                </div>
               </div>
             </>
           )}
