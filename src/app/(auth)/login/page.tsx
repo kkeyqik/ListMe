@@ -58,6 +58,7 @@ function LoginContent() {
   const [step, setStep] = useState<'identifier' | 'credential' | 'otp' | 'email' | 'email-otp' | 'signup' | 'signup-otp'>('identifier');
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [identifierError, setIdentifierError] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [citiesList, setCitiesList] = useState<any[]>([]);
 
@@ -271,6 +272,7 @@ function LoginContent() {
   // Phone submission handler
   const handleIdentifierChange = (val: string) => {
     setIdentifier(val);
+    if (identifierError) setIdentifierError('');
     const clean = val.trim();
     if (!clean) {
       setIsPhoneDetected(false);
@@ -300,9 +302,10 @@ function LoginContent() {
   // Unified email/phone submission handler
   const handleIdentifierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIdentifierError('');
     const val = identifier.trim();
     if (!val) {
-      showToast('Error', 'Please enter your email or phone number', 'error');
+      setIdentifierError('Please enter your email or phone number');
       return;
     }
 
@@ -314,8 +317,8 @@ function LoginContent() {
     if (/^[+\d]/.test(val) && !/[a-zA-Z@]/.test(val)) {
       type = 'phone';
       const cleanPhone = val.replace(/\D/g, '');
-      if (cleanPhone.length < 10) {
-        showToast('Error', 'Please enter a valid 10-digit mobile number', 'error');
+      if (cleanPhone.length !== 10) {
+        setIdentifierError('Please enter a valid 10-digit mobile number');
         setLoading(false);
         return;
       }
@@ -687,6 +690,7 @@ function LoginContent() {
                         disabled={loading}
                       />
                     </div>
+                    {identifierError && <p style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{identifierError}</p>}
                   </div>
                   <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} rightIcon={<ArrowRight size={18} />}>
                     Continue

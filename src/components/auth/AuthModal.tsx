@@ -57,6 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isPhoneDetected, setIsPhoneDetected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
+  const [identifierError, setIdentifierError] = useState('');
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
 
   // Firebase auth state variables
@@ -93,6 +94,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setEmail('');
       setLoading(false);
       setTimer(0);
+      setIdentifierError('');
     }
   }, [isOpen]);
 
@@ -225,6 +227,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleIdentifierChange = (val: string) => {
     setIdentifier(val);
+    if (identifierError) setIdentifierError('');
     const clean = val.trim();
     if (!clean) {
       setIsPhoneDetected(false);
@@ -253,9 +256,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleIdentifierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIdentifierError('');
     const val = identifier.trim();
     if (!val) {
-      showToast('Error', 'Please enter your email or phone number', 'error');
+      setIdentifierError('Please enter your email or phone number');
       return;
     }
 
@@ -267,8 +271,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (/^[+\d]/.test(val) && !/[a-zA-Z@]/.test(val)) {
       type = 'phone';
       const cleanPhone = val.replace(/\D/g, '');
-      if (cleanPhone.length < 10) {
-        showToast('Error', 'Please enter a valid 10-digit mobile number', 'error');
+      if (cleanPhone.length !== 10) {
+        setIdentifierError('Please enter a valid 10-digit mobile number');
         setLoading(false);
         return;
       }
@@ -513,6 +517,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     disabled={loading}
                   />
                 </div>
+                {identifierError && <p style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{identifierError}</p>}
               </div>
               <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} rightIcon={<ArrowRight size={18} />}>
                 Continue
