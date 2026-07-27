@@ -514,6 +514,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(null);
       setProfile(null);
+      window.location.href = '/login';
     } catch (err) {
       console.error('[AuthContext] SignOut error:', err);
     } finally {

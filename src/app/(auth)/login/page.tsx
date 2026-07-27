@@ -400,9 +400,15 @@ function LoginContent() {
     } else if (isFirebaseConfigured && confirmationResult) {
       try {
         await confirmationResult.confirm(activeOtp);
+
         verifySuccess = true;
+
       } catch (error: any) {
-        showToast('Failed', error.message || 'Incorrect OTP code', 'error');
+
+        const msg = error.message?.includes('invalid-verification-code') ? 'Incorrect OTP. Please try again.' : error.message || 'Incorrect OTP code';
+
+        showToast('Failed', msg, 'error');
+
       }
     } else if (process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true') {
       if (activeOtp === '123456') {
