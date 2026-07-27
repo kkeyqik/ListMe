@@ -3,6 +3,7 @@
  * Handles client-side validations (mime-types, file sizes)
  * and defines storage paths.
  */
+import imageCompression from 'browser-image-compression';
 
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const ALLOWED_DOC_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -63,4 +64,27 @@ export const getListingImagePath = (listingId: string, fileName: string): string
  */
 export const getListingDocPath = (listingId: string, fileName: string): string => {
   return `properties/${listingId}/documents/${fileName}`;
+};
+
+/**
+ * Compresses an image, strips EXIF, and converts to WebP
+ */
+export const processImage = async (file: File): Promise<File> => {
+  const options = {
+    maxSizeMB: 1,
+    maxWidthOrHeight: 1920,
+    useWebWorker: true,
+    fileType: 'image/webp' as const,
+    initialQuality: 0.8,
+  };
+  try {
+    const compressedBlob = await imageCompression(file, options);
+    // Convert Blob to File object to retain standard File semantics
+    return new File([compressedBlob], file.name.replace(/\.[^/.]+$/, ".webp"), {
+      type: 'image/webp',
+    });
+  } catch (error) {
+    console.error('Image compression failed:', error);
+    return file; // Fallback to original file on failure
+  }
 };

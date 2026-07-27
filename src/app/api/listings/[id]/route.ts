@@ -333,6 +333,16 @@ export async function PUT(
       data: updateData,
     });
 
+    // Log user activity if the owner made the edit (admins are logged separately above)
+    if (!isAdmin && isAuthorized) {
+      await logUserActivity({
+        userId,
+        action: 'EDIT_LISTING',
+        entityId: id,
+        request,
+      });
+    }
+
     return NextResponse.json({
       message: 'Listing updated successfully',
       listing: updatedListing,
@@ -389,6 +399,14 @@ export async function DELETE(
     // Delete listing
     await prisma.listing.delete({
       where: { id },
+    });
+
+    // Log deletion activity
+    await logUserActivity({
+      userId,
+      action: 'DELETE_LISTING',
+      entityId: id,
+      request,
     });
 
     return NextResponse.json({ message: 'Listing deleted successfully' });

@@ -26,6 +26,7 @@ import {
   LISTING_IMAGES_BUCKET,
   validateDocument,
   validateImage,
+  processImage,
 } from '@/lib/upload';
 import styles from './new.module.css';
 
@@ -307,7 +308,10 @@ export default function NewListing() {
     const images = [];
     for (let index = 0; index < selectedPhotos.length; index++) {
       const photo = selectedPhotos[index];
-      const fileName = generateFileName(photo.name);
+      
+      // Process, compress, and strip EXIF from image
+      const processedFile = await processImage(photo.file);
+      const fileName = generateFileName(processedFile.name);
       const path = getListingImagePath(listingId, fileName);
 
       setSelectedPhotos((prev) =>
@@ -316,8 +320,8 @@ export default function NewListing() {
 
       const { error } = await supabase.storage
         .from(LISTING_IMAGES_BUCKET)
-        .upload(path, photo.file, {
-          contentType: photo.file.type,
+        .upload(path, processedFile, {
+          contentType: processedFile.type,
           upsert: false,
         });
 

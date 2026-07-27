@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE_NAME } from '@/lib/session';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
+import { logUserActivity } from '@/lib/activity-logger';
 
 /**
  * POST /api/auth/logout
@@ -10,8 +12,9 @@ import { SESSION_COOKIE_NAME } from '@/lib/session';
  *  - sb-mock-user-id   (dev/test cleanup)
  *  - any sb-* cookies  (Supabase auth tokens)
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const userId = await getAuthenticatedUserId();
     const cookieStore = await cookies();
 
     // Clear our session cookie.
@@ -38,6 +41,14 @@ export async function POST() {
           maxAge: 0,
         });
       }
+    }
+
+    if (userId) {
+      await logUserActivity({
+        userId,
+        action: 'LOGOUT',
+        request,
+      });
     }
 
     return NextResponse.json({ success: true });

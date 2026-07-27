@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { validatePhone } from '@/lib/validation';
+import { logUserActivity } from '@/lib/activity-logger';
 
 export async function POST(request: NextRequest) {
   // Rate limiting
@@ -36,10 +37,21 @@ export async function POST(request: NextRequest) {
     });
 
     if (!profile) {
+      await logUserActivity({
+        action: 'FAILED_LOGIN',
+        request,
+        metadata: { method: 'phone_password', reason: 'User not found', phone: formattedPhone, ip },
+      });
       return NextResponse.json({ message: 'Invalid phone number or password' }, { status: 401 });
     }
 
     if (!profile.email) {
+      await logUserActivity({
+        userId: profile.id,
+        action: 'FAILED_LOGIN',
+        request,
+        metadata: { method: 'phone_password', reason: 'No password set up', phone: formattedPhone, ip },
+      });
       return NextResponse.json({ 
         message: 'Your account does not have a password set up. Please login with OTP.' 
       }, { status: 400 });
@@ -53,6 +65,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError || !authData.user) {
+      await logUserActivity({
+        userId: profile.id,
+        action: 'FAILED_LOGIN',
+        request,
+        metadata: { method: 'phone_password', reason: 'Invalid password', phone: formattedPhone, ip },
+      });
       return NextResponse.json({ message: 'Invalid phone number or password' }, { status: 401 });
     }
 
@@ -75,12 +93,11 @@ export async function POST(request: NextRequest) {
 
     // Log Activity
     try {
-      await prisma.userActivityLog.create({
-        data: {
-          userId: profile.id,
-          action: 'LOGIN',
-          metadata: { method: 'phone_password', ip },
-        },
+      await logUserActivity({
+        userId: profile.id,
+        action: 'LOGIN',
+        request,
+        metadata: { method: 'phone_password', ip },
       });
     } catch (logErr) {}
 

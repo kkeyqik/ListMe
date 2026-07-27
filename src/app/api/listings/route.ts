@@ -369,6 +369,20 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Log property creation
+    await logUserActivity({
+      userId,
+      action: 'CREATE_LISTING',
+      entityId: newListing.id,
+      request,
+      metadata: {
+        title,
+        propertyType,
+        listingFor,
+        city,
+      },
+    });
+
     return NextResponse.json({
       message: 'Listing created successfully and sent for review',
       listing: newListing,

@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { validatePhone, sanitizeInput } from '@/lib/validation';
+import { logUserActivity } from '@/lib/activity-logger';
 
 const formatIndiaPhone = (phone: string) => (phone.startsWith('+') ? phone : `+91${phone}`);
 
@@ -60,6 +61,12 @@ export async function POST(request: NextRequest) {
 
       // Check if account is suspended or banned
       if (existingProfile.status === 'SUSPENDED' || existingProfile.status === 'BANNED') {
+        await logUserActivity({
+          userId: existingProfile.id,
+          action: 'FAILED_LOGIN',
+          request,
+          metadata: { method: 'phone_otp', reason: 'Account suspended or banned', phone: formattedPhone, ip },
+        });
         return NextResponse.json(
           { message: 'Your account has been suspended. Please contact support.' },
           { status: 403 }
@@ -205,17 +212,15 @@ export async function POST(request: NextRequest) {
     // 6. Log login activity
     if (existingProfile) {
       try {
-        await prisma.userActivityLog.create({
-          data: {
-            userId: existingProfile.id,
-            action: 'LOGIN',
-            ipAddress: ip,
-            userAgent: request.headers.get('user-agent') || 'unknown',
-            metadata: { 
-              method: 'phone_otp', 
-              phone: formattedPhone,
-              details: `Phone login: ${formattedPhone}`
-            },
+        await logUserActivity({
+          userId: existingProfile.id,
+          action: 'LOGIN',
+          request,
+          metadata: { 
+            method: 'phone_otp', 
+            phone: formattedPhone,
+            details: `Phone login: ${formattedPhone}`,
+            ip
           },
         });
       } catch (logErr) {
