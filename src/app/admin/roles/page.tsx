@@ -137,21 +137,21 @@ export default function RoleManager() {
   );
 
   return (
-    <div className={styles.adminPage}>
-      <div className={styles.pageHeader}>
+    <div>
+      <div className={styles.header}>
         <div>
-          <h1 className="text-2xl font-bold">Role Manager</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage team access and granular permissions.</p>
+          <h1 className={styles.title}>Role Manager</h1>
+          <p className={styles.subText}>Manage team access and granular permissions.</p>
         </div>
-        <Button variant="primary" onClick={handleAddClick} className="flex items-center gap-2">
+        <Button variant="primary" onClick={handleAddClick} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <UserPlus size={16} />
           Elevate User to Admin
         </Button>
       </div>
 
-      <div className={styles.controlsBar}>
-        <div className="relative" style={{ maxWidth: '400px', width: '100%' }}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ position: 'relative', maxWidth: '400px', width: '100%' }}>
+          <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} size={18} />
           <Input 
             placeholder="Search admins by name, email or phone..." 
             style={{ paddingLeft: '2.5rem' }}
@@ -162,62 +162,59 @@ export default function RoleManager() {
       </div>
 
       {loading ? (
-        <div className={styles.loadingState}>
-          <div className={styles.spinner} />
-          <p>Loading roles...</p>
-        </div>
+        <Card padding="md">Loading roles...</Card>
       ) : (
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Admin Name</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Module Permissions</th>
-                <th>Actions</th>
+                <th className={styles.th}>Admin Name</th>
+                <th className={styles.th}>Role</th>
+                <th className={styles.th}>Status</th>
+                <th className={styles.th}>Module Permissions</th>
+                <th className={styles.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredAdmins.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className={styles.emptyState}>
+                  <td colSpan={5} className={styles.td} style={{ textAlign: 'center' }}>
                     No admins found matching your search.
                   </td>
                 </tr>
               ) : (
                 filteredAdmins.map((admin) => (
-                  <tr key={admin.id}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+                  <tr key={admin.id} className={styles.tr}>
+                    <td className={styles.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--color-secondary-fade)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-secondary)', fontWeight: 700 }}>
                           {admin.name?.charAt(0) || 'U'}
                         </div>
                         <div>
-                          <div className="font-semibold">{admin.name || 'Unknown User'}</div>
-                          <div className="text-xs text-gray-500">{admin.email || admin.phone}</div>
+                          <div className={styles.titleText}>{admin.name || 'Unknown User'}</div>
+                          <div className={styles.subTextInfo}>{admin.email || admin.phone}</div>
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td className={styles.td}>
                       <Badge variant={admin.role === 'SUPER_ADMIN' ? 'error' : 'primary'}>
                         {admin.role === 'SUPER_ADMIN' ? (
-                          <div className="flex items-center gap-1"><ShieldAlert size={12} /> Super Admin</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ShieldAlert size={12} /> Super Admin</div>
                         ) : (
-                          <div className="flex items-center gap-1"><ShieldCheck size={12} /> Admin</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><ShieldCheck size={12} /> Admin</div>
                         )}
                       </Badge>
                     </td>
-                    <td>
+                    <td className={styles.td}>
                       <Badge variant={admin.status === 'ACTIVE' ? 'success' : 'error'}>
                         {admin.status}
                       </Badge>
                     </td>
-                    <td>
+                    <td className={styles.td}>
                       {admin.role === 'SUPER_ADMIN' ? (
-                        <span className="text-sm text-gray-500 italic">Full Access</span>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>Full Access</span>
                       ) : (
-                        <div className="flex gap-2 flex-wrap">
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           {admin.roleMetadata?.permissions?.seo && <Badge variant="neutral">SEO</Badge>}
                           {admin.roleMetadata?.permissions?.blogs && <Badge variant="neutral">Blogs</Badge>}
                           {admin.roleMetadata?.permissions?.users && <Badge variant="neutral">Users</Badge>}
@@ -227,12 +224,12 @@ export default function RoleManager() {
                            !admin.roleMetadata?.permissions?.blogs && 
                            !admin.roleMetadata?.permissions?.users && 
                            !admin.roleMetadata?.permissions?.listings && (
-                             <span className="text-sm text-gray-400">No specific modules</span>
+                             <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>No specific modules</span>
                            )}
                         </div>
                       )}
                     </td>
-                    <td>
+                    <td className={styles.td}>
                       <Button 
                         variant="ghost" 
                         size="sm"
@@ -263,9 +260,9 @@ export default function RoleManager() {
           
           {addModalOpen && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label className="text-sm font-semibold">Select User</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, fontFamily: 'var(--font-heading)' }}>Select User</label>
               <select 
-                className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-card)', fontSize: '0.875rem' }}
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
               >
@@ -280,17 +277,17 @@ export default function RoleManager() {
           )}
 
           {editModalOpen && editingAdmin && (
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="font-semibold">{editingAdmin.name}</div>
-              <div className="text-sm text-gray-500">{editingAdmin.email || editingAdmin.phone}</div>
+            <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-neutral-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontWeight: 600 }}>{editingAdmin.name}</div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{editingAdmin.email || editingAdmin.phone}</div>
             </div>
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label className="text-sm font-semibold">Role Level</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, fontFamily: 'var(--font-heading)' }}>Role Level</label>
               <select 
-                className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-card)', fontSize: '0.875rem' }}
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
               >
@@ -301,9 +298,9 @@ export default function RoleManager() {
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label className="text-sm font-semibold">Account Status</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, fontFamily: 'var(--font-heading)' }}>Account Status</label>
               <select 
-                className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-card)', fontSize: '0.875rem' }}
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
@@ -316,58 +313,58 @@ export default function RoleManager() {
 
           {role === 'ADMIN' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <label className="text-sm font-semibold border-b pb-2">Module Permissions</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem', fontFamily: 'var(--font-heading)' }}>Module Permissions</label>
               
-              <div className="grid grid-cols-2 gap-3 mt-2">
-                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-neutral-50)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <input 
                     type="checkbox" 
                     checked={permissions.seo}
                     onChange={() => togglePermission('seo')}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    style={{ width: '16px', height: '16px', accentColor: 'var(--color-secondary)' }}
                   />
-                  <div className="flex items-center gap-2">
-                    <Search size={16} className="text-gray-500" />
-                    <span className="text-sm font-medium">SEO Manager</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Search size={16} style={{ color: 'var(--color-text-muted)' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>SEO Manager</span>
                   </div>
                 </label>
 
-                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-neutral-50)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <input 
                     type="checkbox" 
                     checked={permissions.blogs}
                     onChange={() => togglePermission('blogs')}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    style={{ width: '16px', height: '16px', accentColor: 'var(--color-secondary)' }}
                   />
-                  <div className="flex items-center gap-2">
-                    <Edit2 size={16} className="text-gray-500" />
-                    <span className="text-sm font-medium">Blog Editor</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Edit2 size={16} style={{ color: 'var(--color-text-muted)' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Blog Editor</span>
                   </div>
                 </label>
 
-                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-neutral-50)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <input 
                     type="checkbox" 
                     checked={permissions.users}
                     onChange={() => togglePermission('users')}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    style={{ width: '16px', height: '16px', accentColor: 'var(--color-secondary)' }}
                   />
-                  <div className="flex items-center gap-2">
-                    <Users size={16} className="text-gray-500" />
-                    <span className="text-sm font-medium">User Manager</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={16} style={{ color: 'var(--color-text-muted)' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>User Manager</span>
                   </div>
                 </label>
 
-                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-neutral-50)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <input 
                     type="checkbox" 
                     checked={permissions.listings}
                     onChange={() => togglePermission('listings')}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    style={{ width: '16px', height: '16px', accentColor: 'var(--color-secondary)' }}
                   />
-                  <div className="flex items-center gap-2">
-                    <Building2 size={16} className="text-gray-500" />
-                    <span className="text-sm font-medium">Listings Manager</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Building2 size={16} style={{ color: 'var(--color-text-muted)' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Listings Manager</span>
                   </div>
                 </label>
               </div>
