@@ -9,9 +9,6 @@ import Link from 'next/link';
 export const MobileHome: React.FC = () => {
   return (
     <div className={styles.mobileHomeContainer}>
-      
-    <div className={styles.mobileHomeContainer}>
-      
       {/* 0. Mobile Header */}
       <header className={styles.mobileHeader}>
         <div className={styles.mobileHeaderTop}>
