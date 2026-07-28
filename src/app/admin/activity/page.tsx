@@ -36,6 +36,8 @@ export default function AdminActivityLog() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const fetchLogs = async () => {
     try {
@@ -85,6 +87,22 @@ export default function AdminActivityLog() {
     }
   }, [loading, activeTab]);
 
+  const matchesDateFilter = (logDate: string) => {
+    if (!startDate && !endDate) return true;
+    const lDate = new Date(logDate);
+    if (startDate) {
+      const sDate = new Date(startDate);
+      sDate.setHours(0,0,0,0);
+      if (lDate < sDate) return false;
+    }
+    if (endDate) {
+      const eDate = new Date(endDate);
+      eDate.setHours(23,59,59,999);
+      if (lDate > eDate) return false;
+    }
+    return true;
+  };
+
   // Seeker actions filter
   const filteredUserLogs = userLogs.filter((log) => {
     const searchLower = searchQuery.toLowerCase();
@@ -101,8 +119,9 @@ export default function AdminActivityLog() {
       JSON.stringify(log.metadata || {}).toLowerCase().includes(searchLower);
 
     const matchesAction = actionFilter === 'ALL' || log.action === actionFilter;
+    const matchesDate = matchesDateFilter(log.createdAt);
 
-    return matchesSearch && matchesAction;
+    return matchesSearch && matchesAction && matchesDate;
   });
 
   // Admin actions filter
@@ -121,8 +140,9 @@ export default function AdminActivityLog() {
       JSON.stringify(log.metadata || {}).toLowerCase().includes(searchLower);
 
     const matchesAction = actionFilter === 'ALL' || log.entityType === actionFilter;
+    const matchesDate = matchesDateFilter(log.createdAt);
 
-    return matchesSearch && matchesAction;
+    return matchesSearch && matchesAction && matchesDate;
   });
 
   // Email logs filter
@@ -140,8 +160,9 @@ export default function AdminActivityLog() {
       status.toLowerCase().includes(searchLower);
 
     const matchesAction = actionFilter === 'ALL' || log.status === actionFilter;
+    const matchesDate = matchesDateFilter(log.createdAt);
 
-    return matchesSearch && matchesAction;
+    return matchesSearch && matchesAction && matchesDate;
   });
 
   const handleExportCSV = () => {
@@ -340,55 +361,76 @@ export default function AdminActivityLog() {
       </div>
 
       {/* Filters Bar */}
-      <div className={`${pageStyles.filterBar} animate-fade-in`}>
-        <div className={pageStyles.searchWrapper}>
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={
-              activeTab === 'seeker'
-                ? "Search by action, seeker, IP or metadata..."
-                : activeTab === 'operations'
-                ? "Search by admin name, action, or metadata..."
-                : "Search by recipient, subject, status or content..."
-            }
-            leftIcon={<Search size={18} />}
-            fullWidth
-          />
-        </div>
+      <Card padding="md" style={{ marginBottom: '2rem' }}>
+        <div className={`${pageStyles.filterBar} animate-fade-in`} style={{ flexWrap: 'wrap', gap: '1rem', border: 'none', padding: 0 }}>
+          <div className={pageStyles.searchWrapper} style={{ flex: '1', minWidth: '260px' }}>
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={
+                activeTab === 'seeker'
+                  ? "Search by action, seeker, IP or metadata..."
+                  : activeTab === 'operations'
+                  ? "Search by admin name, action, or metadata..."
+                  : "Search by recipient, subject, status or content..."
+              }
+              leftIcon={<Search size={18} />}
+              fullWidth
+            />
+          </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <Filter size={16} style={{ color: 'var(--color-text-secondary)' }} />
-          <select
-            value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
-            className={pageStyles.selectDropdown}
-          >
-            {activeTab === 'seeker' ? (
-              <>
-                <option value="ALL">All Actions</option>
-                <option value="VIEW_PROPERTY">Property Views</option>
-                <option value="SEARCH">Searches</option>
-                <option value="EXPRESS_INTEREST">Interest Expressions</option>
-              </>
-            ) : activeTab === 'operations' ? (
-              <>
-                <option value="ALL">All Entity Types</option>
-                <option value="LISTING">Listings</option>
-                <option value="SYSTEM_SETTINGS">Settings</option>
-                <option value="USER_PROFILE">User Profiles</option>
-              </>
-            ) : (
-              <>
-                <option value="ALL">All Statuses</option>
-                <option value="SENT">Sent</option>
-                <option value="FAILED">Failed</option>
-                <option value="SIMULATED">Simulated</option>
-              </>
-            )}
-          </select>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Filter size={16} style={{ color: 'var(--color-text-secondary)' }} />
+            <select
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
+              className={pageStyles.selectDropdown}
+              style={{ border: '1px solid var(--color-neutral-300)', padding: '0.5rem', borderRadius: 'var(--radius-md)' }}
+            >
+              {activeTab === 'seeker' ? (
+                <>
+                  <option value="ALL">All Actions</option>
+                  <option value="VIEW_PROPERTY">Property Views</option>
+                  <option value="SEARCH">Searches</option>
+                  <option value="EXPRESS_INTEREST">Interest Expressions</option>
+                </>
+              ) : activeTab === 'operations' ? (
+                <>
+                  <option value="ALL">All Entity Types</option>
+                  <option value="LISTING">Listings</option>
+                  <option value="SYSTEM_SETTINGS">Settings</option>
+                  <option value="USER_PROFILE">User Profiles</option>
+                </>
+              ) : activeTab === 'emails' ? (
+                <>
+                  <option value="ALL">All Statuses</option>
+                  <option value="SENT">Sent</option>
+                  <option value="FAILED">Failed</option>
+                  <option value="SIMULATED">Simulated</option>
+                </>
+              ) : (
+                <option value="ALL">All Errors</option>
+              )}
+            </select>
+
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              title="Start Date"
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+            />
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>to</span>
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              title="End Date"
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+            />
+          </div>
         </div>
-      </div>
+      </Card>
 
       {/* Content Section */}
       {loading ? (

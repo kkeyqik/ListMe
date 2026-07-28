@@ -17,6 +17,8 @@ export default function RoleManager() {
   const [regularUsers, setRegularUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   
   // Edit Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -186,7 +188,10 @@ export default function RoleManager() {
       (admin.email || '').toLowerCase().includes(searchLower) ||
       (admin.phone || '').includes(searchLower);
     
-    return matchesSearch;
+    const matchesRole = roleFilter === 'ALL' || admin.role === roleFilter;
+    const matchesStatus = statusFilter === 'ALL' || admin.status === statusFilter;
+
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   const sortedAdmins = [...filteredAdmins].sort((a, b) => {
@@ -240,15 +245,43 @@ export default function RoleManager() {
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ position: 'relative', maxWidth: '400px', width: '100%' }}>
-          <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} size={18} />
-          <Input 
-            placeholder="Search admins by name, email or phone..." 
-            style={{ paddingLeft: '2.5rem' }}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <Card padding="md">
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ position: 'relative', flex: '1', minWidth: '260px' }}>
+              <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', zIndex: 1 }} size={18} />
+              <Input 
+                placeholder="Search admins by name, email or phone..." 
+                style={{ paddingLeft: '2.5rem' }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                fullWidth
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              >
+                <option value="ALL">All Roles</option>
+                <option value="ADMIN">Administrators</option>
+                <option value="SUPER_ADMIN">Super Admins</option>
+              </select>
+  
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="SUSPENDED">Suspended</option>
+                <option value="BANNED">Banned</option>
+              </select>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {loading ? (

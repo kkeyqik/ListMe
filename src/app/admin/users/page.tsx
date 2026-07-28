@@ -15,6 +15,10 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [verificationFilter, setVerificationFilter] = useState('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   const [sortField, setSortField] = useState('createdAt');
   const [sortAsc, setSortAsc] = useState(false);
@@ -180,7 +184,25 @@ export default function AdminUsers() {
       (u.phone || '').toLowerCase().includes(searchLower);
       
     const matchesToolbarRole = roleFilter === 'ALL' || u.role === roleFilter;
-    return matchesSearch && matchesToolbarRole;
+    const matchesStatus = statusFilter === 'ALL' || u.status === statusFilter;
+    const matchesVerification = verificationFilter === 'ALL' || (verificationFilter === 'VERIFIED' ? u.phoneVerified : !u.phoneVerified);
+    
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const uDate = new Date(u.createdAt);
+      if (startDate) {
+        const sDate = new Date(startDate);
+        sDate.setHours(0,0,0,0);
+        if (uDate < sDate) matchesDate = false;
+      }
+      if (endDate) {
+        const eDate = new Date(endDate);
+        eDate.setHours(23,59,59,999);
+        if (uDate > eDate) matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesToolbarRole && matchesStatus && matchesVerification && matchesDate;
   });
 
   // Sort users
@@ -257,27 +279,58 @@ export default function AdminUsers() {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <Filter size={18} style={{ color: 'var(--color-text-secondary)' }} />
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              style={{
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-neutral-300)',
-                background: '#fff',
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                minHeight: '44px'
-              }}
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              title="Filter by Role"
             >
               <option value="ALL">All Roles</option>
               <option value="USER">Regular Users</option>
               <option value="ADMIN">Administrators</option>
               <option value="SUPER_ADMIN">Super Admins</option>
             </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              title="Filter by Status"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="SUSPENDED">Suspended</option>
+              <option value="BANNED">Banned</option>
+            </select>
+
+            <select
+              value={verificationFilter}
+              onChange={(e) => setVerificationFilter(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              title="Filter by Verification"
+            >
+              <option value="ALL">All Verification</option>
+              <option value="VERIFIED">Verified</option>
+              <option value="UNVERIFIED">Unverified</option>
+            </select>
+
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              title="Joined After"
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+            />
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>to</span>
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              title="Joined Before"
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+            />
           </div>
         </div>
       </Card>

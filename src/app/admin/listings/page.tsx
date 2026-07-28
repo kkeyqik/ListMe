@@ -22,7 +22,12 @@ export default function AdminListings() {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [forFilter, setForFilter] = useState('ALL');
+  const [cityFilter, setCityFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   // Moderate action states
   const [actionId, setActionId] = useState<string | null>(null);
@@ -142,12 +147,32 @@ export default function AdminListings() {
 
   // Filter listings by text search
   const filteredListings = listings.filter((l) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      l.title.toLowerCase().includes(searchLower) ||
-      l.city.toLowerCase().includes(searchLower) ||
-      l.locality.toLowerCase().includes(searchLower)
-    );
+    const matchesSearch = 
+      l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.locality.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'ALL' || l.status === statusFilter;
+    const matchesType = typeFilter === 'ALL' || l.propertyType === typeFilter;
+    const matchesFor = forFilter === 'ALL' || l.listingFor === forFilter;
+    const matchesCity = cityFilter === '' || (l.city || '').toLowerCase().includes(cityFilter.toLowerCase());
+
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const lDate = new Date(l.createdAt);
+      if (startDate) {
+        const sDate = new Date(startDate);
+        sDate.setHours(0,0,0,0);
+        if (lDate < sDate) matchesDate = false;
+      }
+      if (endDate) {
+        const eDate = new Date(endDate);
+        eDate.setHours(23,59,59,999);
+        if (lDate > eDate) matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesType && matchesFor && matchesCity && matchesDate;
   });
 
   const handleExportCSV = () => {
@@ -184,42 +209,80 @@ export default function AdminListings() {
         </div>
       </div>
 
-      {/* Toolbar filters */}
+      {/* Toolbar */}
       <Card padding="md" style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ flex: '1', minWidth: '260px' }}>
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search listings by title, city, or locality..."
+              placeholder="Search listings by title, ID, or location..."
               leftIcon={<Search size={18} />}
               fullWidth
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <Filter size={18} style={{ color: 'var(--color-text-secondary)' }} />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-neutral-300)',
-                background: '#fff',
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                minHeight: '44px'
-              }}
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              title="Filter by Status"
             >
               <option value="ALL">All Statuses</option>
-              <option value="PENDING_REVIEW">Pending Review (Queue)</option>
               <option value="ACTIVE">Active</option>
+              <option value="PENDING_REVIEW">Pending Review</option>
               <option value="REJECTED">Rejected</option>
               <option value="DEACTIVATED">Deactivated</option>
-              <option value="EXPIRED">Expired</option>
             </select>
+
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              title="Filter by Property Type"
+            >
+              <option value="ALL">All Types</option>
+              <option value="APARTMENT">Apartment</option>
+              <option value="HOUSE">House</option>
+              <option value="PLOT">Plot/Land</option>
+              <option value="COMMERCIAL">Commercial</option>
+            </select>
+
+            <select
+              value={forFilter}
+              onChange={(e) => setForFilter(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              title="Filter by Listing For"
+            >
+              <option value="ALL">All Listing For</option>
+              <option value="SALE">For Sale</option>
+              <option value="RENT">For Rent</option>
+            </select>
+
+            <Input
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              placeholder="Filter by City..."
+              style={{ minWidth: '150px' }}
+            />
+
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              title="Listed After"
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+            />
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>to</span>
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              title="Listed Before"
+              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+            />
           </div>
         </div>
       </Card>
