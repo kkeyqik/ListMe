@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, ShieldCheck, ShieldAlert, UserPlus, Search, Edit2, Settings, Users, Building2 } from 'lucide-react';
+import { Shield, ShieldCheck, ShieldAlert, UserPlus, Search, Edit2, Settings, Users, Building2, Trash2, Download, AlertTriangle } from 'lucide-react';
 import { useToast, Card, Badge, Input, Button, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { downloadCSV } from '@/lib/export-utils';
 
 export default function RoleManager() {
   const { showToast } = useToast();
@@ -21,6 +22,12 @@ export default function RoleManager() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<any>(null);
   
+  // Column-level filters
+  const [colFilters, setColFilters] = useState({
+    role: 'ALL',
+    status: 'ALL',
+  });
+  
   // Form State
   const [role, setRole] = useState('ADMIN');
   const [status, setStatus] = useState('ACTIVE');
@@ -35,6 +42,11 @@ export default function RoleManager() {
   // Add Admin Modal State
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
+
+  // Delete User Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [adminToDelete, setAdminToDelete] = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     if (profile && profile.role !== 'SUPER_ADMIN') {
@@ -123,6 +135,37 @@ export default function RoleManager() {
     }
   };
 
+  const handleDeleteAdmin = async () => {
+    if (!adminToDelete) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${adminToDelete.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (res.ok) {
+        showToast('Success', 'Admin deleted successfully', 'success');
+        setAdmins(prev => prev.filter(u => u.id !== adminToDelete.id));
+        setDeleteModalOpen(false);
+        setAdminToDelete(null);
+      } else {
+        const data = await res.json();
+        showToast('Error', data.message || 'Failed to delete admin', 'error');
+      }
+    } catch (err) {
+      console.error('Delete admin error:', err);
+      showToast('Error', 'Something went wrong', 'error');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const canDeleteAdmin = (targetAdmin: any) => {
+    if (!profile) return false;
+    // Super Admins can delete Admins, but not themselves or other Super Admins
+    return profile.role === 'SUPER_ADMIN' && targetAdmin.role !== 'SUPER_ADMIN';
+  };
+
   const togglePermission = (key: keyof typeof permissions) => {
     setPermissions(prev => ({
       ...prev,
@@ -130,23 +173,57 @@ export default function RoleManager() {
     }));
   };
 
-  const filteredAdmins = admins.filter(admin => 
-    admin.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    admin.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    admin.phone?.includes(searchQuery)
-  );
+  const filteredAdmins = admins.filter(admin => {
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = 
+      (admin.name || '').toLowerCase().includes(searchLower) ||
+      (admin.email || '').toLowerCase().includes(searchLower) ||
+      (admin.phone || '').includes(searchLower);
+    
+    const matchesColRole = colFilters.role === 'ALL' || admin.role === colFilters.role;
+    const matchesColStatus = colFilters.status === 'ALL' || admin.status === colFilters.status;
+
+    return matchesSearch && matchesColRole && matchesColStatus;
+  });
+
+  const handleExportCSV = () => {
+    const exportData = filteredAdmins.map(a => {
+      const perms = a.roleMetadata?.permissions || {};
+      const activePerms = Object.keys(perms).filter(k => perms[k]).join(', ');
+      
+      return {
+        ID: a.id,
+        Name: a.name,
+        Email: a.email,
+        Phone: a.phone,
+        Role: a.role,
+        Status: a.status,
+        Permissions: activePerms || 'None',
+        RegisteredAt: new Date(a.createdAt).toISOString()
+      };
+    });
+    
+    downloadCSV(exportData, `ListMe_Admins_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('Success', 'Report downloaded successfully', 'success');
+  };
 
   return (
     <div>
-      <div className={styles.header}>
+      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <h1 className={styles.title}>Role Manager</h1>
           <p className={styles.subText}>Manage team access and granular permissions.</p>
         </div>
-        <Button variant="primary" onClick={handleAddClick} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <UserPlus size={16} />
-          Elevate User to Admin
-        </Button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button onClick={handleExportCSV} variant="outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Download size={18} />
+            Export Report
+          </Button>
+          <Button variant="primary" onClick={handleAddClick} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <UserPlus size={16} />
+            Elevate User to Admin
+          </Button>
+        </div>
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
@@ -164,13 +241,42 @@ export default function RoleManager() {
       {loading ? (
         <Card padding="md">Loading roles...</Card>
       ) : (
-        <div className={styles.tableContainer}>
+        <div className={styles.tableContainer} style={{ overflow: 'visible' }}>
           <table className={styles.table}>
             <thead>
               <tr>
                 <th className={styles.th}>Admin Name</th>
-                <th className={styles.th}>Role</th>
-                <th className={styles.th}>Status</th>
+                <th className={styles.th}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Role
+                    <select 
+                      value={colFilters.role} 
+                      onChange={e => setColFilters({...colFilters, role: e.target.value})}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
+                      title="Filter by Role"
+                    >
+                      <option value="ALL">▼</option>
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                    </select>
+                  </div>
+                </th>
+                <th className={styles.th}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Status
+                    <select 
+                      value={colFilters.status} 
+                      onChange={e => setColFilters({...colFilters, status: e.target.value})}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
+                      title="Filter by Status"
+                    >
+                      <option value="ALL">▼</option>
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="SUSPENDED">SUSPENDED</option>
+                      <option value="BANNED">BANNED</option>
+                    </select>
+                  </div>
+                </th>
                 <th className={styles.th}>Module Permissions</th>
                 <th className={styles.th}>Actions</th>
               </tr>
@@ -230,14 +336,32 @@ export default function RoleManager() {
                       )}
                     </td>
                     <td className={styles.td}>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleEditClick(admin)}
-                        disabled={admin.id === profile?.id}
-                      >
-                        <Edit2 size={16} />
-                      </Button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditClick(admin)}
+                          disabled={admin.id === profile?.id}
+                          style={{ padding: '0.25rem' }}
+                        >
+                          <Edit2 size={16} />
+                        </Button>
+                        
+                        {canDeleteAdmin(admin) && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setAdminToDelete(admin);
+                              setDeleteModalOpen(true);
+                            }}
+                            style={{ color: 'var(--color-error)', padding: '0.25rem' }}
+                            title="Delete Admin"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -391,6 +515,32 @@ export default function RoleManager() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Delete Admin Modal */}
+      <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Confirm Deletion" size="md">
+        {adminToDelete && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+              <AlertTriangle size={24} style={{ color: 'var(--color-error)' }} />
+              <div>
+                <h4 style={{ fontWeight: 700, color: 'var(--color-error)', margin: 0 }}>Warning: Destructive Action</h4>
+                <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
+                  This will permanently delete the admin <strong>{adminToDelete.name || adminToDelete.email}</strong>. This cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+              <Button type="button" variant="outline" onClick={() => setDeleteModalOpen(false)} disabled={deleteLoading}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleDeleteAdmin} disabled={deleteLoading} style={{ background: 'var(--color-error)', color: '#fff' }}>
+                {deleteLoading ? 'Deleting...' : 'Yes, Delete Admin'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

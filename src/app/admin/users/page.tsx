@@ -1,17 +1,28 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Filter, Shield, User, Mail, Phone } from 'lucide-react';
+import { Users, Search, Filter, Shield, User, Mail, Phone, Trash2, Download, AlertTriangle } from 'lucide-react';
 import { useToast, Card, Badge, Input, Button, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
+import { useAuth } from '@/context/AuthContext';
+import { downloadCSV } from '@/lib/export-utils';
 
 export default function AdminUsers() {
   const { showToast } = useToast();
+  const { profile } = useAuth();
   
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  
+  // Column-level filters
+  const [colFilters, setColFilters] = useState({
+    role: 'ALL',
+    status: 'ALL',
+    verification: 'ALL',
+  });
+
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Add User Modal State
@@ -22,6 +33,11 @@ export default function AdminUsers() {
   const [newRole, setNewRole] = useState('USER');
   const [newStatus, setNewStatus] = useState('ACTIVE');
   const [createLoading, setCreateLoading] = useState(false);
+
+  // Delete User Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -113,6 +129,43 @@ export default function AdminUsers() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userToDelete.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (res.ok) {
+        showToast('Success', 'User and associated listings deleted successfully', 'success');
+        setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+        setDeleteModalOpen(false);
+        setUserToDelete(null);
+      } else {
+        const data = await res.json();
+        showToast('Error', data.message || 'Failed to delete user', 'error');
+      }
+    } catch (err) {
+      console.error('Delete user error:', err);
+      showToast('Error', 'Something went wrong', 'error');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Check if current user is allowed to delete the target user
+  const canDeleteUser = (targetUser: any) => {
+    if (!profile) return false;
+    if (profile.role === 'SUPER_ADMIN') {
+      return targetUser.role !== 'SUPER_ADMIN'; // Super Admins can delete anyone except other Super Admins
+    }
+    if (profile.role === 'ADMIN') {
+      return targetUser.role === 'USER'; // Admins can only delete regular users
+    }
+    return false;
+  };
+
   // Filter users by search query and role selection
   const filteredUsers = users.filter((u) => {
     const searchLower = searchQuery.toLowerCase();
@@ -121,10 +174,32 @@ export default function AdminUsers() {
       (u.email || '').toLowerCase().includes(searchLower) ||
       (u.phone || '').toLowerCase().includes(searchLower);
       
-    const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
+    const matchesToolbarRole = roleFilter === 'ALL' || u.role === roleFilter;
+    const matchesColRole = colFilters.role === 'ALL' || u.role === colFilters.role;
+    const matchesColStatus = colFilters.status === 'ALL' || u.status === colFilters.status;
+    const matchesColVerif = colFilters.verification === 'ALL' || 
+      (colFilters.verification === 'VERIFIED' ? u.phoneVerified : !u.phoneVerified);
     
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesToolbarRole && matchesColRole && matchesColStatus && matchesColVerif;
   });
+
+  const handleExportCSV = () => {
+    const exportData = filteredUsers.map(u => ({
+      ID: u.id,
+      Name: u.name,
+      Email: u.email,
+      Phone: u.phone,
+      Role: u.role,
+      Status: u.status,
+      PhoneVerified: u.phoneVerified ? 'Yes' : 'No',
+      PropertiesListed: u._count?.listings || 0,
+      InterestsExpressed: u._count?.interests || 0,
+      RegisteredAt: new Date(u.createdAt).toISOString()
+    }));
+    
+    downloadCSV(exportData, `ListMe_Users_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('Success', 'Report downloaded successfully', 'success');
+  };
 
   return (
     <div>
@@ -134,9 +209,16 @@ export default function AdminUsers() {
           <h1 className={styles.title}>Registered Users Directory</h1>
           <p className={styles.subText}>Manage account details, verify statuses, and monitor active listings per user.</p>
         </div>
-        <Button onClick={() => setAddModalOpen(true)} variant="primary" leftIcon={<User size={18} />}>
-          Add User / Admin
-        </Button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button onClick={handleExportCSV} variant="outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Download size={18} />
+            Export Report
+          </Button>
+          <Button onClick={() => setAddModalOpen(true)} variant="primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <User size={18} />
+            Add User / Admin
+          </Button>
+        </div>
       </div>
 
       {/* Toolbar filters */}
@@ -187,17 +269,62 @@ export default function AdminUsers() {
           <p>Try modifying your keyword search or role filter.</p>
         </div>
       ) : (
-        <div className={styles.tableContainer}>
+        <div className={styles.tableContainer} style={{ overflow: 'visible' }}>
           <table className={styles.table}>
             <thead>
               <tr>
                 <th className={styles.th}>User Details</th>
                 <th className={styles.th}>Contact details</th>
-                <th className={styles.th}>Role</th>
-                <th className={styles.th}>Status</th>
-                <th className={styles.th}>Properties Listed</th>
-                <th className={styles.th}>Interests Expressed</th>
-                <th className={styles.th}>Verification</th>
+                <th className={styles.th}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Role
+                    <select 
+                      value={colFilters.role} 
+                      onChange={e => setColFilters({...colFilters, role: e.target.value})}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
+                      title="Filter by Role"
+                    >
+                      <option value="ALL">▼</option>
+                      <option value="USER">USER</option>
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                    </select>
+                  </div>
+                </th>
+                <th className={styles.th}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Status
+                    <select 
+                      value={colFilters.status} 
+                      onChange={e => setColFilters({...colFilters, status: e.target.value})}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
+                      title="Filter by Status"
+                    >
+                      <option value="ALL">▼</option>
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="SUSPENDED">SUSPENDED</option>
+                      <option value="BANNED">BANNED</option>
+                    </select>
+                  </div>
+                </th>
+                <th className={styles.th}>Properties</th>
+                <th className={styles.th}>Responses</th>
+                <th className={styles.th}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    Verification
+                    <select 
+                      value={colFilters.verification} 
+                      onChange={e => setColFilters({...colFilters, verification: e.target.value})}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
+                      title="Filter by Verification"
+                    >
+                      <option value="ALL">▼</option>
+                      <option value="VERIFIED">VERIFIED</option>
+                      <option value="UNVERIFIED">UNVERIFIED</option>
+                    </select>
+                  </div>
+                </th>
+                <th className={styles.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -300,12 +427,29 @@ export default function AdminUsers() {
                       </Button>
                     </div>
                   </td>
+                  <td className={styles.td}>
+                    {canDeleteUser(userItem) && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => {
+                          setUserToDelete(userItem);
+                          setDeleteModalOpen(true);
+                        }}
+                        style={{ color: 'var(--color-error)', padding: '0.25rem' }}
+                        title="Delete User"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      
       {/* Add User Modal */}
       <Modal isOpen={addModalOpen} onClose={() => setAddModalOpen(false)} title="Add User / Admin Account" size="md">
         <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.25rem' }}>
@@ -404,6 +548,32 @@ export default function AdminUsers() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete User Modal */}
+      <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Confirm Deletion" size="md">
+        {userToDelete && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+              <AlertTriangle size={24} style={{ color: 'var(--color-error)' }} />
+              <div>
+                <h4 style={{ fontWeight: 700, color: 'var(--color-error)', margin: 0 }}>Warning: Destructive Action</h4>
+                <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
+                  This will permanently delete the user <strong>{userToDelete.name || userToDelete.email}</strong> and ALL their properties, interests, and shortlists. This cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+              <Button type="button" variant="outline" onClick={() => setDeleteModalOpen(false)} disabled={deleteLoading}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleDeleteUser} disabled={deleteLoading} style={{ background: 'var(--color-error)', color: '#fff' }}>
+                {deleteLoading ? 'Deleting...' : 'Yes, Delete User'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
