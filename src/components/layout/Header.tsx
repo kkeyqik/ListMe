@@ -30,34 +30,24 @@ export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [postPropDrawerOpen, setPostPropDrawerOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<any[]>([]);
-  const [recentViews, setRecentViews] = useState<any[]>([]);
   const pathname = usePathname();
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const searches = localStorage.getItem('listme_recent_searches');
-        const views = localStorage.getItem('listme_recent_views');
-        
-        const parsedSearches = searches ? JSON.parse(searches) : [];
-        const parsedViews = views ? JSON.parse(views) : [];
-        
-        // Fallback mock entries if no searches/views exist yet
-        const mockSearches = [
-          { display: 'Whitefield • Bangalore', params: 'city=bangalore&query=Whitefield' }
-        ];
-        const mockViews = [
-          { id: 'static-1', title: 'Luxury Villa in Whitefield', locality: 'Whitefield', city: 'Bangalore' }
-        ];
-        
-        setRecentSearches(parsedSearches.length > 0 ? parsedSearches : mockSearches);
-        setRecentViews(parsedViews.length > 0 ? parsedViews : mockViews);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-  }, []);
+  const getHeaderLinks = (isAdmin: boolean) => [
+    { label: 'Post Property', href: '/post-property', badge: 'FREE' },
+    { label: isAdmin ? 'Admin Portal' : 'My Dashboard', href: isAdmin ? '/admin' : '/dashboard' },
+    { label: 'Manage Listings', href: '/dashboard/listings' },
+    { label: 'View Responses', href: '/dashboard/responses' },
+    { label: 'Manage Profile', href: '/dashboard/profile' },
+    { label: 'Change Password', href: '/dashboard/settings' },
+  ];
+
+  const getActivityLinks = () => [
+    { label: 'Recent Searches', href: '/dashboard/searches' },
+    { label: 'Contacted properties', href: '/dashboard/contacted' },
+    { label: 'Shortlisted properties', href: '/dashboard/shortlisted' },
+    { label: 'Viewed properties', href: '/dashboard/viewed' },
+  ];
+
 
   const isPostPropertyRoute = pathname === '/post-property';
 
@@ -148,42 +138,48 @@ export const Header: React.FC = () => {
               <div className={styles.ppLoginDropdown} role="menu">
                 {user ? (
                   <>
-                    {(profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN') ? (
+                    <div className={styles.ppDropdownName}>{profile?.name || 'User'}</div>
+                    {getHeaderLinks(profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN').map((link, idx) => (
                       <Link
-                        href="/admin"
+                        key={`main-${idx}`}
+                        href={link.href}
                         className={styles.ppDropdownItem}
                         role="menuitem"
                       >
-                        <User size={16} />
-                        <span>Go to Admin Portal</span>
+                        <div className={styles.ppDropdownItemContent}>
+                          <span className={styles.ppDropdownLabel} style={{ fontWeight: 500, display: 'flex', alignItems: 'center' }}>
+                            {link.label}
+                            {link.badge && <span className={styles.freeBadge}>{link.badge}</span>}
+                          </span>
+                        </div>
                       </Link>
-                    ) : (
-                      <Link
-                        href="/dashboard"
-                        className={styles.ppDropdownItem}
-                        role="menuitem"
-                      >
-                        <User size={16} />
-                        <span>Go to Dashboard</span>
-                      </Link>
-                    )}
-                    <Link
-                      href="/dashboard/profile"
-                      className={styles.ppDropdownItem}
-                      role="menuitem"
-                    >
-                      <User size={16} />
-                      <span>Go to Profile</span>
-                    </Link>
+                    ))}
                     <button
                       onClick={() => signOut()}
                       className={styles.ppDropdownItem}
                       role="menuitem"
                       style={{ border: 'none', background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
                     >
-                      <LogOut size={16} />
-                      <span>Sign Out</span>
+                      <div className={styles.ppDropdownItemContent}>
+                        <span className={styles.ppDropdownLabel} style={{ fontWeight: 500 }}>Logout</span>
+                      </div>
                     </button>
+
+                    <div className={styles.ppDropdownDivider} />
+
+                    <div className={styles.ppDropdownSectionTitle}>My Activity</div>
+                    {getActivityLinks().map((link, idx) => (
+                      <Link
+                        key={`activity-${idx}`}
+                        href={link.href}
+                        className={styles.ppDropdownItem}
+                        role="menuitem"
+                      >
+                        <div className={styles.ppDropdownItemContent}>
+                          <span className={styles.ppDropdownLabel} style={{ fontWeight: 500 }}>{link.label}</span>
+                        </div>
+                      </Link>
+                    ))}
                   </>
                 ) : (
                   <button
@@ -197,42 +193,7 @@ export const Header: React.FC = () => {
                   </button>
                 )}
 
-                <div className={styles.ppDropdownDivider} />
 
-                <div className={styles.ppDropdownSectionHeader}>Recently Searched</div>
-                {recentSearches.map((item, idx) => (
-                  <Link
-                    key={`search-${idx}`}
-                    href={`/listings?${item.params}`}
-                    className={styles.ppDropdownItem}
-                    role="menuitem"
-                  >
-                    <Search size={16} />
-                    <div className={styles.ppDropdownItemContent}>
-                      <span className={styles.ppDropdownLabel}>{item.display}</span>
-                    </div>
-                  </Link>
-                ))}
-
-                <div className={styles.ppDropdownDivider} />
-
-                <div className={styles.ppDropdownSectionHeader}>Recently Viewed</div>
-                {recentViews.map((item, idx) => (
-                  <Link
-                    key={`view-${idx}`}
-                    href={`/property/${item.id}`}
-                    className={styles.ppDropdownItem}
-                    role="menuitem"
-                  >
-                    <Eye size={16} />
-                    <div className={styles.ppDropdownItemContent}>
-                      <span className={styles.ppDropdownLabel}>{item.title}</span>
-                      {item.locality && item.city && (
-                        <span className={styles.ppDropdownMeta}>{`${item.locality}, ${item.city}`}</span>
-                      )}
-                    </div>
-                  </Link>
-                ))}
               </div>
             </div>
 
@@ -420,79 +381,48 @@ export const Header: React.FC = () => {
 
               {/* Hover Dropdown */}
               <div className={styles.ppLoginDropdown} role="menu" style={{ right: 0, left: 'auto' }}>
-                {(profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN') ? (
-                  <Link
-                    href="/admin"
-                    className={styles.ppDropdownItem}
-                    role="menuitem"
-                  >
-                    <User size={16} />
-                    <span>Go to Admin Portal</span>
-                  </Link>
-                ) : (
-                  <Link
-                    href="/dashboard"
-                    className={styles.ppDropdownItem}
-                    role="menuitem"
-                  >
-                    <User size={16} />
-                    <span>Go to Dashboard</span>
-                  </Link>
-                )}
-                <Link
-                  href="/dashboard/profile"
-                  className={styles.ppDropdownItem}
-                  role="menuitem"
-                >
-                  <User size={16} />
-                  <span>Go to Profile</span>
-                </Link>
-                <button
-                  onClick={() => signOut()}
-                  className={styles.ppDropdownItem}
-                  role="menuitem"
-                  style={{ border: 'none', background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                >
-                  <LogOut size={16} />
-                  <span>Sign Out</span>
-                </button>
+                    <div className={styles.ppDropdownName}>{profile?.name || 'User'}</div>
+                    {getHeaderLinks(profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN').map((link, idx) => (
+                      <Link
+                        key={`main-${idx}`}
+                        href={link.href}
+                        className={styles.ppDropdownItem}
+                        role="menuitem"
+                      >
+                        <div className={styles.ppDropdownItemContent}>
+                          <span className={styles.ppDropdownLabel} style={{ fontWeight: 500, display: 'flex', alignItems: 'center' }}>
+                            {link.label}
+                            {link.badge && <span className={styles.freeBadge}>{link.badge}</span>}
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
+                    <button
+                      onClick={() => signOut()}
+                      className={styles.ppDropdownItem}
+                      role="menuitem"
+                      style={{ border: 'none', background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                    >
+                      <div className={styles.ppDropdownItemContent}>
+                        <span className={styles.ppDropdownLabel} style={{ fontWeight: 500 }}>Logout</span>
+                      </div>
+                    </button>
 
-                <div className={styles.ppDropdownDivider} />
+                    <div className={styles.ppDropdownDivider} />
 
-                <div className={styles.ppDropdownSectionHeader}>Recently Searched</div>
-                {recentSearches.slice(0, 3).map((item, idx) => (
-                  <Link
-                    key={`search-${idx}`}
-                    href={`/listings?${item.params}`}
-                    className={styles.ppDropdownItem}
-                    role="menuitem"
-                  >
-                    <Search size={16} />
-                    <div className={styles.ppDropdownItemContent}>
-                      <span className={styles.ppDropdownLabel}>{item.display}</span>
-                    </div>
-                  </Link>
-                ))}
-
-                <div className={styles.ppDropdownDivider} />
-
-                <div className={styles.ppDropdownSectionHeader}>Recently Viewed</div>
-                {recentViews.slice(0, 3).map((item, idx) => (
-                  <Link
-                    key={`view-${idx}`}
-                    href={`/property/${item.id}`}
-                    className={styles.ppDropdownItem}
-                    role="menuitem"
-                  >
-                    <Eye size={16} />
-                    <div className={styles.ppDropdownItemContent}>
-                      <span className={styles.ppDropdownLabel}>{item.title}</span>
-                      {item.locality && item.city && (
-                        <span className={styles.ppDropdownMeta}>{`${item.locality}, ${item.city}`}</span>
-                      )}
-                    </div>
-                  </Link>
-                ))}
+                    <div className={styles.ppDropdownSectionTitle}>My Activity</div>
+                    {getActivityLinks().map((link, idx) => (
+                      <Link
+                        key={`activity-${idx}`}
+                        href={link.href}
+                        className={styles.ppDropdownItem}
+                        role="menuitem"
+                      >
+                        <div className={styles.ppDropdownItemContent}>
+                          <span className={styles.ppDropdownLabel} style={{ fontWeight: 500 }}>{link.label}</span>
+                        </div>
+                      </Link>
+                    ))}
               </div>
             </div>
           ) : (
@@ -552,6 +482,38 @@ export const Header: React.FC = () => {
                     {link.label}
                   </Link>
                 ))}
+                {user && (
+                  <>
+                    <div className={styles.ppDropdownDivider} style={{ margin: '1rem 0' }} />
+                    <div className={styles.ppDropdownName} style={{ padding: '0 0 0.5rem 0' }}>{profile?.name || 'User'}</div>
+                    {getHeaderLinks(profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN').map((link, idx) => (
+                      <Link
+                        key={`mob-main-${idx}`}
+                        href={link.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={styles.drawerNavLink}
+                        style={{ fontWeight: 500, fontSize: '0.9375rem', display: 'flex', alignItems: 'center' }}
+                      >
+                        {link.label}
+                        {link.badge && <span className={styles.freeBadge}>{link.badge}</span>}
+                      </Link>
+                    ))}
+                    
+                    <div className={styles.ppDropdownDivider} style={{ margin: '1rem 0' }} />
+                    <div className={styles.ppDropdownSectionTitle} style={{ padding: '0 0 0.5rem 0' }}>My Activity</div>
+                    {getActivityLinks().map((link, idx) => (
+                      <Link
+                        key={`mob-activity-${idx}`}
+                        href={link.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={styles.drawerNavLink}
+                        style={{ fontWeight: 500, fontSize: '0.9375rem' }}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </>
+                )}
               </nav>
 
               <div className={styles.drawerFooter}>
