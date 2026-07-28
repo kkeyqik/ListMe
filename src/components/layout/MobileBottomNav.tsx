@@ -7,7 +7,7 @@ import { Home, Search, PlusCircle, Heart, Menu } from 'lucide-react';
 import styles from './MobileBottomNav.module.css';
 
 interface MobileBottomNavProps {
-  onMenuClick: () => void;
+  onMenuClick?: () => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick }) => {

@@ -77,7 +77,7 @@ export default function RootLayout({
               <ErrorMonitor />
               {children}
               <div className="mobileOnly">
-                <MobileBottomNav onMenuClick={() => console.log("Menu Clicked")} />
+                <MobileBottomNav />
               </div>
             </ToastProvider>
           </AuthProvider>
