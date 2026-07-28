@@ -29,6 +29,16 @@ body {
   }
 }
 
+.mobileOnly {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .mobileOnly {
+    display: block;
+  }
+}
+
 img, picture, video, canvas, svg {
   display: block;
   max-width: 100%;

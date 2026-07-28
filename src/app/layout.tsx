@@ -53,6 +53,7 @@ export const viewport = {
 };
 
 import { ErrorMonitor } from "@/components/ErrorMonitor";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 export default function RootLayout({
   children,
@@ -75,6 +76,9 @@ export default function RootLayout({
             <ToastProvider>
               <ErrorMonitor />
               {children}
+              <div className="mobileOnly">
+                <MobileBottomNav onMenuClick={() => console.log("Menu Clicked")} />
+              </div>
             </ToastProvider>
           </AuthProvider>
         </SettingsProvider>

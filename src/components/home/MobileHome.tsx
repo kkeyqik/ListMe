@@ -2,32 +2,73 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Search, Heart, Calculator, Percent, TrendingUp, Home, MapPin, Building, ChevronRight } from 'lucide-react';
+import { Search, Heart, Calculator, Percent, TrendingUp, Home, MapPin, Building, ChevronRight, Key, PlaySquare, Lightbulb, Landmark, Plus } from 'lucide-react';
 import styles from './MobileHome.module.css';
+import Link from 'next/link';
 
 export const MobileHome: React.FC = () => {
   return (
     <div className={styles.mobileHomeContainer}>
       
+    <div className={styles.mobileHomeContainer}>
+      
+      {/* 0. Mobile Header */}
+      <header className={styles.mobileHeader}>
+        <div className={styles.mobileHeaderTop}>
+          <div className={styles.mobileLogo}>ListMe</div>
+          <button className={styles.mobilePostPropertyBtn}>
+            Post Property <span className={styles.freeBadge}>FREE</span>
+          </button>
+        </div>
+        
+        <div className={styles.mobileNavRow}>
+          <div className={styles.navIconCol}>
+            <Home className={styles.navIcon} size={24} color="#3182ce" />
+            <span>Buy</span>
+          </div>
+          <div className={styles.navIconCol}>
+            <Key className={styles.navIcon} size={24} color="#3182ce" />
+            <span>Rent</span>
+          </div>
+          <div className={styles.navIconCol}>
+            <PlaySquare className={styles.navIcon} size={24} color="#3182ce" />
+            <span>New Projects</span>
+          </div>
+          <div className={styles.navIconCol}>
+            <Lightbulb className={styles.navIcon} size={24} color="#3182ce" />
+            <span>Insights</span>
+          </div>
+          <div className={styles.navIconCol}>
+            <Landmark className={styles.navIcon} size={24} color="#3182ce" />
+            <span>Commercial</span>
+          </div>
+        </div>
+      </header>
+
       {/* 1. Hero Search Area */}
       <section className={styles.heroSection}>
         <div className={styles.heroOverlay} />
+      </section>
+
+      <div className={styles.stickySearchContainer}>
         <div className={styles.searchWrapper}>
           <Search className={styles.searchIcon} size={20} />
           <input 
             type="text" 
             placeholder="Search 'Gurgaon'" 
             className={styles.searchInput}
-            readOnly // For mobile, usually opens a full-screen modal
+            readOnly 
           />
         </div>
-        
+      </div>
+      
+      <div className={styles.recentSearchRowWrapper}>
         <div className={styles.recentSearchRow}>
           <button className={styles.recentSearchPill}>Buy in Gurgaon</button>
           <button className={styles.recentSearchPill}>Rent in Delhi</button>
           <button className={styles.recentSearchPill}>Commercial in Noida</button>
         </div>
-      </section>
+      </div>
 
       {/* 2. Recommended Properties */}
       <section className={styles.section}>
