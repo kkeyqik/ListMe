@@ -13,12 +13,14 @@ import {
   Laptop, 
   ShieldAlert,
   ArrowUpRight,
-  Filter
+  Filter,
+  Download
 } from 'lucide-react';
 import { useToast, Card, Badge, Input, Button } from '@/components/ui';
 import styles from '../admin.module.css';
 import pageStyles from './activity.module.css';
 import { gsap } from 'gsap';
+import { downloadCSV } from '@/lib/export-utils';
 
 export default function AdminActivityLog() {
   const { showToast } = useToast();
@@ -142,6 +144,63 @@ export default function AdminActivityLog() {
     return matchesSearch && matchesAction;
   });
 
+  const handleExportCSV = () => {
+    let exportData: any[] = [];
+    let filename = `ListMe_Activity_${activeTab}_Export_${new Date().toISOString().split('T')[0]}.csv`;
+
+    if (activeTab === 'seeker') {
+      exportData = filteredUserLogs.map(l => ({
+        ID: l.id,
+        Timestamp: new Date(l.createdAt).toISOString(),
+        User: l.user?.name || 'Guest Seeker',
+        Email: l.user?.email || '',
+        Action: l.action,
+        Metadata: JSON.stringify(l.metadata || {}),
+        IPAddress: l.ipAddress || 'Unknown',
+        Browser: l.userAgent || ''
+      }));
+    } else if (activeTab === 'operations') {
+      exportData = filteredAdminLogs.map(l => ({
+        ID: l.id,
+        Timestamp: new Date(l.createdAt).toISOString(),
+        Admin: l.admin?.name || 'Unknown',
+        AdminEmail: l.admin?.email || '',
+        Action: l.action,
+        EntityType: l.entityType,
+        Metadata: JSON.stringify(l.metadata || {})
+      }));
+    } else if (activeTab === 'emails') {
+      exportData = filteredEmailLogs.map(l => ({
+        ID: l.id,
+        Timestamp: new Date(l.createdAt).toISOString(),
+        To: l.to,
+        From: l.from,
+        Subject: l.subject,
+        Status: l.status,
+        Error: l.error || ''
+      }));
+    } else if (activeTab === 'errors') {
+      const errorLogs = userLogs.filter(l => l.action === 'SYSTEM_ERROR');
+      exportData = errorLogs.map(l => ({
+        ID: l.id,
+        Timestamp: new Date(l.createdAt).toISOString(),
+        User: l.user?.name || 'Unknown',
+        Error: l.metadata?.errorMessage || 'System Error',
+        Source: l.metadata?.errorSource || 'Unknown',
+        URL: l.metadata?.pageUrl || '',
+        IPAddress: l.ipAddress || 'Unknown'
+      }));
+    }
+
+    if (exportData.length === 0) {
+      showToast('Info', 'No data to export', 'info');
+      return;
+    }
+
+    downloadCSV(exportData, filename);
+    showToast('Success', 'Report downloaded successfully', 'success');
+  };
+
   const getActionBadgeVariant = (action: string) => {
     switch (action) {
       case 'VIEW_PROPERTY':
@@ -222,16 +281,22 @@ export default function AdminActivityLog() {
   return (
     <div className={pageStyles.container} ref={pageRef}>
       {/* Header */}
-      <div className={`${styles.header} animate-fade-in`}>
+      <div className={`${styles.header} animate-fade-in`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <h1 className={styles.title}>System Activity Logs</h1>
           <p className={styles.subText}>
             Audit trail of user interactions, listing searches, and operations modifications.
           </p>
         </div>
-        <Button onClick={fetchLogs} size="sm">
-          Refresh Logs
-        </Button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button onClick={handleExportCSV} variant="outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Download size={18} />
+            Export Report
+          </Button>
+          <Button onClick={fetchLogs} size="sm">
+            Refresh Logs
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}

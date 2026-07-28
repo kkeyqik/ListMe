@@ -1,15 +1,38 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Globe, FileText, BarChart, CheckCircle } from 'lucide-react';
-import { Card, Button, Badge } from '@/components/ui';
+import { Card, Button, Badge, useToast } from '@/components/ui';
 import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-
 export default function SeoDashboard() {
   const { profile } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
+
+  const [siteName, setSiteName] = useState('ListMe — List it. Find it. Own it.');
+  const [defaultDesc, setDefaultDesc] = useState('Browse, sell, or rent properties across India for free with direct owner listings and zero brokerage.');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.seo_site_name) setSiteName(data.seo_site_name);
+          if (data.seo_default_desc) setDefaultDesc(data.seo_default_desc);
+        }
+      } catch (err) {
+        console.error('Error fetching settings:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     // Basic RBAC guard
@@ -20,6 +43,31 @@ export default function SeoDashboard() {
       router.push('/admin');
     }
   }, [profile, router]);
+
+  const handleSaveSettings = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seo_site_name: siteName,
+          seo_default_desc: defaultDesc
+        })
+      });
+      if (res.ok) {
+        showToast('Success', 'SEO Settings updated successfully', 'success');
+      } else {
+        const data = await res.json();
+        showToast('Error', data.message || 'Failed to update settings', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error', 'An unexpected error occurred', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -78,21 +126,39 @@ export default function SeoDashboard() {
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-neutral-700)', marginBottom: '4px' }}>Site Name</label>
-              <input type="text" disabled style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-neutral-50)', color: 'var(--color-text-secondary)' }} value="ListMe — List it. Find it. Own it." />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-neutral-700)', marginBottom: '4px' }}>Default Description</label>
-              <textarea disabled style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-neutral-50)', color: 'var(--color-text-secondary)', resize: 'vertical' }} rows={3} value="Browse, sell, or rent properties across India for free with direct owner listings and zero brokerage." />
-            </div>
-            
-            <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle size={14} style={{ color: 'var(--color-success)' }} /> Hardcoded in layout.tsx
-              </span>
-              <Button variant="outline" disabled>Edit Settings</Button>
-            </div>
+            {loading ? (
+              <div style={{ padding: '1rem', color: 'var(--color-text-secondary)' }}>Loading configuration...</div>
+            ) : (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-neutral-700)', marginBottom: '4px' }}>Site Name</label>
+                  <input 
+                    type="text" 
+                    disabled={saving} 
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', backgroundColor: '#fff', color: 'var(--color-neutral-900)' }} 
+                    value={siteName} 
+                    onChange={(e) => setSiteName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-neutral-700)', marginBottom: '4px' }}>Default Description</label>
+                  <textarea 
+                    disabled={saving} 
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', backgroundColor: '#fff', color: 'var(--color-neutral-900)', resize: 'vertical' }} 
+                    rows={3} 
+                    value={defaultDesc} 
+                    onChange={(e) => setDefaultDesc(e.target.value)}
+                  />
+                </div>
+                
+                <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle size={14} style={{ color: 'var(--color-success)' }} /> Connected to Database
+                  </span>
+                  <Button variant="primary" onClick={handleSaveSettings} loading={saving}>Save Settings</Button>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 

@@ -9,10 +9,12 @@ import {
   X, 
   Eye, 
   Edit, 
-  Trash2 
+  Trash2,
+  Download
 } from 'lucide-react';
 import { useToast, Button, Input, Card, Badge, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
+import { downloadCSV } from '@/lib/export-utils';
 
 export default function AdminListings() {
   const { showToast } = useToast();
@@ -148,13 +150,37 @@ export default function AdminListings() {
     );
   });
 
+  const handleExportCSV = () => {
+    const exportData = filteredListings.map(l => ({
+      ID: l.id,
+      Title: l.title,
+      PropertyType: l.propertyType,
+      ListingFor: l.listingFor,
+      City: l.city,
+      Locality: l.locality,
+      AskingPrice: l.askingPrice,
+      Status: l.status,
+      RejectionReason: l.rejectionReason || 'None',
+      CreatedAt: new Date(l.createdAt).toISOString()
+    }));
+    
+    downloadCSV(exportData, `ListMe_Listings_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('Success', 'Report downloaded successfully', 'success');
+  };
+
   return (
     <div>
       {/* Header */}
-      <div className={styles.header}>
+      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <h1 className={styles.title}>All Properties Database</h1>
           <p className={styles.subText}>Moderate, review, edit, or delete any listing submitted on ListMe.</p>
+        </div>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button onClick={handleExportCSV} variant="outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Download size={18} />
+            Export Report
+          </Button>
         </div>
       </div>
 

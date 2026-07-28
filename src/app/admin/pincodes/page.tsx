@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search, ArrowUpDown } from 'lucide-react';
-import { useToast, Card, Input } from '@/components/ui';
+import { MapPin, Search, ArrowUpDown, Download } from 'lucide-react';
+import { useToast, Card, Input, Button } from '@/components/ui';
 import styles from '../admin.module.css';
+import { downloadCSV } from '@/lib/export-utils';
 
 export default function AdminPincodes() {
   const { showToast } = useToast();
@@ -71,13 +72,31 @@ export default function AdminPincodes() {
     }
   });
 
+  const handleExportCSV = () => {
+    const exportData = sortedPincodes.map(p => ({
+      Pincode: p.pinCode,
+      ActiveListings: p.activeListings,
+      AverageAskingPrice: p.avgAskingPrice,
+      SeekerInterests: p.totalInterests,
+    }));
+    
+    downloadCSV(exportData, `ListMe_Pincodes_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('Success', 'Report downloaded successfully', 'success');
+  };
+
   return (
     <div>
       {/* Header */}
-      <div className={styles.header}>
+      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <h1 className={styles.title}>Listings by Pincode</h1>
           <p className={styles.subText}>Monitor property density, average pricing levels, and seeker interest volume per pincode.</p>
+        </div>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button onClick={handleExportCSV} variant="outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Download size={18} />
+            Export Report
+          </Button>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Filter, Shield, User, Mail, Phone, Trash2, Download, AlertTriangle } from 'lucide-react';
+import { Users, Search, Filter, Shield, User, Mail, Phone, Trash2, Download, AlertTriangle, ArrowUpDown } from 'lucide-react';
 import { useToast, Card, Badge, Input, Button, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
@@ -16,12 +16,17 @@ export default function AdminUsers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   
-  // Column-level filters
-  const [colFilters, setColFilters] = useState({
-    role: 'ALL',
-    status: 'ALL',
-    verification: 'ALL',
-  });
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(true);
+    }
+  };
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -175,16 +180,34 @@ export default function AdminUsers() {
       (u.phone || '').toLowerCase().includes(searchLower);
       
     const matchesToolbarRole = roleFilter === 'ALL' || u.role === roleFilter;
-    const matchesColRole = colFilters.role === 'ALL' || u.role === colFilters.role;
-    const matchesColStatus = colFilters.status === 'ALL' || u.status === colFilters.status;
-    const matchesColVerif = colFilters.verification === 'ALL' || 
-      (colFilters.verification === 'VERIFIED' ? u.phoneVerified : !u.phoneVerified);
+    return matchesSearch && matchesToolbarRole;
+  });
+
+  // Sort users
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    let aVal = a[sortField];
+    let bVal = b[sortField];
     
-    return matchesSearch && matchesToolbarRole && matchesColRole && matchesColStatus && matchesColVerif;
+    if (sortField === 'verification') {
+      aVal = a.phoneVerified ? 1 : 0;
+      bVal = b.phoneVerified ? 1 : 0;
+    } else if (sortField === 'properties') {
+      aVal = a._count?.listings || 0;
+      bVal = b._count?.listings || 0;
+    } else if (sortField === 'responses') {
+      aVal = a._count?.interests || 0;
+      bVal = b._count?.interests || 0;
+    }
+
+    if (typeof aVal === 'string') {
+      return sortAsc ? (aVal || '').localeCompare(bVal || '') : (bVal || '').localeCompare(aVal || '');
+    } else {
+      return sortAsc ? (aVal || 0) - (bVal || 0) : (bVal || 0) - (aVal || 0);
+    }
   });
 
   const handleExportCSV = () => {
-    const exportData = filteredUsers.map(u => ({
+    const exportData = sortedUsers.map(u => ({
       ID: u.id,
       Name: u.name,
       Email: u.email,
@@ -262,7 +285,7 @@ export default function AdminUsers() {
       {/* Table List */}
       {loading ? (
         <Card padding="md">Loading user database...</Card>
-      ) : filteredUsers.length === 0 ? (
+      ) : sortedUsers.length === 0 ? (
         <div className={styles.emptyState}>
           <Users size={48} style={{ opacity: 0.3 }} />
           <h3>No user profiles found</h3>
@@ -273,62 +296,30 @@ export default function AdminUsers() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th}>User Details</th>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>
+                  User Details <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                </th>
                 <th className={styles.th}>Contact details</th>
-                <th className={styles.th}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    Role
-                    <select 
-                      value={colFilters.role} 
-                      onChange={e => setColFilters({...colFilters, role: e.target.value})}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
-                      title="Filter by Role"
-                    >
-                      <option value="ALL">▼</option>
-                      <option value="USER">USER</option>
-                      <option value="ADMIN">ADMIN</option>
-                      <option value="SUPER_ADMIN">SUPER_ADMIN</option>
-                    </select>
-                  </div>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('role')}>
+                  Role <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    Status
-                    <select 
-                      value={colFilters.status} 
-                      onChange={e => setColFilters({...colFilters, status: e.target.value})}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
-                      title="Filter by Status"
-                    >
-                      <option value="ALL">▼</option>
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="SUSPENDED">SUSPENDED</option>
-                      <option value="BANNED">BANNED</option>
-                    </select>
-                  </div>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('status')}>
+                  Status <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th}>Properties</th>
-                <th className={styles.th}>Responses</th>
-                <th className={styles.th}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    Verification
-                    <select 
-                      value={colFilters.verification} 
-                      onChange={e => setColFilters({...colFilters, verification: e.target.value})}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
-                      title="Filter by Verification"
-                    >
-                      <option value="ALL">▼</option>
-                      <option value="VERIFIED">VERIFIED</option>
-                      <option value="UNVERIFIED">UNVERIFIED</option>
-                    </select>
-                  </div>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('properties')}>
+                  Properties <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                </th>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('responses')}>
+                  Responses <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                </th>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('verification')}>
+                  Verification <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
                 <th className={styles.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((userItem) => (
+              {sortedUsers.map((userItem) => (
                 <tr key={userItem.id} className={styles.tr}>
                   <td className={styles.td}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

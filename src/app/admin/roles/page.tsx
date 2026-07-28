@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, ShieldCheck, ShieldAlert, UserPlus, Search, Edit2, Settings, Users, Building2, Trash2, Download, AlertTriangle } from 'lucide-react';
+import { Shield, ShieldCheck, ShieldAlert, UserPlus, Search, Edit2, Settings, Users, Building2, Trash2, Download, AlertTriangle, ArrowUpDown } from 'lucide-react';
 import { useToast, Card, Badge, Input, Button, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
@@ -22,12 +22,18 @@ export default function RoleManager() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<any>(null);
   
-  // Column-level filters
-  const [colFilters, setColFilters] = useState({
-    role: 'ALL',
-    status: 'ALL',
-  });
-  
+  // Sorting State
+  const [sortField, setSortField] = useState('name');
+  const [sortAsc, setSortAsc] = useState(true);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(true);
+    }
+  };
   // Form State
   const [role, setRole] = useState('ADMIN');
   const [status, setStatus] = useState('ACTIVE');
@@ -180,14 +186,21 @@ export default function RoleManager() {
       (admin.email || '').toLowerCase().includes(searchLower) ||
       (admin.phone || '').includes(searchLower);
     
-    const matchesColRole = colFilters.role === 'ALL' || admin.role === colFilters.role;
-    const matchesColStatus = colFilters.status === 'ALL' || admin.status === colFilters.status;
+    return matchesSearch;
+  });
 
-    return matchesSearch && matchesColRole && matchesColStatus;
+  const sortedAdmins = [...filteredAdmins].sort((a, b) => {
+    let aVal = a[sortField];
+    let bVal = b[sortField];
+    
+    if (typeof aVal === 'string') {
+      return sortAsc ? (aVal || '').localeCompare(bVal || '') : (bVal || '').localeCompare(aVal || '');
+    }
+    return 0;
   });
 
   const handleExportCSV = () => {
-    const exportData = filteredAdmins.map(a => {
+    const exportData = sortedAdmins.map(a => {
       const perms = a.roleMetadata?.permissions || {};
       const activePerms = Object.keys(perms).filter(k => perms[k]).join(', ');
       
@@ -245,51 +258,28 @@ export default function RoleManager() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th}>Admin Name</th>
-                <th className={styles.th}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    Role
-                    <select 
-                      value={colFilters.role} 
-                      onChange={e => setColFilters({...colFilters, role: e.target.value})}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
-                      title="Filter by Role"
-                    >
-                      <option value="ALL">▼</option>
-                      <option value="ADMIN">ADMIN</option>
-                      <option value="SUPER_ADMIN">SUPER_ADMIN</option>
-                    </select>
-                  </div>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>
+                  Admin Name <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    Status
-                    <select 
-                      value={colFilters.status} 
-                      onChange={e => setColFilters({...colFilters, status: e.target.value})}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary-light)', padding: '0', outline: 'none' }}
-                      title="Filter by Status"
-                    >
-                      <option value="ALL">▼</option>
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="SUSPENDED">SUSPENDED</option>
-                      <option value="BANNED">BANNED</option>
-                    </select>
-                  </div>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('role')}>
+                  Role <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                </th>
+                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('status')}>
+                  Status <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
                 <th className={styles.th}>Module Permissions</th>
                 <th className={styles.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredAdmins.length === 0 ? (
+              {sortedAdmins.length === 0 ? (
                 <tr>
                   <td colSpan={5} className={styles.td} style={{ textAlign: 'center' }}>
                     No admins found matching your search.
                   </td>
                 </tr>
               ) : (
-                filteredAdmins.map((admin) => (
+                sortedAdmins.map((admin) => (
                   <tr key={admin.id} className={styles.tr}>
                     <td className={styles.td}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
