@@ -11,6 +11,7 @@ import styles from './Home.module.css';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useAuth } from '@/context/AuthContext';
+import { MobileHome } from '../components/home/MobileHome';
 
 
 // Register ScrollTrigger plugin (client-side only to prevent SSR issues)
@@ -1022,7 +1023,8 @@ export default function Home() {
   return (
     <div className={styles.main} ref={containerRef}>
       
-      <main style={{ flex: 1 }}>
+      <div className={styles.desktopView}>
+        <main style={{ flex: 1 }}>
         {/* --- Hero Canvas Wrapper Section --- */}
         <div className={styles.heroCanvasWrapper}>
           <Header />
@@ -1912,6 +1914,11 @@ export default function Home() {
       </main>
 
       <Footer />
+      </div>
+
+      <div className={styles.mobileView}>
+        <MobileHome />
+      </div>
     </div>
   );
 }

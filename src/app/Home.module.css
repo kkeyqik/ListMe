@@ -5,6 +5,23 @@
   background-color: var(--color-bg);
 }
 
+.desktopView {
+  display: block;
+}
+
+.mobileView {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .desktopView {
+    display: none;
+  }
+  .mobileView {
+    display: block;
+  }
+}
+
 /* Hero Section Redesign */
 .heroCanvasWrapper {
   width: 100%;
