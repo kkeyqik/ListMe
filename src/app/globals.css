@@ -23,6 +23,12 @@ body {
   overflow-x: hidden;
 }
 
+@media (max-width: 1023px) {
+  body {
+    padding-bottom: 64px; /* Space for MobileBottomNav */
+  }
+}
+
 img, picture, video, canvas, svg {
   display: block;
   max-width: 100%;

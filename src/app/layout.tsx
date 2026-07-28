@@ -42,6 +42,14 @@ export const metadata: Metadata = {
     title: "ListMe — List it. Find it. Own it.",
     description: "Free real estate platform across India. No brokers, no spam.",
   },
+  manifest: '/manifest.json',
+};
+
+export const viewport = {
+  themeColor: '#ffffff',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 import { ErrorMonitor } from "@/components/ErrorMonitor";
