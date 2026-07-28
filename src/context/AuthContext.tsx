@@ -15,6 +15,7 @@ export interface DbProfile {
   address: string | null;
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
   status: 'ACTIVE' | 'SUSPENDED' | 'BANNED';
+  roleMetadata?: { permissions?: Record<string, boolean> };
   createdAt: string;
   updatedAt: string;
 }

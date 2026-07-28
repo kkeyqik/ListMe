@@ -6,4 +6,4 @@ export { default as Modal, type ModalProps } from './Modal';
 export { ToastProvider, useToast, type ToastItem, type ToastType } from './Toast';
 export { default as Skeleton, type SkeletonProps } from './Skeleton';
 export { OtpInput } from './OtpInput';
-
+export { Breadcrumbs } from './Breadcrumbs';

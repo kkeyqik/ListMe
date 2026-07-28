@@ -24,6 +24,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://listme.in'),
   title: "ListMe — List it. Find it. Own it. | Free Real Estate Platform",
   description: "Browse, sell, or rent properties across India for free. Direct owner listing, verified phone numbers, and interest-based connection with zero brokerage.",
   keywords: "real estate, free listing, direct owner, no brokerage, property buy, rent apartment, land, commercial property, India real estate, ListMe",

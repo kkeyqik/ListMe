@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PropertyClient from './PropertyClient';
+import { Breadcrumbs } from '@/components/ui';
 
 interface PropertyPageProps {
   params: Promise<{ id: string }>;
@@ -14,6 +15,12 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
 
   const listing = await prisma.listing.findUnique({
     where: { id },
+    include: {
+      images: {
+        where: { isPrimary: true },
+        take: 1
+      }
+    }
   });
 
   if (!listing) {
@@ -30,13 +37,28 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     ? `₹${(formatVal / 100000).toFixed(2)} Lk` 
     : `₹${formatVal.toLocaleString('en-IN')}`;
 
+  const title = `${listing.title} — ${priceStr} | ListMe`;
+  const description = listing.description || `Verified owner property listed directly on ListMe in ${listing.locality}, ${listing.city}. Zero brokerage fees!`;
+  const imageUrl = listing.images[0]?.imageUrl || '';
+
   return {
-    title: `${listing.title} — ${priceStr} | ListMe`,
-    description: listing.description || `Verified owner property listed directly on ListMe in ${listing.locality}, ${listing.city}. Zero brokerage fees!`,
+    title,
+    description,
+    alternates: {
+      canonical: `/property/${id}`
+    },
     openGraph: {
-      title: `${listing.title} — ${priceStr}`,
-      description: listing.description || `Direct property listing in ${listing.locality}, ${listing.city}.`,
+      title,
+      description,
       type: 'website',
+      url: `/property/${id}`,
+      ...(imageUrl && { images: [{ url: imageUrl }] }),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      ...(imageUrl && { images: [imageUrl] }),
     },
   };
 }
@@ -91,6 +113,8 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     '@type': 'RealEstateListing',
     'name': listing.title,
     'description': listing.description || '',
+    'url': `https://listme.in/property/${listing.id}`,
+    'image': listing.images[0]?.imageUrl || '',
     'datePosted': listing.createdAt.toISOString(),
     'priceCurrency': 'INR',
     'price': parseFloat(listing.askingPrice.toString()),
@@ -103,6 +127,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     },
   };
 
+  const breadcrumbs = [
+    { label: listing.city, href: `/listings?city=${encodeURIComponent(listing.city)}` },
+    { label: listing.locality, href: `/listings?city=${encodeURIComponent(listing.city)}&locality=${encodeURIComponent(listing.locality)}` },
+    { label: listing.title }
+  ];
+
   return (
     <>
       {/* Inject JSON-LD Schema */}
@@ -110,6 +140,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <Breadcrumbs items={breadcrumbs} />
+      </div>
       <PropertyClient listingId={id} initialListing={sanitizedListing} />
     </>
   );
