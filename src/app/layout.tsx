@@ -55,7 +55,6 @@ export const viewport = {
   maximumScale: 1,
 };
 
-import { ErrorMonitor } from "@/components/ErrorMonitor";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 export default function RootLayout({
