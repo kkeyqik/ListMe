@@ -2,11 +2,14 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Search, Heart, Calculator, Percent, TrendingUp, Home, MapPin, Building, ChevronRight, Key, PlaySquare, Lightbulb, Landmark, Plus } from 'lucide-react';
+import { Search, Heart, Calculator, Percent, TrendingUp, Home, MapPin, Building, ChevronRight, Key, PlaySquare, Lightbulb, Landmark, Plus, ArrowRight } from 'lucide-react';
 import styles from './MobileHome.module.css';
 import Link from 'next/link';
+import { useMobileMenu } from '@/context/MobileMenuContext';
 
 export const MobileHome: React.FC = () => {
+  const { openMenu } = useMobileMenu();
+
   return (
     <div className={styles.mobileHomeContainer}>
       {/* 0. Mobile Header */}
@@ -71,6 +74,12 @@ export const MobileHome: React.FC = () => {
               <Building size={22} color="#3182ce" />
             </div>
             <span>Commercial</span>
+          </div>
+          <div className={styles.navCard} onClick={openMenu}>
+            <div className={styles.iconCircle}>
+              <ArrowRight size={22} color="#3182ce" />
+            </div>
+            <span style={{ color: '#3182ce' }}>View all</span>
           </div>
         </div>
       </section>

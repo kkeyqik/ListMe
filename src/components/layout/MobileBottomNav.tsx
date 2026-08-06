@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Search, PlusCircle, Heart, Menu } from 'lucide-react';
 import styles from './MobileBottomNav.module.css';
+import { useMobileMenu } from '@/context/MobileMenuContext';
 
 interface MobileBottomNavProps {
   onMenuClick?: () => void;
@@ -12,6 +13,7 @@ interface MobileBottomNavProps {
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick }) => {
   const pathname = usePathname();
+  const { isMenuOpen, openMenu } = useMobileMenu();
 
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
@@ -42,7 +44,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
         <span className={styles.label}>Activity</span>
       </Link>
       
-      <button onClick={onMenuClick} className={styles.navItem}>
+      <button onClick={openMenu} className={`${styles.navItem} ${isMenuOpen ? styles.active : ''}`}>
         <Menu className={styles.icon} />
         <span className={styles.label}>Menu</span>
       </button>

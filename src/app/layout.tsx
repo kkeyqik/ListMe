@@ -74,11 +74,14 @@ export default function RootLayout({
         <SettingsProvider>
           <AuthProvider>
             <ToastProvider>
-              <ErrorMonitor />
-              {children}
-              <div className="mobileOnly">
-                <MobileBottomNav />
-              </div>
+              <MobileMenuProvider>
+                <ErrorMonitor />
+                {children}
+                <div className="mobileOnly">
+                  <MobileBottomNav />
+                  <MobileMenuDrawer />
+                </div>
+              </MobileMenuProvider>
             </ToastProvider>
           </AuthProvider>
         </SettingsProvider>

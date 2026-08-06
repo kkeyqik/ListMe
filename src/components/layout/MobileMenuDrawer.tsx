@@ -1,0 +1,117 @@
+'use client';
+
+import React, { useState } from 'react';
+import styles from './MobileMenuDrawer.module.css';
+import { useMobileMenu } from '@/context/MobileMenuContext';
+import { Plus, MessageCircle, Crown, ArrowUp, HardHat, Building, Home, BedDouble, PlusSquare, Info } from 'lucide-react';
+
+const CATEGORIES = [
+  { id: 'sell_rent', label: 'Sell/Rent', icon: <PlusSquare size={20} /> },
+  { id: 'buy_residential', label: 'Buy Residential', icon: <Home size={20} /> },
+  { id: 'rent_pg', label: 'Rent / PG', icon: <BedDouble size={20} /> },
+  { id: 'buy_commercial', label: 'Buy Commercial', icon: <Building size={20} /> },
+  { id: 'lease_commercial', label: 'Lease Commercial', icon: <Building size={20} /> },
+  { id: 'price_insights', label: 'Price & Insights', icon: <Info size={20} /> },
+  { id: 'activity_support', label: 'Activity & Support', icon: <Info size={20} /> },
+];
+
+const SUB_OPTIONS = {
+  sell_rent: [
+    {
+      title: 'Property posting options',
+      items: [
+        { label: 'Post Property', icon: <Plus size={16} color="white" />, bg: '#3182ce', iconBg: '#3182ce' },
+        { label: 'Post via WhatsApp', icon: <MessageCircle size={16} color="white" />, bg: '#48bb78', iconBg: '#48bb78' }
+      ]
+    },
+    {
+      title: 'Stand out with higher visibility',
+      items: [
+        { label: 'Owner Plans', icon: <Crown size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Dealer Plans', icon: <ArrowUp size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Builder Plans', icon: <HardHat size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true }
+      ]
+    }
+  ],
+  buy_residential: [
+    {
+      title: 'Property Options',
+      items: [
+        { label: 'Flat / Apartment', icon: <Building size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Residential Land', icon: <Building size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Independent House / Villa', icon: <Home size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Builder Floor', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Studio Apartment', icon: <BedDouble size={20} color="#2f855a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Farm House', icon: <Home size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Serviced Apartments', icon: <BedDouble size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true }
+      ]
+    }
+  ]
+};
+
+export const MobileMenuDrawer: React.FC = () => {
+  const { isMenuOpen, closeMenu } = useMobileMenu();
+  const [activeTab, setActiveTab] = useState('sell_rent');
+
+  if (!isMenuOpen) return null;
+
+  const currentOptions = SUB_OPTIONS[activeTab as keyof typeof SUB_OPTIONS] || [];
+
+  return (
+    <div className={styles.drawerOverlay} onClick={closeMenu}>
+      <div className={styles.drawerContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.header}>
+          <h2>All Categories</h2>
+          <button className={styles.closeButton} onClick={closeMenu}>×</button>
+        </div>
+        
+        <div className={styles.body}>
+          <div className={styles.sidebar}>
+            {CATEGORIES.map(cat => (
+              <div 
+                key={cat.id} 
+                className={`${styles.tabItem} ${activeTab === cat.id ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab(cat.id)}
+              >
+                <div className={styles.tabIcon}>{cat.icon}</div>
+                <span>{cat.label}</span>
+              </div>
+            ))}
+          </div>
+          
+          <div className={styles.contentArea}>
+            {currentOptions.length > 0 ? (
+              currentOptions.map((section, idx) => (
+                <div key={idx} className={styles.sectionBlock}>
+                  <h3 className={styles.sectionTitle}>{section.title}</h3>
+                  <div className={styles.gridContainer}>
+                    {section.items.map((item, i) => (
+                      <div key={i} className={`${styles.optionCard} ${item.fullWidth ? styles.fullWidthCard : ''}`}>
+                        <div 
+                          className={styles.optionIconCircle} 
+                          style={{ backgroundColor: item.iconBg === 'transparent' ? 'transparent' : item.iconBg }}
+                        >
+                          {item.icon}
+                        </div>
+                        <span>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className={styles.emptyState}>
+                <p>Content coming soon</p>
+              </div>
+            )}
+            
+            <div className={styles.helpFooter}>
+              <span>👍 Help us improve ListMe</span>
+              <button className={styles.rateBtn}>Rate now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
