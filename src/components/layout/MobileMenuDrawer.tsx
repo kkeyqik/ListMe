@@ -3,15 +3,15 @@
 import React, { useState } from 'react';
 import styles from './MobileMenuDrawer.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
-import { Plus, MessageCircle, Crown, ArrowUp, HardHat, Building, Home, BedDouble, PlusSquare, Info } from 'lucide-react';
+import { Plus, MessageCircle, Crown, ArrowUp, HardHat, Building, Home, BedDouble, PlusSquare, Info, Store, Map, Factory, TrendingUp, BarChart2, Calculator, Maximize, FileText, BookOpen, Globe, MapPin, MessageSquare, PhoneCall, Heart, Eye, User, Headset, Headphones, HelpCircle, Bell, Key } from 'lucide-react';
 
 const CATEGORIES = [
   { id: 'sell_rent', label: 'Sell/Rent', icon: <PlusSquare size={20} /> },
   { id: 'buy_residential', label: 'Buy Residential', icon: <Home size={20} /> },
-  { id: 'rent_pg', label: 'Rent / PG', icon: <BedDouble size={20} /> },
-  { id: 'buy_commercial', label: 'Buy Commercial', icon: <Building size={20} /> },
-  { id: 'lease_commercial', label: 'Lease Commercial', icon: <Building size={20} /> },
-  { id: 'price_insights', label: 'Price & Insights', icon: <Info size={20} /> },
+  { id: 'rent_pg', label: 'Rent / PG', icon: <Key size={20} /> },
+  { id: 'buy_commercial', label: 'Buy Commercial', icon: <Store size={20} /> },
+  { id: 'lease_commercial', label: 'Lease Commercial', icon: <Store size={20} /> },
+  { id: 'price_insights', label: 'Price & Insights', icon: <TrendingUp size={20} /> },
   { id: 'activity_support', label: 'Activity & Support', icon: <Info size={20} /> },
 ];
 
@@ -38,12 +38,108 @@ const SUB_OPTIONS = {
       title: 'Property Options',
       items: [
         { label: 'Flat / Apartment', icon: <Building size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
-        { label: 'Residential Land', icon: <Building size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Residential Land', icon: <Map size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent' },
         { label: 'Independent House / Villa', icon: <Home size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent' },
         { label: 'Builder Floor', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent' },
         { label: 'Studio Apartment', icon: <BedDouble size={20} color="#2f855a" />, bg: 'transparent', iconBg: 'transparent' },
         { label: 'Farm House', icon: <Home size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent' },
         { label: 'Serviced Apartments', icon: <BedDouble size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true }
+      ]
+    }
+  ],
+  rent_pg: [
+    {
+      title: 'PG/Co-living options',
+      items: [
+        { label: 'PG/Co-living properties', icon: <Building size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true }
+      ]
+    }
+  ],
+  buy_commercial: [
+    {
+      title: 'Property Options',
+      items: [
+        { label: 'Retail Shops / Showrooms', icon: <Store size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Ready to move Offices', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Bare shell Offices', icon: <Building size={20} color="#2f855a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Plot / Land', icon: <Map size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Factory Manufacturing', icon: <Factory size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Warehouse', icon: <Factory size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Others', icon: <Home size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true }
+      ]
+    }
+  ],
+  lease_commercial: [
+    {
+      title: 'Property Options',
+      items: [
+        { label: 'Ready to move Offices', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Bare shell Offices', icon: <Building size={20} color="#2f855a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Co-working Offices', icon: <Building size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Retail Shops / Showrooms', icon: <Store size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Warehouse', icon: <Factory size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Factory / Manufacturing', icon: <Factory size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Plot / Land', icon: <Map size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Others', icon: <Home size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' }
+      ]
+    }
+  ],
+  price_insights: [
+    {
+      title: 'Insights',
+      items: [
+        { label: 'Real Estate Insights', icon: <BarChart2 size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Price Trends', icon: <TrendingUp size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent' }
+      ]
+    },
+    {
+      title: 'Tools',
+      items: [
+        { label: 'Budget Calculator', icon: <Calculator size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Area Converter', icon: <Maximize size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent' }
+      ]
+    },
+    {
+      title: 'Articles & Guides',
+      items: [
+        { label: 'Articles', icon: <FileText size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Home Buying Guide', icon: <BookOpen size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Home Interiors Guide', icon: <BookOpen size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Seller Guide', icon: <BookOpen size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent' }
+      ]
+    },
+    {
+      title: 'Discover',
+      items: [
+        { label: 'All India Homepage', icon: <Globe size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'NRI Homepage', icon: <MapPin size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent' }
+      ]
+    },
+    {
+      title: 'Review your Society or Locality',
+      items: [
+        { label: 'Share reviews', icon: <MessageSquare size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true }
+      ]
+    }
+  ],
+  activity_support: [
+    {
+      title: 'Activity',
+      items: [
+        { label: 'Contacted', icon: <PhoneCall size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Shortlisted', icon: <Heart size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Viewed', icon: <Eye size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true }
+      ]
+    },
+    {
+      title: 'Support & Settings',
+      items: [
+        { label: 'Log in', icon: <User size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Customer Service', icon: <Headset size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Contact Us', icon: <Headphones size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Request Info', icon: <HelpCircle size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Give Feedback', icon: <MessageSquare size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent' },
+        { label: 'Communication Settings', icon: <Bell size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent' }
       ]
     }
   ]
