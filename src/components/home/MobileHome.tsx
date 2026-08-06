@@ -17,29 +17,6 @@ export const MobileHome: React.FC = () => {
             Post Property <span className={styles.freeBadge}>FREE</span>
           </Link>
         </div>
-        
-        <div className={styles.mobileNavRow}>
-          <div className={styles.navIconCol}>
-            <Home className={styles.navIcon} size={24} color="#3182ce" />
-            <span>Buy</span>
-          </div>
-          <div className={styles.navIconCol}>
-            <Key className={styles.navIcon} size={24} color="#3182ce" />
-            <span>Rent</span>
-          </div>
-          <div className={styles.navIconCol}>
-            <PlaySquare className={styles.navIcon} size={24} color="#3182ce" />
-            <span>New Projects</span>
-          </div>
-          <div className={styles.navIconCol}>
-            <Lightbulb className={styles.navIcon} size={24} color="#3182ce" />
-            <span>Insights</span>
-          </div>
-          <div className={styles.navIconCol}>
-            <Landmark className={styles.navIcon} size={24} color="#3182ce" />
-            <span>Commercial</span>
-          </div>
-        </div>
       </header>
 
       {/* 1. Hero Search Area */}
@@ -52,12 +29,51 @@ export const MobileHome: React.FC = () => {
           <Search className={styles.searchIcon} size={20} />
           <input 
             type="text" 
-            placeholder="Search 'Gurgaon'" 
+            placeholder='Search "3 BHK flats for sale in Noida"'
             className={styles.searchInput}
             readOnly 
           />
         </div>
       </div>
+
+      {/* 2. Get Started Section */}
+      <section className={`${styles.section} ${styles.getStartedSection}`}>
+        <h2 className={styles.getStartedTitle}>Get started with</h2>
+        <p className={styles.getStartedSubtitle}>Explore real estate options in top cities</p>
+        
+        <div className={styles.navCardsRow}>
+          <div className={styles.navCard}>
+            <div className={styles.iconCircle}>
+              <Home size={22} color="#3182ce" />
+            </div>
+            <span>Buy</span>
+          </div>
+          <div className={styles.navCard}>
+            <div className={styles.iconCircle}>
+              <Key size={22} color="#3182ce" />
+            </div>
+            <span>Rent</span>
+          </div>
+          <div className={styles.navCard}>
+            <div className={styles.iconCircle}>
+              <PlaySquare size={22} color="#3182ce" />
+            </div>
+            <span>New Projects</span>
+          </div>
+          <div className={styles.navCard}>
+            <div className={styles.iconCircle}>
+              <Lightbulb size={22} color="#3182ce" />
+            </div>
+            <span>Insights</span>
+          </div>
+          <div className={styles.navCard}>
+            <div className={styles.iconCircle}>
+              <Building size={22} color="#3182ce" />
+            </div>
+            <span>Commercial</span>
+          </div>
+        </div>
+      </section>
       
       <div className={styles.recentSearchRowWrapper}>
         <div className={styles.recentSearchRow}>
