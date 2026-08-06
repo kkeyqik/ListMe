@@ -13,9 +13,9 @@ export const MobileHome: React.FC = () => {
       <header className={styles.mobileHeader}>
         <div className={styles.mobileHeaderTop}>
           <div className={styles.mobileLogo}>ListMe</div>
-          <button className={styles.mobilePostPropertyBtn}>
+          <Link href="/post-property" className={styles.mobilePostPropertyBtn}>
             Post Property <span className={styles.freeBadge}>FREE</span>
-          </button>
+          </Link>
         </div>
         
         <div className={styles.mobileNavRow}>
