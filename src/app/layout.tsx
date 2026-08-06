@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Outfit, JetBrains_Mono } from "next/font/google";
-import { ToastProvider } from "@/components/ui";
+import { ToastProvider } from '@/components/ui/Toast';
+import { ErrorMonitor } from '@/components/ErrorMonitor';
+import { MobileMenuProvider } from '@/context/MobileMenuContext';
+import { MobileMenuDrawer } from '@/components/layout/MobileMenuDrawer';
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import "./globals.css";
