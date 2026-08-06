@@ -15,7 +15,22 @@ const CATEGORIES = [
   { id: 'activity_support', label: 'Activity & Support', icon: <Info size={20} /> },
 ];
 
-const SUB_OPTIONS = {
+type SubOptionItem = {
+  label: string;
+  icon: React.ReactNode;
+  bg: string;
+  iconBg: string;
+  fullWidth?: boolean;
+};
+
+type SubOptionSection = {
+  title: string;
+  items: SubOptionItem[];
+};
+
+type SubOptionsType = Record<string, SubOptionSection[]>;
+
+const SUB_OPTIONS: SubOptionsType = {
   sell_rent: [
     {
       title: 'Property posting options',
