@@ -82,6 +82,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           officeAddress: data.officeAddress || defaultSettings.officeAddress,
           logoUrl: data.logoUrl || defaultSettings.logoUrl,
           faviconPath: data.faviconPath || defaultSettings.faviconPath,
+          mobileHeroImage: data.mobileHeroImage || defaultSettings.mobileHeroImage,
           companyName: data.companyName || defaultSettings.companyName,
           copyrightYear: data.copyrightYear || defaultSettings.copyrightYear,
           privacyPolicyUrl: data.privacyPolicyUrl || defaultSettings.privacyPolicyUrl,
