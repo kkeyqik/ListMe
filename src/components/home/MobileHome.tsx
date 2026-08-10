@@ -6,9 +6,13 @@ import { Search, Heart, Calculator, Percent, TrendingUp, Home, MapPin, Building,
 import styles from './MobileHome.module.css';
 import Link from 'next/link';
 import { useMobileMenu } from '@/context/MobileMenuContext';
+import { useSettings } from '@/context/SettingsContext';
 
 export const MobileHome: React.FC = () => {
   const { openMenu } = useMobileMenu();
+  const { settings } = useSettings();
+
+  const heroImage = settings?.mobileHeroImage || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80';
 
   return (
     <div className={styles.mobileHomeContainer}>
@@ -24,6 +28,14 @@ export const MobileHome: React.FC = () => {
 
       {/* 1. Hero Search Area */}
       <section className={styles.heroSection}>
+        <Image 
+          src={heroImage} 
+          alt="ListMe Hero Property" 
+          width={800} 
+          height={400} 
+          className={styles.heroImageEl}
+          priority
+        />
         <div className={styles.heroOverlay} />
       </section>
 

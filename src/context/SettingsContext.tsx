@@ -9,6 +9,7 @@ export interface SystemSettings {
   officeAddress: string;
   logoUrl: string;
   faviconPath: string;
+  mobileHeroImage: string;
   companyName: string;
   copyrightYear: string;
   privacyPolicyUrl: string;
@@ -38,6 +39,7 @@ const defaultSettings: SystemSettings = {
   officeAddress: 'ListMe Tech Space, Indiranagar, Bangalore, India',
   logoUrl: '/images/logo.png',
   faviconPath: '/favicon.ico',
+  mobileHeroImage: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80',
   companyName: 'ListMe Technologies Private Limited',
   copyrightYear: '2026',
   privacyPolicyUrl: '/privacy',

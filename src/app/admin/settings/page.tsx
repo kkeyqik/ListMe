@@ -17,6 +17,7 @@ export default function AdminSettings() {
     officeAddress: '',
     logoUrl: '',
     faviconPath: '',
+    mobileHeroImage: '',
     companyName: '',
     copyrightYear: '',
     privacyPolicyUrl: '',
@@ -51,6 +52,7 @@ export default function AdminSettings() {
           officeAddress: data.officeAddress || '',
           logoUrl: data.logoUrl || '',
           faviconPath: data.faviconPath || '',
+          mobileHeroImage: data.mobileHeroImage || '',
           companyName: data.companyName || '',
           copyrightYear: data.copyrightYear || '',
           privacyPolicyUrl: data.privacyPolicyUrl || '',
@@ -271,6 +273,21 @@ export default function AdminSettings() {
                     leftIcon={<Globe size={18} />}
                     fullWidth
                   />
+                </div>
+
+                <div className={styles.fullWidthRow}>
+                  <Input
+                    name="mobileHeroImage"
+                    label="Mobile Hero Image URL"
+                    placeholder="e.g. https://example.com/hero.jpg"
+                    value={formData.mobileHeroImage}
+                    onChange={handleInputChange}
+                    leftIcon={<ImageIcon size={18} />}
+                    fullWidth
+                  />
+                  <p className={styles.helpText} style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#64748b' }}>
+                    Recommended size: 800x400 (2:1 aspect ratio)
+                  </p>
                 </div>
               </div>
 
