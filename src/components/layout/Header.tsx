@@ -36,16 +36,16 @@ export const Header: React.FC = () => {
     { label: 'Post Property', href: '/post-property', badge: 'FREE' },
     { label: isAdmin ? 'Admin Portal' : 'My Dashboard', href: isAdmin ? '/admin' : '/dashboard' },
     { label: 'Manage Listings', href: '/dashboard/listings' },
-    { label: 'View Responses', href: '/dashboard/responses' },
+    { label: 'View Responses', href: '/dashboard/interests' },
     { label: 'Manage Profile', href: '/dashboard/profile' },
-    { label: 'Change Password', href: '/dashboard/settings' },
+    { label: 'Account Settings', href: '/dashboard/profile' },
   ];
 
   const getActivityLinks = () => [
-    { label: 'Recent Searches', href: '/dashboard/searches' },
-    { label: 'Contacted properties', href: '/dashboard/contacted' },
-    { label: 'Shortlisted properties', href: '/dashboard/shortlisted' },
-    { label: 'Viewed properties', href: '/dashboard/viewed' },
+    { label: 'Search Listings', href: '/listings' },
+    { label: 'Contacted Properties', href: '/dashboard/interests' },
+    { label: 'My Interests', href: '/dashboard/interests' },
+    { label: 'My Listings', href: '/dashboard/listings' },
   ];
 
 

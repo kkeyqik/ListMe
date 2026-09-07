@@ -39,7 +39,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
         <span className={styles.freeBadge}>FREE</span>
       </Link>
       
-      <Link href="/dashboard/shortlisted" className={`${styles.navItem} ${isActive('/dashboard/shortlisted') ? styles.active : ''}`}>
+      <Link href="/dashboard/interests" className={`${styles.navItem} ${isActive('/dashboard/interests') ? styles.active : ''}`}>
         <Heart className={styles.icon} />
         <span className={styles.label}>Activity</span>
       </Link>
