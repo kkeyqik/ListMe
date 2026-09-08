@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, ShieldCheck, ShieldAlert, UserPlus, Search, Edit2, Settings, Users, Building2, Trash2, Download, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import { Shield, ShieldCheck, ShieldAlert, UserPlus, Search, Edit2, Settings, Users, Building2, Trash2, Download, AlertTriangle, ArrowUpDown, Heart } from 'lucide-react';
 import { useToast, Card, Badge, Input, Button, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
@@ -41,7 +41,7 @@ export default function RoleManager() {
   const [status, setStatus] = useState('ACTIVE');
   const [permissions, setPermissions] = useState({
     seo: false,
-    blogs: false,
+    interests: false,
     users: false,
     listings: false,
   });
@@ -90,7 +90,7 @@ export default function RoleManager() {
     // Parse permissions from roleMetadata
     const currentPerms = admin.roleMetadata?.permissions || {
       seo: false,
-      blogs: false,
+      interests: false,
       users: false,
       listings: false,
     };
@@ -105,7 +105,7 @@ export default function RoleManager() {
     setStatus('ACTIVE');
     setPermissions({
       seo: false,
-      blogs: false,
+      interests: false,
       users: false,
       listings: false,
     });
@@ -345,12 +345,12 @@ export default function RoleManager() {
                       ) : (
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           {admin.roleMetadata?.permissions?.seo && <Badge variant="neutral">SEO</Badge>}
-                          {admin.roleMetadata?.permissions?.blogs && <Badge variant="neutral">Blogs</Badge>}
+                          {admin.roleMetadata?.permissions?.interests && <Badge variant="neutral">Leads</Badge>}
                           {admin.roleMetadata?.permissions?.users && <Badge variant="neutral">Users</Badge>}
                           {admin.roleMetadata?.permissions?.listings && <Badge variant="neutral">Listings</Badge>}
                           
                           {!admin.roleMetadata?.permissions?.seo && 
-                           !admin.roleMetadata?.permissions?.blogs && 
+                           !admin.roleMetadata?.permissions?.interests && 
                            !admin.roleMetadata?.permissions?.users && 
                            !admin.roleMetadata?.permissions?.listings && (
                              <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>No specific modules</span>
@@ -479,13 +479,13 @@ export default function RoleManager() {
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-neutral-50)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <input 
                     type="checkbox" 
-                    checked={permissions.blogs}
-                    onChange={() => togglePermission('blogs')}
+                    checked={permissions.interests}
+                    onChange={() => togglePermission('interests')}
                     style={{ width: '16px', height: '16px', accentColor: 'var(--color-secondary)' }}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Edit2 size={16} style={{ color: 'var(--color-text-muted)' }} />
-                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Blog Editor</span>
+                    <Heart size={16} style={{ color: 'var(--color-text-muted)' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Interests & Leads</span>
                   </div>
                 </label>
 

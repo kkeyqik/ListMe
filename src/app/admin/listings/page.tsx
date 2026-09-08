@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Building, 
   Search, 
@@ -9,8 +9,10 @@ import {
   X, 
   Eye, 
   Edit, 
-  Trash2,
-  Download
+  Trash2, 
+  Download,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useToast, Button, Input, Card, Badge, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
@@ -29,6 +31,13 @@ export default function AdminListings() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [exporting, setExporting] = useState(false);
+  
   // Moderate action states
   const [actionId, setActionId] = useState<string | null>(null);
   
@@ -42,17 +51,43 @@ export default function AdminListings() {
   const [deleteListingId, setDeleteListingId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const fetchListings = async () => {
+  const fetchListings = useCallback(async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
     try {
-      const url = statusFilter === 'ALL'
-        ? '/api/listings?admin=true'
-        : `/api/listings?admin=true&status=${statusFilter}`;
+      const params = new URLSearchParams({
+        admin: 'true',
+        page: targetPage.toString(),
+        limit: targetPageSize.toString(),
+      });
+
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
+      if (typeFilter !== 'ALL') {
+        if (typeFilter === 'COMMERCIAL') {
+          params.append('type', 'commercial');
+        } else {
+          params.append('property_type', typeFilter);
+        }
+      }
+      if (forFilter !== 'ALL') {
+        params.append('type', forFilter.toLowerCase());
+      }
+      if (cityFilter.trim()) {
+        params.append('city', cityFilter.trim());
+      }
+      if (searchQuery.trim()) {
+        params.append('query', searchQuery.trim());
+      }
         
-      const res = await fetch(url);
+      const res = await fetch(`/api/listings?${params.toString()}`);
       const data = await res.json();
       if (res.ok) {
         setListings(data.listings || []);
+        if (data.meta) {
+          setTotalCount(data.meta.total || 0);
+          setTotalPages(data.meta.totalPages || 1);
+        }
+      } else {
+        showToast('Error', data.message || 'Failed to retrieve listings', 'error');
       }
     } catch (err) {
       console.error('Error fetching admin listings:', err);
@@ -60,11 +95,20 @@ export default function AdminListings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, statusFilter, typeFilter, forFilter, cityFilter, searchQuery, showToast]);
 
   useEffect(() => {
-    fetchListings();
-  }, [statusFilter]);
+    fetchListings(page, pageSize);
+  }, [page, pageSize, statusFilter, typeFilter, forFilter]);
+
+  // Refetch when search query or city changes with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      fetchListings(1, pageSize);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, cityFilter]);
 
   const handleModerate = async (id: string, newStatus: 'ACTIVE' | 'REJECTED', reason?: string) => {
     setActionId(id);
@@ -175,22 +219,77 @@ export default function AdminListings() {
     return matchesSearch && matchesStatus && matchesType && matchesFor && matchesCity && matchesDate;
   });
 
-  const handleExportCSV = () => {
-    const exportData = filteredListings.map(l => ({
-      ID: l.id,
-      Title: l.title,
-      PropertyType: l.propertyType,
-      ListingFor: l.listingFor,
-      City: l.city,
-      Locality: l.locality,
-      AskingPrice: l.askingPrice,
-      Status: l.status,
-      RejectionReason: l.rejectionReason || 'None',
-      CreatedAt: new Date(l.createdAt).toISOString()
-    }));
-    
-    downloadCSV(exportData, `ListMe_Listings_Export_${new Date().toISOString().split('T')[0]}.csv`);
-    showToast('Success', 'Report downloaded successfully', 'success');
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      showToast('Info', 'Preparing full listings dataset for CSV export...', 'info');
+      const params = new URLSearchParams({
+        admin: 'true',
+        limit: '10000',
+        page: '1',
+      });
+
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
+      if (typeFilter !== 'ALL') {
+        if (typeFilter === 'COMMERCIAL') {
+          params.append('type', 'commercial');
+        } else {
+          params.append('property_type', typeFilter);
+        }
+      }
+      if (forFilter !== 'ALL') {
+        params.append('type', forFilter.toLowerCase());
+      }
+      if (cityFilter.trim()) {
+        params.append('city', cityFilter.trim());
+      }
+      if (searchQuery.trim()) {
+        params.append('query', searchQuery.trim());
+      }
+
+      const res = await fetch(`/api/listings?${params.toString()}`);
+      const data = await res.json();
+      
+      let exportItems = (data.listings && Array.isArray(data.listings)) ? data.listings : listings;
+      
+      if (startDate || endDate) {
+        exportItems = exportItems.filter((l: any) => {
+          const lDate = new Date(l.createdAt);
+          if (startDate) {
+            const sDate = new Date(startDate);
+            sDate.setHours(0, 0, 0, 0);
+            if (lDate < sDate) return false;
+          }
+          if (endDate) {
+            const eDate = new Date(endDate);
+            eDate.setHours(23, 59, 59, 999);
+            if (lDate > eDate) return false;
+          }
+          return true;
+        });
+      }
+
+      const exportData = exportItems.map((l: any) => ({
+        ID: l.id,
+        Title: l.title,
+        PropertyType: l.propertyType,
+        ListingFor: l.listingFor,
+        City: l.city,
+        Locality: l.locality,
+        AskingPrice: l.askingPrice,
+        Status: l.status,
+        RejectionReason: l.rejectionReason || 'None',
+        CreatedAt: new Date(l.createdAt).toISOString()
+      }));
+      
+      downloadCSV(exportData, `ListMe_All_Listings_Export_${new Date().toISOString().split('T')[0]}.csv`);
+      showToast('Success', `Exported ${exportData.length} listings to CSV successfully!`, 'success');
+    } catch (err) {
+      console.error('Export CSV error:', err);
+      showToast('Error', 'Failed to export listings report', 'error');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -202,9 +301,15 @@ export default function AdminListings() {
           <p className={styles.subText}>Moderate, review, edit, or delete any listing submitted on ListMe.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <Button onClick={handleExportCSV} variant="outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Button 
+            onClick={handleExportCSV} 
+            variant="outline" 
+            disabled={exporting || loading}
+            loading={exporting}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
             <Download size={18} />
-            Export Report
+            {exporting ? 'Exporting...' : 'Export Report'}
           </Button>
         </div>
       </div>
@@ -297,7 +402,8 @@ export default function AdminListings() {
           <p>Try changing your filters or searching keywords.</p>
         </div>
       ) : (
-        <div className={styles.tableContainer}>
+        <>
+          <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -389,6 +495,90 @@ export default function AdminListings() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          marginTop: '1.5rem',
+          padding: '1rem 1.25rem',
+          backgroundColor: '#fff',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--color-border)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
+            <span>
+              Showing <strong>{totalCount > 0 ? (page - 1) * pageSize + 1 : 0}</strong> to <strong>{Math.min(page * pageSize, totalCount)}</strong> of <strong>{totalCount}</strong> listings
+            </span>
+            <span style={{ color: 'var(--color-neutral-300)' }}>|</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = Number(e.target.value);
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  fontSize: '0.812rem',
+                  background: '#fff',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+                aria-label="Listings per page"
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem' }}
+            >
+              <ChevronLeft size={16} />
+              Previous
+            </Button>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'var(--color-neutral-700)'
+            }}>
+              Page {page} of {Math.max(1, totalPages)}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || loading}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem' }}
+            >
+              Next
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
+      </>
       )}
 
       {/* Rejection Reason Modal */}

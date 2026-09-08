@@ -42,7 +42,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { label: 'By Pincode', href: '/admin/pincodes', icon: <MapPin size={16} className={styles.icon} />, show: isSuper || permissions.listings },
     { label: 'Users', href: '/admin/users', icon: <Users size={16} className={styles.icon} />, show: isSuper || permissions.users },
     { label: 'Role Manager', href: '/admin/roles', icon: <Shield size={16} className={styles.icon} />, show: isSuper },
-    { label: 'Interest Tracking', href: '/admin/interests', icon: <Heart size={16} className={styles.icon} />, show: isSuper || permissions.listings },
+    { label: 'Interest Tracking', href: '/admin/interests', icon: <Heart size={16} className={styles.icon} />, show: isSuper || permissions.interests || permissions.listings },
     { label: 'Activity Log', href: '/admin/activity', icon: <FileText size={16} className={styles.icon} />, show: isSuper },
     { label: 'SEO Dashboard', href: '/admin/seo', icon: <Search size={16} className={styles.icon} />, show: isSuper || permissions.seo },
     { label: 'Settings', href: '/admin/settings', icon: <Settings size={16} className={styles.icon} />, show: isSuper },

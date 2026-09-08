@@ -107,13 +107,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       city: cityParam,
       counts: {
-        apartments: apartmentsCount + 10,
-        builderFloors: builderFloorsCount + 8,
-        plots: plotsCount + 4,
-        villas: villasCount + 6,
-        studios: studiosCount + 5,
-        serviced: servicedCount + 3,
-        farmhouses: farmhousesCount + 2,
+        apartments: apartmentsCount,
+        builderFloors: builderFloorsCount,
+        plots: plotsCount,
+        villas: villasCount,
+        studios: studiosCount,
+        serviced: servicedCount,
+        farmhouses: farmhousesCount,
       },
       localitiesDemand,
       priceTrends

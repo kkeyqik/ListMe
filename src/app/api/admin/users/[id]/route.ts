@@ -163,11 +163,38 @@ export async function DELETE(
       console.warn('Exception deleting from Auth:', authErr);
     }
 
-    // Delete from Database
-    // Prisma will cascade delete all listings, interests, shortlists, saved searches, etc.
-    // UserActivityLog does not have a hard foreign key so it stays intact.
-    await prisma.profile.delete({
-      where: { id },
+    // Safe transactional deletion of all related child records in Prisma
+    await prisma.$transaction(async (tx) => {
+      // 1. Find all listing IDs owned by this user
+      const userListings = await tx.listing.findMany({
+        where: { ownerId: id },
+        select: { id: true },
+      });
+      const listingIds = userListings.map((l) => l.id);
+
+      if (listingIds.length > 0) {
+        // Delete listing sub-entities first
+        await tx.listingImage.deleteMany({ where: { listingId: { in: listingIds } } });
+        await tx.listingVideo.deleteMany({ where: { listingId: { in: listingIds } } });
+        await tx.listingDocument.deleteMany({ where: { listingId: { in: listingIds } } });
+        await tx.listingAmenity.deleteMany({ where: { listingId: { in: listingIds } } });
+        await tx.furnishingItem.deleteMany({ where: { listingId: { in: listingIds } } });
+        await tx.shortlist.deleteMany({ where: { listingId: { in: listingIds } } });
+        await tx.interest.deleteMany({ where: { listingId: { in: listingIds } } });
+        await tx.listing.deleteMany({ where: { id: { in: listingIds } } });
+      }
+
+      // 2. Delete user's own shortlists, interests, saved searches, notifications, and admin logs
+      await tx.shortlist.deleteMany({ where: { userId: id } });
+      await tx.interest.deleteMany({ where: { userId: id } });
+      await tx.savedSearch.deleteMany({ where: { userId: id } });
+      await tx.notification.deleteMany({ where: { userId: id } });
+      await tx.adminActivityLog.deleteMany({ where: { adminId: id } });
+
+      // 3. Delete user profile
+      await tx.profile.delete({
+        where: { id },
+      });
     });
 
     // Log the admin activity

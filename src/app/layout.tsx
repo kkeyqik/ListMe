@@ -56,6 +56,7 @@ export const viewport = {
 };
 
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 
 export default function RootLayout({
   children,
@@ -74,6 +75,7 @@ export default function RootLayout({
     >
       <body>
         <SettingsProvider>
+          <GoogleAnalytics />
           <AuthProvider>
             <ToastProvider>
               <MobileMenuProvider>
