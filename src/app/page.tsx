@@ -1663,7 +1663,7 @@ export default function Home() {
         )}
 
         {/* --- How It Works Section --- */}
-        <section className={`${styles.section} ${styles.howItWorksSection}`}>
+        <section id="how-it-works" className={`${styles.section} ${styles.howItWorksSection}`}>
           <div className={`${styles.howItWorksContainer} container`}>
             {/* Left Column: Heading and Info */}
             <div className={styles.howItWorksLeft}>

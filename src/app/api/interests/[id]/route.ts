@@ -42,10 +42,7 @@ export async function PUT(
 
     const isAdmin = profile && (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN');
     const isListingOwner = interest.listing.ownerId === userId;
-
-    if (!isAdmin && !isListingOwner) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
+    const isSeeker = interest.userId === userId;
 
     const body = await request.json();
     const { status, adminNotes, soldPrice } = body;
@@ -54,21 +51,26 @@ export async function PUT(
 
     if (status) {
       const parsedStatus = status.toUpperCase() as InterestStatus;
+
+      // Permission check:
+      // Admins and listing owners can set any status. Seekers can set CLOSED.
+      if (!isAdmin && !isListingOwner && !(isSeeker && parsedStatus === InterestStatus.CLOSED)) {
+        return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+      }
+
       updateData.status = parsedStatus;
 
-      // Calculate 2% commission if marked as SOLD by Admin
+      // Handle deal closed / SOLD:
       if (parsedStatus === InterestStatus.SOLD) {
-        if (!isAdmin) {
-          return NextResponse.json(
-            { message: 'Only admins can mark listings as Sold and log commissions' },
-            { status: 403 }
-          );
-        }
-        const closingPrice = soldPrice ? parseFloat(String(soldPrice)) : parseFloat(interest.listing.askingPrice.toString());
+        const rawPrice = (soldPrice !== undefined && soldPrice !== null && soldPrice !== '')
+          ? soldPrice
+          : interest.listing.askingPrice;
+
+        const closingPrice = parseFloat(String(rawPrice));
 
         if (!Number.isFinite(closingPrice) || closingPrice <= 0) {
           return NextResponse.json(
-            { message: 'A valid sold price is required to mark a deal as sold' },
+            { message: 'A valid sold/closing price is required to mark a deal as closed' },
             { status: 400 }
           );
         }
@@ -81,6 +83,8 @@ export async function PUT(
           data: { status: 'DEACTIVATED' },
         });
       }
+    } else if (!isAdmin && !isListingOwner) {
+      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
     if (adminNotes !== undefined) {

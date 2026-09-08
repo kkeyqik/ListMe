@@ -1,0 +1,357 @@
+.pageWrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.mainContent {
+  flex: 1;
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+
+/* Hero Section */
+.heroSection {
+  background: linear-gradient(135deg, #0A1128 0%, #142250 65%, #223766 100%);
+  color: #ffffff;
+  padding: 4.5rem 1.5rem 3.5rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-secondary-light);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full);
+  margin-bottom: 1.25rem;
+}
+
+.heroTitle {
+  font-family: var(--font-heading);
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 768px) {
+  .heroTitle {
+    font-size: 2rem;
+  }
+}
+
+.heroSubtitle {
+  font-size: 1.0625rem;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 650px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Tab Navigation */
+.tabsContainer {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 2.5rem 0;
+  flex-wrap: wrap;
+}
+
+.tabButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-family: var(--font-heading);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  background: var(--color-card);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tabButton:hover {
+  border-color: var(--color-secondary);
+  color: var(--color-primary);
+}
+
+.tabButtonActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(10, 17, 40, 0.2);
+}
+
+.tabButtonActive:hover {
+  background: var(--color-primary-light);
+  color: #ffffff;
+}
+
+/* Layout Grid */
+.guideGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 2.5rem;
+  align-items: flex-start;
+  margin-bottom: 4rem;
+}
+
+@media (max-width: 1024px) {
+  .guideGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Interactive Checklist Card */
+.checklistCard {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.checklistHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.checklistTitle {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-neutral-900);
+  margin-bottom: 0.25rem;
+}
+
+.checklistSubtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.progressPill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(96, 122, 102, 0.12);
+  color: var(--color-secondary-dark);
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.progressBarTrack {
+  width: 100%;
+  height: 6px;
+  background: var(--color-neutral-100);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #607A66 0%, #10B981 100%);
+  transition: width 0.3s ease;
+}
+
+.checklistItems {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.checklistItem:hover {
+  background: #ffffff;
+  border-color: var(--color-secondary);
+}
+
+.checklistItemChecked {
+  background: rgba(96, 122, 102, 0.06);
+  border-color: rgba(96, 122, 102, 0.3);
+}
+
+.checkboxBox {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid var(--color-neutral-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all var(--transition-fast);
+}
+
+.checklistItemChecked .checkboxBox {
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
+  color: #ffffff;
+}
+
+.itemContent {
+  flex: 1;
+}
+
+.itemTitle {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-neutral-900);
+  margin-bottom: 0.15rem;
+}
+
+.checklistItemChecked .itemTitle {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.itemDesc {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+/* Tips Cards Grid */
+.tipsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.tipCard {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.tipCard:hover {
+  border-color: rgba(96, 122, 102, 0.4);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+.tipHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.tipIconWrap {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-fade);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tipBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+}
+
+.tipBadgeEssential {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.tipBadgeLegal {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.tipBadgeFinancial {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.tipBadgeStaging {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.tipTitle {
+  font-family: var(--font-heading);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  margin-bottom: 0.5rem;
+}
+
+.tipText {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+/* Callout Box */
+.ctaBox {
+  margin-top: 3.5rem;
+  padding: 2.5rem;
+  background: linear-gradient(135deg, #0A1128 0%, #142250 100%);
+  border-radius: var(--radius-xl);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.ctaBox h3 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 0.35rem;
+}
+
+.ctaBox p {
+  font-size: 0.9375rem;
+  color: rgba(255, 255, 255, 0.8);
+}

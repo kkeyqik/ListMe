@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Header, Footer } from '@/components/layout';
 import { Input, Button, Badge, useToast } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
@@ -138,7 +139,8 @@ const ARTICLES = [
     date: 'July 10, 2026',
     title: 'How to Correctly Price Your Property for Sale',
     desc: 'Avoid overpricing or underselling. Learn how to calculate fair market values using current transaction records and location metrics.',
-    imageUrl: '/images/luxury_villa_hero.png'
+    imageUrl: '/images/luxury_villa_hero.png',
+    href: '/tips',
   },
   {
     id: 'art-2',
@@ -146,7 +148,8 @@ const ARTICLES = [
     date: 'June 28, 2026',
     title: '5 Staging Tips to Rent Out Your Home Faster',
     desc: 'First impressions matter. Discover cost-effective staging techniques like decluttering, lighting, and fresh paint to attract premium tenants.',
-    imageUrl: '/images/luxury_villa_hero.png'
+    imageUrl: '/images/luxury_villa_hero.png',
+    href: '/tips',
   },
   {
     id: 'art-3',
@@ -154,7 +157,8 @@ const ARTICLES = [
     date: 'May 15, 2026',
     title: 'Real Estate Outlook: Residential vs Commercial in 2026',
     desc: 'An in-depth analysis of high-demand areas in tier-1 cities, yield projections, and where you should list to get maximum yields.',
-    imageUrl: '/images/luxury_villa_hero.png'
+    imageUrl: '/images/luxury_villa_hero.png',
+    href: '/blog',
   }
 ];
 
@@ -162,6 +166,44 @@ export default function PostPropertyPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user, profile } = useAuth();
+
+  // Dynamic listings from database
+  const [dynamicListings, setDynamicListings] = useState<any[]>([]);
+  const [listingsLoading, setListingsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchActiveListings = async () => {
+      try {
+        const res = await fetch('/api/listings?limit=4');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.listings && Array.isArray(data.listings) && data.listings.length > 0) {
+            setDynamicListings(data.listings);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch recent listings:', err);
+      } finally {
+        setListingsLoading(false);
+      }
+    };
+
+    fetchActiveListings();
+  }, []);
+
+  const formatCardPrice = (price: string | number, isRent?: boolean) => {
+    const val = typeof price === 'string' ? parseFloat(price) : price;
+    if (isNaN(val)) return 'Price on Request';
+    let formatted = '';
+    if (val >= 10000000) formatted = `₹ ${(val / 10000000).toFixed(2)} Cr`;
+    else if (val >= 100000) formatted = `₹ ${(val / 100000).toFixed(2)} Lk`;
+    else formatted = `₹ ${val.toLocaleString('en-IN')}`;
+
+    if (isRent) {
+      formatted += ' / month';
+    }
+    return formatted;
+  };
 
   // Form states
   const [listingFor, setListingFor] = useState<'sell' | 'rent'>('sell');
@@ -467,63 +509,152 @@ export default function PostPropertyPage() {
             </div>
 
             <div className={styles.propertiesGrid}>
-              {MOCK_PROPERTIES.map((prop) => (
-                <div key={prop.id} className={styles.propertyCard}>
-                  <div className={styles.imageWrapper}>
-                    {/* fallback image placeholder or actual */}
-                    <img 
-                      src={prop.imageUrl} 
-                      alt={prop.title} 
-                      className={styles.propertyImage} 
-                    />
-                    
-                    <div className={styles.badgeOverlay}>
-                      <Badge variant={prop.type === 'Rent' ? 'secondary' : 'primary'} size="sm">
-                        For {prop.type}
-                      </Badge>
-                    </div>
+              {dynamicListings.length > 0 ? (
+                dynamicListings.map((listing) => {
+                  const isRent = listing.listingFor === 'RENT';
+                  const displayPrice = formatCardPrice(listing.askingPrice, isRent);
+                  const primaryImage = listing.images?.[0]?.imageUrl || '/images/luxury_villa_hero.png';
+                  const displayType = isRent ? 'Rent' : 'Sell';
+                  const beds = listing.bedrooms || 0;
+                  const baths = listing.bathrooms || 0;
+                  const areaVal = listing.carpetArea || listing.builtUpArea || listing.superBuiltUpArea;
+                  const displayArea = areaVal ? `${areaVal} sq.ft` : 'Spacious';
 
-                    {prop.verified && (
-                      <div className={styles.verifiedOverlay}>
-                        <Badge variant="success" size="sm" className={styles.verifiedBadge}>
-                          ✓ Verified Owner
+                  return (
+                    <div 
+                      key={listing.id} 
+                      className={styles.propertyCard}
+                      onClick={() => router.push(`/property/${listing.id}`)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          router.push(`/property/${listing.id}`);
+                        }
+                      }}
+                    >
+                      <div className={styles.imageWrapper}>
+                        <img 
+                          src={primaryImage} 
+                          alt={listing.title} 
+                          className={styles.propertyImage} 
+                        />
+                        
+                        <div className={styles.badgeOverlay}>
+                          <Badge variant={isRent ? 'secondary' : 'primary'} size="sm">
+                            For {displayType}
+                          </Badge>
+                        </div>
+
+                        <div className={styles.verifiedOverlay}>
+                          <Badge variant="success" size="sm" className={styles.verifiedBadge}>
+                            ✓ Verified Owner
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className={styles.propertyInfo}>
+                        <span className={styles.propPrice}>{displayPrice}</span>
+                        <h3 className={styles.propTitle} title={listing.title}>{listing.title}</h3>
+                        
+                        <div className={styles.propLoc}>
+                          <MapPin size={14} />
+                          <span>{listing.locality}, {listing.city}</span>
+                        </div>
+
+                        <div className={styles.propSpecs}>
+                          {beds > 0 && (
+                            <div className={styles.specItem}>
+                              <Bed size={14} />
+                              <span>{beds} BHK</span>
+                            </div>
+                          )}
+                          
+                          {baths > 0 && (
+                            <div className={styles.specItem}>
+                              <Bath size={14} />
+                              <span>{baths} Bath</span>
+                            </div>
+                          )}
+
+                          <div className={styles.specItem}>
+                            <Square size={14} />
+                            <span>{displayArea}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                MOCK_PROPERTIES.map((prop) => (
+                  <div 
+                    key={prop.id} 
+                    className={styles.propertyCard}
+                    onClick={() => router.push(`/listings?type=${prop.type === 'Rent' ? 'rent' : 'sale'}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        router.push(`/listings?type=${prop.type === 'Rent' ? 'rent' : 'sale'}`);
+                      }
+                    }}
+                  >
+                    <div className={styles.imageWrapper}>
+                      <img 
+                        src={prop.imageUrl} 
+                        alt={prop.title} 
+                        className={styles.propertyImage} 
+                      />
+                      
+                      <div className={styles.badgeOverlay}>
+                        <Badge variant={prop.type === 'Rent' ? 'secondary' : 'primary'} size="sm">
+                          For {prop.type}
                         </Badge>
                       </div>
-                    )}
-                  </div>
 
-                  <div className={styles.propertyInfo}>
-                    <span className={styles.propPrice}>{prop.price}</span>
-                    <h3 className={styles.propTitle} title={prop.title}>{prop.title}</h3>
-                    
-                    <div className={styles.propLoc}>
-                      <MapPin size={14} />
-                      <span>{prop.location}</span>
+                      {prop.verified && (
+                        <div className={styles.verifiedOverlay}>
+                          <Badge variant="success" size="sm" className={styles.verifiedBadge}>
+                            ✓ Verified Owner
+                          </Badge>
+                        </div>
+                      )}
                     </div>
 
-                    <div className={styles.propSpecs}>
-                      {prop.beds > 0 && (
-                        <div className={styles.specItem}>
-                          <Bed size={14} />
-                          <span>{prop.beds} BHK</span>
-                        </div>
-                      )}
+                    <div className={styles.propertyInfo}>
+                      <span className={styles.propPrice}>{prop.price}</span>
+                      <h3 className={styles.propTitle} title={prop.title}>{prop.title}</h3>
                       
-                      {prop.baths > 0 && (
-                        <div className={styles.specItem}>
-                          <Bath size={14} />
-                          <span>{prop.baths} Bath</span>
-                        </div>
-                      )}
+                      <div className={styles.propLoc}>
+                        <MapPin size={14} />
+                        <span>{prop.location}</span>
+                      </div>
 
-                      <div className={styles.specItem}>
-                        <Square size={14} />
-                        <span>{prop.area}</span>
+                      <div className={styles.propSpecs}>
+                        {prop.beds > 0 && (
+                          <div className={styles.specItem}>
+                            <Bed size={14} />
+                            <span>{prop.beds} BHK</span>
+                          </div>
+                        )}
+                        
+                        {prop.baths > 0 && (
+                          <div className={styles.specItem}>
+                            <Bath size={14} />
+                            <span>{prop.baths} Bath</span>
+                          </div>
+                        )}
+
+                        <div className={styles.specItem}>
+                          <Square size={14} />
+                          <span>{prop.area}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </section>
@@ -679,10 +810,10 @@ export default function PostPropertyPage() {
                     <h3 className={styles.readTitle}>{art.title}</h3>
                     <p className={styles.readDesc}>{art.desc}</p>
                     
-                    <a href="#" className={styles.readLink} onClick={(e) => e.preventDefault()}>
+                    <Link href={art.href} className={styles.readLink}>
                       <span>Read Full Article</span>
                       <ArrowRight size={14} />
-                    </a>
+                    </Link>
                   </div>
                 </div>
               ))}

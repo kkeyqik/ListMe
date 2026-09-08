@@ -459,11 +459,13 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  cursor: pointer;
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-fast);
 }
 
 .propertyCard:hover {
   transform: translateY(-6px);
+  border-color: var(--color-secondary);
   box-shadow: var(--shadow-lg);
 }
 

@@ -2,18 +2,48 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Send } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 import { useSettings } from '@/context/SettingsContext';
+import { useToast } from '@/components/ui';
 import styles from './Footer.module.css';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { settings } = useSettings();
+  const { showToast } = useToast();
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Newsletter subscription mock action
-    setEmail('');
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
+      showToast('Invalid Email', 'Please enter a valid email address.', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('Subscribed', 'Thank you for subscribing to ListMe market insights!', 'success');
+        setEmail('');
+      } else {
+        showToast('Subscription Failed', data.message || 'Unable to subscribe. Please try again.', 'error');
+      }
+    } catch (err) {
+      console.error('Newsletter error:', err);
+      showToast('Subscription Error', 'Something went wrong. Please try again later.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -108,7 +138,7 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/how-it-works" className={styles.link}>
+                <Link href="/#how-it-works" className={styles.link}>
                   How It Works
                 </Link>
               </li>
@@ -209,8 +239,14 @@ export const Footer: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <button type="submit" className={styles.subscribeButton} aria-label="Subscribe">
-                <Send size={16} />
+              <button 
+                type="submit" 
+                className={styles.subscribeButton} 
+                aria-label="Subscribe"
+                disabled={submitting}
+                style={{ opacity: submitting ? 0.7 : 1, cursor: submitting ? 'wait' : 'pointer' }}
+              >
+                {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               </button>
             </form>
           </div>
