@@ -184,7 +184,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         showToast('Welcome!', 'You are now logged in.', 'success');
         onClose();
         onSuccess?.();
-        window.location.href = redirectPath || '/dashboard';
+
+        let role = 'USER';
+        try {
+          const profileRes = await fetch('/api/users/profile');
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            role = profileData?.profile?.role || profileData?.role || 'USER';
+          }
+        } catch {}
+
+        if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = redirectPath || '/dashboard';
+        }
       }
       setLoading(false);
     } else {
@@ -285,6 +299,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     
     setIdentifierType(type);
 
+    if (loginMethod === 'password') {
+      setView('credential');
+      setLoading(false);
+      return;
+    }
+
     if (type === 'phone') {
       setLoginMethod('otp');
 
@@ -315,11 +335,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             setTimer(30);
           } catch (error: any) {
             console.error('Firebase AuthModal send SMS error:', error);
-            showToast('Failed to send OTP', error.message || 'OTP delivery error', 'error');
+            showToast('OTP Unavailable', 'Please log in with your password instead.', 'info');
+            setLoginMethod('password');
             setView('credential');
           }
         } else {
-          showToast('Error', 'Firebase Auth system is not ready', 'error');
+          showToast('OTP Unavailable', 'Please log in with your password.', 'info');
+          setLoginMethod('password');
           setView('credential');
         }
       } else {
@@ -516,6 +538,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <form onSubmit={handleIdentifierSubmit} className={styles.form}>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', background: 'var(--color-neutral-100)', padding: '4px', borderRadius: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('password')}
+                  style={{
+                    flex: 1,
+                    padding: '7px 10px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    background: loginMethod === 'password' ? '#ffffff' : 'transparent',
+                    color: loginMethod === 'password' ? 'var(--color-primary)' : 'var(--color-neutral-600)',
+                    boxShadow: loginMethod === 'password' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Password Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('otp')}
+                  style={{
+                    flex: 1,
+                    padding: '7px 10px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                    background: loginMethod === 'otp' ? '#ffffff' : 'transparent',
+                    color: loginMethod === 'otp' ? 'var(--color-primary)' : 'var(--color-neutral-600)',
+                    boxShadow: loginMethod === 'otp' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  OTP Login
+                </button>
+              </div>
+
               <div>
                 <label className={styles.inputLabel}>Email or Mobile Number</label>
                 <div className={styles.customInputContainer}>
@@ -554,7 +617,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {identifierError && <p style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{identifierError}</p>}
               </div>
               <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} rightIcon={<ArrowRight size={18} />}>
-                Continue
+                {loginMethod === 'password' ? 'Continue with Password' : 'Send OTP'}
               </Button>
             </form>
 

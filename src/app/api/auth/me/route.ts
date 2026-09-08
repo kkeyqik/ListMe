@@ -28,7 +28,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (user) {
-      userId = userId;
+      userId = user.id;
     }
 
     // 2. Fall back to the signed session cookie.

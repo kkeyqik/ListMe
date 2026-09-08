@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
         suUserId = crypto.randomUUID();
       }
 
-      const isTestAdmin = ['+917777777777', '+919999999999', '+918888888888'].includes(formattedPhone);
       // Ensure profile exists in DB
       if (!existingProfile) {
         existingProfile = await prisma.profile.create({
@@ -90,14 +89,8 @@ export async function POST(request: NextRequest) {
             phone: formattedPhone,
             email: resolvedEmail,
             phoneVerified: true,
-            role: isTestAdmin ? 'ADMIN' : 'USER',
+            role: 'USER',
           },
-        });
-      } else if (isTestAdmin && existingProfile.role !== 'ADMIN') {
-        // Upgrade existing test accounts to ADMIN
-        existingProfile = await prisma.profile.update({
-          where: { id: existingProfile.id },
-          data: { role: 'ADMIN' }
         });
       }
 
@@ -139,14 +132,14 @@ export async function POST(request: NextRequest) {
     if (existingProfile) {
       suUserId = existingProfile.id;
       try {
+        // Do NOT overwrite existing user passwords on OTP login
         await supabaseAdmin.auth.admin.updateUserById(suUserId!, {
-          password: securePassword,
           phone_confirm: true,
           email: existingProfile.email || resolvedEmail,
           email_confirm: true,
         });
       } catch (err) {
-        console.warn('Failed to update existing user password/email in Supabase:', err);
+        console.warn('Failed to update existing user in Supabase:', err);
       }
     } else {
       if (!suUserId) {
@@ -184,12 +177,10 @@ export async function POST(request: NextRequest) {
 
     // 4. Upsert profile into Prisma
     if (suUserId) {
-      const isTestAdmin = ['+917777777777', '+919999999999', '+918888888888'].includes(formattedPhone);
       existingProfile = await prisma.profile.upsert({
         where: { id: suUserId },
         update: {
           phoneVerified: true,
-          ...(isTestAdmin ? { role: 'ADMIN' } : {}),
         },
         create: {
           id: suUserId,
@@ -197,7 +188,7 @@ export async function POST(request: NextRequest) {
           phone: formattedPhone,
           email: resolvedEmail,
           phoneVerified: true,
-          role: isTestAdmin ? 'ADMIN' : 'USER',
+          role: 'USER',
         },
       });
     }

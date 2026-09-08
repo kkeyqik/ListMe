@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Sort order definition
-    let orderBy: any = { created_at: 'desc' }; // default
+    let orderBy: any = { createdAt: 'desc' }; // default
     if (sort === 'newest') {
       orderBy = { createdAt: 'desc' };
     } else if (sort === 'price_asc') {
@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Your account has been suspended or banned' }, { status: 403 });
     }
 
-    if (!userProfile.phoneVerified && !userProfile.phone) {
+    if (!userProfile.phoneVerified) {
       return NextResponse.json(
         { message: 'Your mobile phone number must be verified before posting a property listing' },
         { status: 403 }

@@ -414,7 +414,7 @@ export default function NewListing() {
           const rawPostcode = address.postcode || '';
           
           let resolvedCity = '';
-          let normalizedRaw = rawCity.toLowerCase();
+          const normalizedRaw = rawCity.toLowerCase();
           
           if (normalizedRaw.includes('bangalore') || normalizedRaw.includes('bengaluru')) {
             resolvedCity = 'Bangalore';

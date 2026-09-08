@@ -169,7 +169,10 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
         const res = await fetch('/api/users/verify-phone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: phone.startsWith('+') ? phone : `+91${phone}` }),
+          body: JSON.stringify({
+            phone: phone.startsWith('+') ? phone : `+91${phone}`,
+            otp: activeOtp,
+          }),
         });
 
         if (res.ok) {

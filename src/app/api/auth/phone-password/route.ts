@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session';
@@ -30,10 +31,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: phoneValidation.error }, { status: 400 });
     }
     const formattedPhone = phoneValidation.normalized;
-
-    // 1. Look up user by phone
+    const cleanDigits = phone.replace(/\D/g, '').slice(-10);
+    // 1. Look up user by phone (support both +91 and 10-digit formats)
     const profile = await prisma.profile.findFirst({
-      where: { phone: formattedPhone }
+      where: {
+        OR: [
+          { phone: formattedPhone },
+          { phone: cleanDigits },
+          { phone: `+91${cleanDigits}` },
+          { phone: `91${cleanDigits}` },
+        ],
+      },
     });
 
     if (!profile) {
@@ -87,8 +95,12 @@ export async function POST(request: NextRequest) {
       } 
     });
 
-    // We must manually attach the cookie to the NextResponse
+    // Set cookie on both cookieStore and response
     const cookieOptions = getSessionCookieOptions();
+    try {
+      const cookieStore = await cookies();
+      cookieStore.set(SESSION_COOKIE_NAME, sessionToken, cookieOptions);
+    } catch {}
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, cookieOptions);
 
     // Log Activity

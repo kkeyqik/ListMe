@@ -122,6 +122,18 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
 
+  const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const mql = window.matchMedia('(max-width: 1023px)');
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   const scrollCategories = (direction: 'left' | 'right') => {
     if (categoriesRef.current) {
       const scrollAmount = 304; // card width 280 + gap 24
@@ -1023,8 +1035,9 @@ export default function Home() {
   return (
     <div className={styles.main} ref={containerRef}>
       
-      <div className={styles.desktopView}>
-        <main style={{ flex: 1 }}>
+      {(!mounted || !isMobile) && (
+        <div className={styles.desktopView}>
+          <main style={{ flex: 1 }}>
         {/* --- Hero Canvas Wrapper Section --- */}
         <div className={styles.heroCanvasWrapper}>
           <Header />
@@ -1915,10 +1928,13 @@ export default function Home() {
 
       <Footer />
       </div>
+      )}
 
-      <div className={styles.mobileView}>
-        <MobileHome />
-      </div>
+      {(!mounted || isMobile) && (
+        <div className={styles.mobileView}>
+          <MobileHome />
+        </div>
+      )}
     </div>
   );
 }

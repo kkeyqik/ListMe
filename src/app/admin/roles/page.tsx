@@ -56,15 +56,6 @@ export default function RoleManager() {
   const [adminToDelete, setAdminToDelete] = useState<any>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => {
-    if (profile && profile.role !== 'SUPER_ADMIN') {
-      router.push('/admin');
-      showToast('Error', 'Only Super Admins can access the Role Manager', 'error');
-    } else if (profile && profile.role === 'SUPER_ADMIN') {
-      fetchRoles();
-    }
-  }, [profile, router]);
-
   const fetchRoles = async () => {
     try {
       setLoading(true);
@@ -81,6 +72,15 @@ export default function RoleManager() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (profile && profile.role !== 'SUPER_ADMIN') {
+      router.push('/admin');
+      showToast('Error', 'Only Super Admins can access the Role Manager', 'error');
+    } else if (profile && profile.role === 'SUPER_ADMIN') {
+      fetchRoles();
+    }
+  }, [profile, router]);
 
   const handleEditClick = (admin: any) => {
     setEditingAdmin(admin);
@@ -195,8 +195,8 @@ export default function RoleManager() {
   });
 
   const sortedAdmins = [...filteredAdmins].sort((a, b) => {
-    let aVal = a[sortField];
-    let bVal = b[sortField];
+    const aVal = a[sortField];
+    const bVal = b[sortField];
     
     if (typeof aVal === 'string') {
       return sortAsc ? (aVal || '').localeCompare(bVal || '') : (bVal || '').localeCompare(aVal || '');

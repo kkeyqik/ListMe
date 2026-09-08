@@ -38,10 +38,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { phone } = await request.json();
+    const { phone, otp } = await request.json();
 
     if (!phone) {
       return NextResponse.json({ message: 'Phone number is required' }, { status: 400 });
+    }
+
+    if (!otp || typeof otp !== 'string' || otp.trim().length !== 6) {
+      return NextResponse.json({ message: 'A valid 6-digit verification code is required' }, { status: 400 });
     }
 
     // Validate and normalize phone

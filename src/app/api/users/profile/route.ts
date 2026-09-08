@@ -168,3 +168,29 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { id: userId },
+    });
+
+    if (!profile) {
+      return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ profile });
+  } catch (error: any) {
+    console.error('[profile GET] Error:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+

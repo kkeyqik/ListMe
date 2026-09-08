@@ -167,7 +167,7 @@ export default function AdminActivityLog() {
 
   const handleExportCSV = () => {
     let exportData: any[] = [];
-    let filename = `ListMe_Activity_${activeTab}_Export_${new Date().toISOString().split('T')[0]}.csv`;
+    const filename = `ListMe_Activity_${activeTab}_Export_${new Date().toISOString().split('T')[0]}.csv`;
 
     if (activeTab === 'seeker') {
       exportData = filteredUserLogs.map(l => ({
@@ -554,7 +554,7 @@ export default function AdminActivityLog() {
             ))
           )}
         </div>
-      ) : (
+      ) : activeTab === 'emails' ? (
         /* Tab 3: Emails Sent (SMTP Audit) */
         <Card className="animate-fade-in">
           {filteredEmailLogs.length === 0 ? (
@@ -623,9 +623,7 @@ export default function AdminActivityLog() {
             </div>
           )}
         </Card>
-      )}
-
-      {activeTab === 'errors' && (
+      ) : activeTab === 'errors' ? (
         <Card padding="none" className="animate-fade-in">
           <div className={pageStyles.tableContainer}>
             <table className={pageStyles.table}>
@@ -691,7 +689,7 @@ export default function AdminActivityLog() {
             </table>
           </div>
         </Card>
-      )}
+      ) : null}
 
       {/* Email Content Detail Modal */}
       {selectedEmail && (

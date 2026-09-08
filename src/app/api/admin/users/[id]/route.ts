@@ -24,8 +24,33 @@ export async function PUT(
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    // Verify target user exists
+    const targetProfile = await prisma.profile.findUnique({
+      where: { id },
+    });
+
+    if (!targetProfile) {
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    }
+
+    // Privilege escalation protection: Only SUPER_ADMIN can modify an existing SUPER_ADMIN
+    if (targetProfile.role === 'SUPER_ADMIN' && requesterProfile.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { message: 'Only a Super Admin can modify another Super Admin user' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { role, phoneVerified, status } = body;
+
+    // Privilege escalation protection: Only SUPER_ADMIN can promote to SUPER_ADMIN
+    if (role === 'SUPER_ADMIN' && requesterProfile.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { message: 'Only a Super Admin can grant Super Admin role' },
+        { status: 403 }
+      );
+    }
 
     // Validate and build update payload
     const updateData: any = {};

@@ -19,10 +19,7 @@ export default function AdminLayout({
 
   const isAdmin = 
     profile?.role === 'ADMIN' || 
-    profile?.role === 'SUPER_ADMIN' ||
-    user?.phone === '+917777777777' ||
-    user?.email === 'admin@test.com' ||
-    user?.id === 'a1a2a3a4-b5b6-c7c8-d9e0-f1f2f3f4f5f6';
+    profile?.role === 'SUPER_ADMIN';
 
   // Client-side admin verification check
   useEffect(() => {

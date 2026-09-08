@@ -424,7 +424,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -435,6 +435,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         },
       });
+
+      if (!error && signUpData?.user) {
+        try {
+          await fetch('/api/users/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name,
+              phone: formatIndiaPhone(phone),
+              email,
+              city,
+            }),
+          });
+        } catch (syncErr) {
+          console.warn('[signUp] Profile auto-sync error:', syncErr);
+        }
+      }
 
       return { error };
     } catch (err: any) {

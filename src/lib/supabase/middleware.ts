@@ -38,12 +38,14 @@ export async function updateSession(request: NextRequest) {
     console.warn('[Middleware] Supabase getUser error:', err);
   }
 
-  // 2. Fallback: Check signed session cookie (set by firebase-login and OAuth callback)
-  if (!user) {
-    const sessionCookie = request.cookies.get('listme-session')?.value;
-    if (sessionCookie) {
-      const sessionData = verifySessionToken(sessionCookie);
-      if (sessionData) {
+  // 2. Check signed session cookie (set by firebase-login, phone-password, and OAuth callback)
+  let sessionRole: string | undefined;
+  const sessionCookie = request.cookies.get('listme-session')?.value;
+  if (sessionCookie) {
+    const sessionData = verifySessionToken(sessionCookie);
+    if (sessionData) {
+      sessionRole = sessionData.role;
+      if (!user) {
         user = {
           id: sessionData.userId,
           app_metadata: { role: sessionData.role },
@@ -57,11 +59,9 @@ export async function updateSession(request: NextRequest) {
     const mockUserIdCookie = request.cookies.get('sb-mock-user-id')?.value;
     if (mockUserIdCookie) {
       const mockAdminId = process.env.MOCK_ADMIN_ID;
-      const isAdminMock = mockAdminId && mockUserIdCookie === mockAdminId;
+      const isAdminMock = Boolean(mockAdminId && mockUserIdCookie === mockAdminId);
       user = {
-        id: isAdminMock ? mockAdminId : mockUserIdCookie,
-        phone: isAdminMock ? '+917777777777' : '+919876543210',
-        email: isAdminMock ? 'admin@test.com' : 'user@test.com',
+        id: mockUserIdCookie,
         app_metadata: { role: isAdminMock ? 'ADMIN' : 'USER' },
       };
     }
@@ -79,10 +79,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 5. Authenticated user checks — role from metadata only, no hardcoded values
+  // 5. Authenticated user checks — role from database/session metadata only, no hardcoded values
   if (user) {
-    const userRole = user.app_metadata?.role || user.user_metadata?.role || 'USER';
-    const isAdminUser = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
+    const userRole = user.app_metadata?.role || user.user_metadata?.role || sessionRole || 'USER';
+    const isAdminUser = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' || sessionRole === 'ADMIN' || sessionRole === 'SUPER_ADMIN';
 
     // Admin route protection: Require ADMIN or SUPER_ADMIN role
     if (isAdminPath && !isAdminUser) {

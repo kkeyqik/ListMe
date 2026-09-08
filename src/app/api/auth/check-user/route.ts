@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(request: NextRequest) {
   // Rate limiting: 10 requests per minute per IP
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     if (identifier.includes('@')) {
       // Check email
-      const profile = await prisma.profile.findFirst({
+      let profile = await prisma.profile.findFirst({
         where: {
           email: {
             equals: identifier,
@@ -31,6 +32,34 @@ export async function GET(request: NextRequest) {
           },
         },
       });
+
+      // Self-heal: If user exists in Supabase Auth but lacks Prisma profile, create it to prevent registration deadlock
+      if (!profile && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const suAdmin = createAdminClient();
+          const { data: suData } = await suAdmin.auth.admin.listUsers({ page: 1, perPage: 100 });
+          const matchingSuUser = suData?.users?.find(
+            (u) => u.email?.toLowerCase() === identifier.toLowerCase()
+          );
+
+          if (matchingSuUser) {
+            profile = await prisma.profile.create({
+              data: {
+                id: matchingSuUser.id,
+                email: matchingSuUser.email!,
+                name: (matchingSuUser.user_metadata?.name as string) || matchingSuUser.email?.split('@')[0] || 'User',
+                phone: matchingSuUser.phone || (matchingSuUser.user_metadata?.phone as string) || null,
+                role: (matchingSuUser.app_metadata?.role as any) || 'USER',
+                status: 'ACTIVE',
+                phoneVerified: !!matchingSuUser.phone_confirmed_at,
+              },
+            });
+          }
+        } catch (suErr) {
+          console.warn('[check-user] Supabase self-heal email lookup failed:', suErr);
+        }
+      }
+
       // Only return registration status — do NOT leak userId
       return NextResponse.json({ registered: !!profile });
     } else {
@@ -41,7 +70,7 @@ export async function GET(request: NextRequest) {
       }
       const localNum = cleanPhone.slice(-10);
       
-      const profile = await prisma.profile.findFirst({
+      let profile = await prisma.profile.findFirst({
         where: {
           OR: [
             { phone: `+91${localNum}` },
@@ -49,6 +78,34 @@ export async function GET(request: NextRequest) {
           ],
         },
       });
+
+      // Self-heal: If user exists in Supabase Auth by phone, create profile
+      if (!profile && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const suAdmin = createAdminClient();
+          const { data: suData } = await suAdmin.auth.admin.listUsers({ page: 1, perPage: 100 });
+          const matchingSuUser = suData?.users?.find(
+            (u) => u.phone?.endsWith(localNum) || (u.user_metadata?.phone as string)?.endsWith(localNum)
+          );
+
+          if (matchingSuUser) {
+            profile = await prisma.profile.create({
+              data: {
+                id: matchingSuUser.id,
+                email: matchingSuUser.email || `phone_${localNum}@listme.com`,
+                name: (matchingSuUser.user_metadata?.name as string) || 'User',
+                phone: `+91${localNum}`,
+                role: (matchingSuUser.app_metadata?.role as any) || 'USER',
+                status: 'ACTIVE',
+                phoneVerified: !!matchingSuUser.phone_confirmed_at,
+              },
+            });
+          }
+        } catch (suErr) {
+          console.warn('[check-user] Supabase self-heal phone lookup failed:', suErr);
+        }
+      }
+
       // Only return registration status — do NOT leak userId
       return NextResponse.json({ registered: !!profile });
     }

@@ -65,6 +65,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Name, phone, email, and role are required' }, { status: 400 });
     }
 
+    // Role escalation protection: Only SUPER_ADMIN can create another SUPER_ADMIN
+    if (role === 'SUPER_ADMIN' && requesterProfile.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { message: 'Only a Super Admin can create Super Admin accounts' },
+        { status: 403 }
+      );
+    }
+
     // Format phone to match (+91 prefix for India)
     const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
 

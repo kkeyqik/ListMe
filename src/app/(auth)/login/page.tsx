@@ -185,7 +185,13 @@ function LoginContent() {
       const res = await fetch('/api/users/profile');
       if (res.ok) {
         const data = await res.json();
-        role = data?.profile?.role || 'USER';
+        role = data?.profile?.role || data?.role || 'USER';
+      } else {
+        const meRes = await fetch('/api/auth/me');
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          role = meData?.profile?.role || 'USER';
+        }
       }
     } catch (err) {}
 
@@ -313,6 +319,13 @@ function LoginContent() {
     
     setIdentifierType(type);
 
+    if (loginMethod === 'password') {
+      // Direct password login: bypass SMS dispatch entirely
+      setStep('credential');
+      setLoading(false);
+      return;
+    }
+
     if (type === 'phone') {
       setLoginMethod('otp');
 
@@ -343,11 +356,13 @@ function LoginContent() {
             setTimer(30);
           } catch (error: any) {
             console.error('Firebase send SMS error:', error);
-            showToast('Failed to send OTP', error.message || 'OTP delivery error', 'error');
+            showToast('OTP Unavailable', 'Please log in with your password instead.', 'info');
+            setLoginMethod('password');
             setStep('credential');
           }
         } else {
-          showToast('Error', 'Firebase Auth system is not ready', 'error');
+          showToast('OTP Unavailable', 'Please log in with your password.', 'info');
+          setLoginMethod('password');
           setStep('credential');
         }
       } else {
@@ -364,20 +379,6 @@ function LoginContent() {
       }
     } else {
       // Email flow
-      try {
-        const response = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (!data.registered) {
-            showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
-            setStep('signup');
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('User check failed', e);
-      }
       setLoginMethod('password');
       setStep('credential');
     }
@@ -667,6 +668,47 @@ function LoginContent() {
               )}
 
               <form onSubmit={handleIdentifierSubmit} className={styles.form}>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', background: 'var(--color-neutral-100)', padding: '4px', borderRadius: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('password')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      background: loginMethod === 'password' ? '#ffffff' : 'transparent',
+                      color: loginMethod === 'password' ? 'var(--color-primary)' : 'var(--color-neutral-600)',
+                      boxShadow: loginMethod === 'password' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    Password Login
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('otp')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      background: loginMethod === 'otp' ? '#ffffff' : 'transparent',
+                      color: loginMethod === 'otp' ? 'var(--color-primary)' : 'var(--color-neutral-600)',
+                      boxShadow: loginMethod === 'otp' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    OTP Login
+                  </button>
+                </div>
+
                   <div>
                     <label className={styles.inputLabel}>Email or Mobile Number</label>
                     <div className={styles.customInputContainer}>
@@ -705,7 +747,7 @@ function LoginContent() {
                     {identifierError && <p style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{identifierError}</p>}
                   </div>
                   <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} rightIcon={<ArrowRight size={18} />}>
-                    Continue
+                    {loginMethod === 'password' ? 'Continue with Password' : 'Send OTP'}
                   </Button>
                 </form>
 
