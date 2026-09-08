@@ -146,6 +146,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               // Recaptcha resolved
             },
           });
+          verifier.render().catch(() => {});
           setRecaptchaVerifier(verifier);
         }
       } catch (err) {
@@ -284,28 +285,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     
     setIdentifierType(type);
 
-    try {
-      const response = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (!data.registered) {
-          showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
-          onClose();
-          const queryParam = type === 'phone' ? `phone=${encodeURIComponent(finalIdentifier.slice(-10))}&countryCode=${encodeURIComponent(countryCode)}` : `email=${encodeURIComponent(finalIdentifier)}`;
-          router.push(`/login?step=signup&${queryParam}`);
-          setLoading(false);
-          return;
-        }
-      }
-    } catch (err) {}
-
     if (type === 'phone') {
       setLoginMethod('otp');
+
+      const checkUserPromise = fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`)
+        .then((res) => (res.ok ? res.json() : { registered: true }))
+        .catch(() => ({ registered: true }));
+
       if (isFirebaseConfigured) {
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
           try {
-            const result = await signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier);
+            const [checkUserData, result] = await Promise.all([
+              checkUserPromise,
+              signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier),
+            ]);
+
+            if (!checkUserData.registered) {
+              showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+              onClose();
+              const queryParam = `phone=${encodeURIComponent(finalIdentifier.slice(-10))}&countryCode=${encodeURIComponent(countryCode)}`;
+              router.push(`/login?step=signup&${queryParam}`);
+              setLoading(false);
+              return;
+            }
+
             setConfirmationResult(result);
             setView('otp');
             setTimer(30);
@@ -320,10 +324,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       } else {
         // Mock flow
+        const checkUserData = await checkUserPromise;
+        if (!checkUserData.registered) {
+          showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+          onClose();
+          const queryParam = `phone=${encodeURIComponent(finalIdentifier.slice(-10))}&countryCode=${encodeURIComponent(countryCode)}`;
+          router.push(`/login?step=signup&${queryParam}`);
+          setLoading(false);
+          return;
+        }
         setView('otp');
         setTimer(30);
       }
     } else {
+      // Email flow
+      try {
+        const response = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.registered) {
+            showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+            onClose();
+            const queryParam = `email=${encodeURIComponent(finalIdentifier)}`;
+            router.push(`/login?step=signup&${queryParam}`);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {}
       setLoginMethod('password');
       setView('credential');
     }

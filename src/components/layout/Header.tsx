@@ -22,7 +22,11 @@ import {
 import { Button } from '../ui';
 import styles from './Header.module.css';
 import { useAuth } from '@/context/AuthContext';
-import { AuthModal } from '../auth/AuthModal';
+import dynamic from 'next/dynamic';
+
+const AuthModal = dynamic(() => import('../auth/AuthModal').then((mod) => mod.AuthModal), {
+  ssr: false,
+});
 
 export const Header: React.FC = () => {
   const { user, profile, signOut } = useAuth();

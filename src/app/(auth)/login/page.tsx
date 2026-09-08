@@ -80,6 +80,7 @@ function LoginContent() {
             size: 'invisible',
             callback: () => {},
           });
+          verifier.render().catch(() => {});
           setRecaptchaVerifier(verifier);
         }
       } catch (err) {
@@ -105,7 +106,7 @@ function LoginContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Load cities list and auto-detect location
+  // Load cities list
   useEffect(() => {
     const loadCities = async () => {
       try {
@@ -113,25 +114,6 @@ function LoginContent() {
         if (res.ok) {
           const data = await res.json();
           setCitiesList(data.cities || []);
-          
-          // Attempt silent IP-based city detection
-          try {
-            const ipRes = await fetch('https://ipapi.co/json/');
-            if (ipRes.ok) {
-              const ipData = await ipRes.json();
-              if (ipData.city) {
-                const matched = (data.cities || []).find(
-                  (c: any) => c.name.toLowerCase() === ipData.city.toLowerCase()
-                );
-                if (matched) {
-                  setSelectedCity(matched.name);
-                  console.log('[Location Capture] Auto-detected city:', matched.name);
-                }
-              }
-            }
-          } catch (ipErr) {
-            console.warn('[Location Capture] IP location detection error:', ipErr);
-          }
         }
       } catch (err) {
         console.error('Failed to load cities:', err);
@@ -331,29 +313,31 @@ function LoginContent() {
     
     setIdentifierType(type);
 
-    // Check if the user is registered
-    try {
-      const response = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (!data.registered) {
-          showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
-          setStep('signup');
-          setLoading(false);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('User check failed', e);
-    }
-
     if (type === 'phone') {
       setLoginMethod('otp');
+
+      // Kick off user registration check in parallel with SMS dispatch
+      const checkUserPromise = fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`)
+        .then((res) => (res.ok ? res.json() : { registered: true }))
+        .catch(() => ({ registered: true }));
+
       if (isFirebaseConfigured) {
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
           try {
-            const result = await signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier);
+            // Run SMS sending and user check in parallel!
+            const [checkUserData, result] = await Promise.all([
+              checkUserPromise,
+              signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier),
+            ]);
+
+            if (!checkUserData.registered) {
+              showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+              setStep('signup');
+              setLoading(false);
+              return;
+            }
+
             setConfirmationResult(result);
             setStep('otp');
             setTimer(30);
@@ -368,10 +352,32 @@ function LoginContent() {
         }
       } else {
         // Mock flow
+        const checkUserData = await checkUserPromise;
+        if (!checkUserData.registered) {
+          showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+          setStep('signup');
+          setLoading(false);
+          return;
+        }
         setStep('otp');
         setTimer(30);
       }
     } else {
+      // Email flow
+      try {
+        const response = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.registered) {
+            showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+            setStep('signup');
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('User check failed', e);
+      }
       setLoginMethod('password');
       setStep('credential');
     }

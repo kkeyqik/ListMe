@@ -12,7 +12,11 @@ export async function GET() {
       return acc;
     }, {} as Record<string, string>);
 
-    return NextResponse.json(settingsObj);
+    return NextResponse.json(settingsObj, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
+      },
+    });
   } catch (error: any) {
     return NextResponse.json(
       { message: error.message || 'Internal server error' },
