@@ -15,9 +15,11 @@ export async function createClient() {
     }
 
     if (mockUserId) {
+      const { prisma } = await import('@/lib/prisma');
       const mockAdminId = process.env.MOCK_ADMIN_ID;
       const isAdmin = mockAdminId ? mockUserId === mockAdminId : false;
       const finalId = isAdmin ? mockAdminId! : mockUserId;
+      const dbProfile = await prisma.profile.findUnique({ where: { id: finalId } });
 
       return {
         auth: {
@@ -26,15 +28,15 @@ export async function createClient() {
               data: {
                 user: {
                   id: finalId,
-                  phone: isAdmin ? '+917777777777' : '+919876543210',
-                  email: isAdmin ? 'admin@test.com' : 'user@test.com',
+                  phone: dbProfile?.phone || null,
+                  email: dbProfile?.email || null,
                   user_metadata: {
-                    name: isAdmin ? 'Kanha' : 'Standard User',
-                    full_name: isAdmin ? 'Kanha' : 'Standard User',
-                    role: isAdmin ? 'ADMIN' : 'USER',
+                    name: dbProfile?.name || 'User',
+                    full_name: dbProfile?.name || 'User',
+                    role: dbProfile?.role || 'USER',
                   },
                   app_metadata: {
-                    role: isAdmin ? 'ADMIN' : 'USER',
+                    role: dbProfile?.role || 'USER',
                   },
                 }
               },
