@@ -437,8 +437,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (!error && signUpData?.user) {
+        if (signUpData.session) {
+          setUser(signUpData.user);
+        }
         try {
-          await fetch('/api/users/profile', {
+          const profRes = await fetch('/api/users/profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -448,6 +451,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               city,
             }),
           });
+          if (profRes.ok) {
+            const pData = await profRes.json();
+            if (pData.profile) setProfile(pData.profile);
+          }
         } catch (syncErr) {
           console.warn('[signUp] Profile auto-sync error:', syncErr);
         }

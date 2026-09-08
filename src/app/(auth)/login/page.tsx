@@ -535,8 +535,8 @@ function LoginContent() {
     if (error) {
       showToast('Registration Failed', typeof error === 'string' ? error : error.message || 'Something went wrong', 'error');
     } else {
-      showToast('Account Created', 'Registration successful. Please check your email to verify your account or login directly.', 'success');
-      setStep('identifier');
+      showToast('Welcome!', 'Registration successful! You are now logged in.', 'success');
+      await finishLogin();
     }
   };
 
