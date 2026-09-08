@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
         name: sanitizedName,
         email,
         phone: normalizedPhone,
-        phoneVerified: true,
         city: city || null,
       },
       create: {
@@ -88,7 +87,7 @@ export async function POST(request: NextRequest) {
         name: sanitizedName,
         email,
         phone: normalizedPhone,
-        phoneVerified: true,
+        phoneVerified: false,
         city: city || null,
       },
     });

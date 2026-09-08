@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   Building, 
@@ -14,9 +15,11 @@ import {
   Trash2,
   Plus,
   FileText,
-  Locate
+  Locate,
+  ShieldAlert
 } from 'lucide-react';
 import { useToast, Button, Input, Card } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import {
   generateFileName,
@@ -33,6 +36,8 @@ import styles from './new.module.css';
 export default function NewListing() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { profile, loading: authLoading } = useAuth();
+  const isPhoneVerified = Boolean(profile?.phoneVerified || profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN');
   
   // Data lists from backend APIs
   const [cities, setCities] = useState<any[]>([]);
@@ -140,7 +145,8 @@ export default function NewListing() {
     }
   }, []);
 
-  // Update localities based on selected city
+  // Update localities based on selected city without wiping detected or custom locality
+  const prevCityRef = useRef(formData.city);
   useEffect(() => {
     if (formData.city) {
       const selectedCityObj = cities.find(
@@ -149,17 +155,15 @@ export default function NewListing() {
       const cityLocalities = selectedCityObj?.localities || [];
       setLocalities(cityLocalities);
       
-      // Only reset locality/pincode if current locality doesn't belong to newly selected city
-      setFormData((prev: any) => {
-        const belongs = cityLocalities.some((l: any) => l.name.toLowerCase() === prev.locality.toLowerCase());
-        if (!belongs && prev.locality !== '') {
-          return { ...prev, locality: '', pinCode: '' };
-        }
-        return prev;
-      });
+      // Only reset locality/pincode if city actually changed to a different city
+      if (prevCityRef.current && prevCityRef.current.toLowerCase() !== formData.city.toLowerCase()) {
+        setFormData((prev: any) => ({ ...prev, locality: '', pinCode: '' }));
+      }
+      prevCityRef.current = formData.city;
     } else {
       setLocalities([]);
       setFormData((prev: any) => ({ ...prev, locality: '', pinCode: '' }));
+      prevCityRef.current = '';
     }
   }, [formData.city, cities]);
 
@@ -410,24 +414,51 @@ export default function NewListing() {
           const data = await res.json();
           
           const address = data.address || {};
-          const rawCity = address.city || address.town || address.village || address.state_district || '';
+          const rawCity = address.city || address.town || address.village || address.state_district || address.county || '';
           const rawPostcode = address.postcode || '';
+          const rawSub = address.suburb || address.neighbourhood || address.residential || address.subdistrict || address.road || '';
+          
+          const normalizedCity = rawCity.toLowerCase().trim();
+          const normalizedSub = rawSub.toLowerCase().trim();
+          const combinedLoc = `${rawCity} ${rawSub} ${address.county || ''} ${address.state_district || ''} ${address.state || ''}`.toLowerCase();
           
           let resolvedCity = '';
-          const normalizedRaw = rawCity.toLowerCase();
-          
-          if (normalizedRaw.includes('bangalore') || normalizedRaw.includes('bengaluru')) {
+
+          // 1. Direct match with operational cities loaded from database
+          const directMatch = cities.find(c => {
+            const cName = c.name.toLowerCase();
+            return cName === normalizedCity || 
+                   normalizedCity.includes(cName) || 
+                   cName.includes(normalizedCity) ||
+                   combinedLoc.includes(cName);
+          });
+
+          if (directMatch) {
+            resolvedCity = directMatch.name;
+          } else if (
+            combinedLoc.includes('delhi') ||
+            combinedLoc.includes('noida') ||
+            combinedLoc.includes('gurgaon') ||
+            combinedLoc.includes('gurugram') ||
+            combinedLoc.includes('faridabad') ||
+            combinedLoc.includes('ghaziabad')
+          ) {
+            // If in NCR, check if specific NCR town exists in cities list first
+            const ncrCity = cities.find(c => combinedLoc.includes(c.name.toLowerCase()));
+            resolvedCity = ncrCity ? ncrCity.name : 'Delhi NCR';
+          } else if (combinedLoc.includes('bangalore') || combinedLoc.includes('bengaluru')) {
             resolvedCity = 'Bangalore';
-          } else if (normalizedRaw.includes('mumbai') || normalizedRaw.includes('bombay')) {
-            resolvedCity = 'Mumbai';
-          } else if (normalizedRaw.includes('delhi') || normalizedRaw.includes('noida') || normalizedRaw.includes('gurgaon') || normalizedRaw.includes('gurugram')) {
-            resolvedCity = 'Delhi NCR';
-          } else if (normalizedRaw.includes('pune') || normalizedRaw.includes('poona')) {
+          } else if (combinedLoc.includes('mumbai') || combinedLoc.includes('bombay') || combinedLoc.includes('thane') || combinedLoc.includes('navi mumbai')) {
+            const mumbaiCity = cities.find(c => combinedLoc.includes(c.name.toLowerCase()));
+            resolvedCity = mumbaiCity ? mumbaiCity.name : 'Mumbai';
+          } else if (combinedLoc.includes('pune') || combinedLoc.includes('poona')) {
             resolvedCity = 'Pune';
+          } else if (combinedLoc.includes('hyderabad') || combinedLoc.includes('secunderabad')) {
+            resolvedCity = 'Hyderabad';
           }
 
           if (resolvedCity) {
-            const cityObj = cities.find(c => c.name === resolvedCity);
+            const cityObj = cities.find(c => c.name.toLowerCase() === resolvedCity.toLowerCase());
             let resolvedLocality = '';
             
             if (cityObj) {
@@ -435,25 +466,28 @@ export default function NewListing() {
               const locByPost = cityObj.localities?.find((l: any) => l.pinCode === cleanPostcode);
               if (locByPost) {
                 resolvedLocality = locByPost.name;
-              } else {
-                const rawSub = (address.suburb || address.neighbourhood || address.residential || '').toLowerCase();
-                if (rawSub) {
-                  const locByName = cityObj.localities?.find((l: any) => rawSub.includes(l.name.toLowerCase()) || l.name.toLowerCase().includes(rawSub));
-                  if (locByName) resolvedLocality = locByName.name;
-                }
+              } else if (rawSub) {
+                const locByName = cityObj.localities?.find((l: any) => 
+                  rawSub.toLowerCase().includes(l.name.toLowerCase()) || 
+                  l.name.toLowerCase().includes(rawSub.toLowerCase())
+                );
+                if (locByName) resolvedLocality = locByName.name;
               }
             }
+
+            // Fall back to detected suburb/neighbourhood if not in pre-seeded DB list
+            const finalLocality = resolvedLocality || rawSub || '';
 
             setFormData((prev: any) => ({
               ...prev,
               city: resolvedCity,
-              locality: resolvedLocality || prev.locality,
+              locality: finalLocality || prev.locality,
               pinCode: rawPostcode.replace(/\s/g, '').substring(0, 6) || prev.pinCode,
             }));
             
             showToast(
               'Location Detected',
-              `Auto-selected ${resolvedCity} ${resolvedLocality ? ` - ${resolvedLocality}` : ''}`,
+              `Auto-selected ${resolvedCity}${finalLocality ? ` - ${finalLocality}` : ''}`,
               'success'
             );
           } else {
@@ -515,6 +549,14 @@ export default function NewListing() {
   const nextStep = () => {
     // Basic validation per step
     if (step === 1) {
+      if (!isPhoneVerified) {
+        showToast(
+          'Phone Verification Required',
+          'Please verify your mobile phone number in your profile before posting a property listing.',
+          'error'
+        );
+        return;
+      }
       if (!formData.title.trim()) {
         showToast('Required', 'Please enter a title for your listing', 'warning');
         return;
@@ -569,6 +611,23 @@ export default function NewListing() {
         {step === 1 && (
           /* STEP 1: Basic Info */
           <div className={styles.stepContainer}>
+            {!authLoading && profile && !isPhoneVerified && (
+              <div className={styles.warningBanner}>
+                <ShieldAlert size={24} className={styles.warningIcon} />
+                <div className={styles.warningContent}>
+                  <h4 className={styles.warningTitle}>Phone Verification Required</h4>
+                  <p className={styles.warningText}>
+                    To prevent spam and ensure real, verified property owners on ListMe, your mobile phone number must be verified before you can list a property.
+                  </p>
+                  <div className={styles.warningActions}>
+                    <Link href="/dashboard/profile" className={styles.verifyLink}>
+                      Go to Profile & Verify Phone &rarr;
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className={styles.sectionHeading}>
               <Building size={20} />
               <span>Step 1: Property Type & Title</span>
@@ -671,20 +730,38 @@ export default function NewListing() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.label}>Locality</label>
-                <select 
-                  name="locality" 
-                  value={formData.locality} 
-                  onChange={handleInputChange} 
+                <label className={styles.label}>
+                  Locality {localities.length > 0 && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--color-text-secondary)' }}>
+                      (Select or type your own)
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  list="localities-datalist"
+                  name="locality"
+                  value={formData.locality}
+                  onChange={handleInputChange}
                   className={styles.select}
+                  placeholder={
+                    !formData.city
+                      ? 'Select City first'
+                      : localities.length > 0
+                      ? 'Select or type locality...'
+                      : 'Enter locality (e.g. Indirapuram, Raj Nagar)'
+                  }
                   disabled={!formData.city}
                   required
-                >
-                  <option value="">Select Locality</option>
+                  autoComplete="off"
+                />
+                <datalist id="localities-datalist">
                   {localities.map((loc) => (
-                    <option key={loc.id} value={loc.name}>{loc.name}</option>
+                    <option key={loc.id} value={loc.name}>
+                      {loc.pinCode ? `${loc.name} (${loc.pinCode})` : loc.name}
+                    </option>
                   ))}
-                </select>
+                </datalist>
               </div>
             </div>
 
