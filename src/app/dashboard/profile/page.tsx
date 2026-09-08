@@ -12,6 +12,7 @@ export default function Profile() {
   const { showToast } = useToast();
 
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
@@ -23,6 +24,7 @@ export default function Profile() {
     if (profile) {
       setName(profile.name || '');
       setAddress(profile.address || '');
+      setPhone(profile.phone ? profile.phone.replace('+91', '').trim() : '');
     }
   }, [profile]);
 
@@ -35,10 +37,14 @@ export default function Profile() {
 
     setSubmitting(true);
     try {
+      const payload: any = { name, address };
+      if (!profile?.phoneVerified && phone.trim()) {
+        payload.phone = phone.startsWith('+91') ? phone.trim() : `+91${phone.trim()}`;
+      }
       const res = await fetch('/api/users/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, address }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -112,23 +118,66 @@ export default function Profile() {
           />
 
           <div className={styles.formGrid}>
-            {/* Phone (Read Only) */}
+            {/* Phone */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>Mobile Number</label>
-              <div style={{ position: 'relative' }}>
-                <Input
-                  value={profile?.phone ? profile.phone.replace('+91', '').trim() : ''}
-                  readOnly
-                  disabled
-                  leftIcon={<Phone size={18} />}
-                  fullWidth
-                />
-                <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
-                  <Badge variant={profile?.phoneVerified ? 'success' : 'warning'} size="sm">
-                    {profile?.phoneVerified ? 'Verified' : 'Pending'}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className={styles.label}>Mobile Number</label>
+                {profile?.phoneVerified ? (
+                  <Badge variant="success" size="sm">
+                    Verified
                   </Badge>
-                </div>
+                ) : (
+                  <Badge variant="warning" size="sm">
+                    Pending Verification
+                  </Badge>
+                )}
               </div>
+
+              {profile?.phoneVerified ? (
+                <div style={{ position: 'relative' }}>
+                  <Input
+                    value={profile?.phone ? profile.phone.replace('+91', '').trim() : ''}
+                    readOnly
+                    disabled
+                    leftIcon={<Phone size={18} />}
+                    fullWidth
+                  />
+                  <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
+                    <Badge variant="success" size="sm">
+                      Verified
+                    </Badge>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="Enter 10-digit mobile number"
+                      leftIcon={<Phone size={18} />}
+                      fullWidth
+                      disabled={submitting}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="md"
+                    onClick={() => {
+                      const digits = phone.replace(/\D/g, '');
+                      if (digits.length !== 10) {
+                        showToast('Invalid Phone', 'Please enter a valid 10-digit mobile number', 'error');
+                        return;
+                      }
+                      setPhoneModalOpen(true);
+                    }}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    Verify via OTP
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Email (Read Only) */}
@@ -174,9 +223,30 @@ export default function Profile() {
       <PhoneVerificationModal
         isOpen={phoneModalOpen}
         onClose={() => setPhoneModalOpen(false)}
-        onSuccess={() => {
-          showToast('Verified', 'Your mobile number is verified.', 'success');
-          refreshProfile();
+        initialPhone={phone}
+        onSuccess={async (verifiedPhone?: string) => {
+          const finalPhone = verifiedPhone || (phone.startsWith('+91') ? phone : `+91${phone}`);
+          try {
+            const res = await fetch('/api/users/profile', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phone: finalPhone,
+                phoneVerified: true,
+              }),
+            });
+            if (res.ok) {
+              await refreshProfile();
+              showToast('Success', 'Phone number verified successfully!', 'success');
+            } else {
+              const err = await res.json();
+              showToast('Error', err.message || 'Failed to update phone verification status', 'error');
+            }
+          } catch (err) {
+            console.error('Failed to sync verified phone in profile:', err);
+            await refreshProfile();
+            showToast('Success', 'Phone number verified successfully!', 'success');
+          }
         }}
       />
     </div>

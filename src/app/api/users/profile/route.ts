@@ -136,7 +136,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, address } = body;
+    const { name, address, phone, phoneVerified } = body;
 
     // Build update data with validation
     const updateData: any = {};
@@ -148,6 +148,26 @@ export async function PUT(request: NextRequest) {
       updateData.name = nameResult.sanitized;
     }
     if (address !== undefined) updateData.address = typeof address === 'string' ? address.trim() : address;
+    if (phone !== undefined && phone !== null && phone !== '') {
+      const phoneResult = validatePhone(phone);
+      if (!phoneResult.valid) {
+        return NextResponse.json({ message: phoneResult.error }, { status: 400 });
+      }
+      const existingPhone = await prisma.profile.findUnique({
+        where: { phone: phoneResult.normalized },
+        select: { id: true },
+      });
+      if (existingPhone && existingPhone.id !== userId) {
+        return NextResponse.json(
+          { message: 'This phone number is already registered' },
+          { status: 400 }
+        );
+      }
+      updateData.phone = phoneResult.normalized;
+    }
+    if (phoneVerified !== undefined) {
+      updateData.phoneVerified = Boolean(phoneVerified);
+    }
 
     // Update public profiles table
     const updatedProfile = await prisma.profile.update({

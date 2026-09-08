@@ -342,7 +342,7 @@ export async function POST(request: NextRequest) {
         possession: possession ? (possession.toUpperCase() as Possession) : null,
         possessionDate,
         ageOfProperty,
-        ownership: ownership ? (ownership.toUpperCase() as Ownership) : null,
+        ownership: ownership ? (ownership.toUpperCase() === 'POWER_OF_ATTORNEY' ? 'POA' : ownership.toUpperCase() as Ownership) : null,
         parking: parking ? (parking.toUpperCase() as Parking) : null,
         parkingCount: parkingCount ? parseInt(parkingCount, 10) : null,
         waterSupply,

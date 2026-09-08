@@ -628,8 +628,46 @@ export default function Home() {
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
+  // Load initial favorites from localStorage
+  useEffect(() => {
+    try {
+      const savedFavs = localStorage.getItem('listme_favorites');
+      if (savedFavs) {
+        const parsed = JSON.parse(savedFavs);
+        if (parsed && typeof parsed === 'object') {
+          setFavorites(parsed);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load favorites from localStorage:', err);
+    }
+  }, []);
+
   const toggleFavorite = (id: string) => {
-    setFavorites(prev => ({ ...prev, [id]: !prev[id] }));
+    setFavorites((prev) => {
+      const isCurrentlyFav = !!prev[id];
+      const nextState = !isCurrentlyFav;
+      const newFavs = { ...prev, [id]: nextState };
+
+      try {
+        localStorage.setItem('listme_favorites', JSON.stringify(newFavs));
+      } catch (err) {
+        console.error('Failed to save favorites to localStorage:', err);
+      }
+
+      // If user is logged in, optionally call /api/users/shortlist in the background (fire and forget)
+      if (user?.id) {
+        fetch('/api/users/shortlist', {
+          method: nextState ? 'POST' : 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ listingId: id }),
+        }).catch((apiErr) => {
+          console.warn('Background shortlist sync failed:', apiErr);
+        });
+      }
+
+      return newFavs;
+    });
   };
 
   useEffect(() => {
@@ -1472,7 +1510,17 @@ export default function Home() {
                   const isFav = !!favorites[prop.id];
                 
                 return (
-                  <div key={prop.id} className={`${styles.propertyCard} property-card-item`}>
+                  <div 
+                    key={prop.id} 
+                    className={`${styles.propertyCard} property-card-item`}
+                    onClick={() => router.push(`/property/${prop.id}`)}
+                    style={{ cursor: 'pointer' }}
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') router.push(`/property/${prop.id}`);
+                    }}
+                  >
                     {/* Image Wrap */}
                     <div className={styles.cardImageWrap}>
                       <img

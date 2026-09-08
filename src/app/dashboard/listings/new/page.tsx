@@ -16,7 +16,8 @@ import {
   Plus,
   FileText,
   Locate,
-  ShieldAlert
+  ShieldAlert,
+  X
 } from 'lucide-react';
 import { useToast, Button, Input, Card } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
@@ -304,6 +305,14 @@ export default function NewListing() {
     }, []);
 
     setSelectedDocs((prev) => [...prev, ...newDocs]);
+  };
+
+  const removePhoto = (index: number) => {
+    setSelectedPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeDoc = (index: number) => {
+    setSelectedDocs((prev) => prev.filter((_, i) => i !== index));
   };
 
   const uploadListingMedia = async (listingId: string) => {
@@ -810,9 +819,10 @@ export default function NewListing() {
               <span>Step 3: Specifications & Pricing</span>
             </div>
 
+            {/* Pricing Section */}
             <div className={styles.formGrid}>
               <Input
-                label="Asking Price (INR)"
+                label={formData.listingFor === 'RENT' ? 'Monthly Rent (₹)' : 'Asking Price (₹)'}
                 name="askingPrice"
                 value={formData.askingPrice}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, askingPrice: e.target.value.replace(/\D/g, '') }))}
@@ -836,6 +846,28 @@ export default function NewListing() {
               </div>
             </div>
 
+            {/* Maintenance & Security Deposit */}
+            <div className={styles.formGrid}>
+              <Input
+                label="Maintenance Charges (₹/month)"
+                name="maintenanceCharges"
+                value={formData.maintenanceCharges}
+                onChange={(e) => setFormData((prev: any) => ({ ...prev, maintenanceCharges: e.target.value.replace(/\D/g, '') }))}
+                placeholder="3500"
+                fullWidth
+              />
+
+              <Input
+                label={formData.listingFor === 'RENT' ? 'Security Deposit (₹)' : 'Security Deposit (₹)'}
+                name="securityDeposit"
+                value={formData.securityDeposit}
+                onChange={(e) => setFormData((prev: any) => ({ ...prev, securityDeposit: e.target.value.replace(/\D/g, '') }))}
+                placeholder={formData.listingFor === 'RENT' ? '50000' : 'Optional for sale'}
+                fullWidth
+              />
+            </div>
+
+            {/* Area Section */}
             <div className={styles.formGrid}>
               <Input
                 label="Carpet Area (sqft)"
@@ -846,47 +878,177 @@ export default function NewListing() {
                 fullWidth
               />
 
+              <Input
+                label="Built-Up Area (sqft)"
+                name="builtUpArea"
+                value={formData.builtUpArea}
+                onChange={(e) => setFormData((prev: any) => ({ ...prev, builtUpArea: e.target.value.replace(/\D/g, '') }))}
+                placeholder="1450"
+                fullWidth
+              />
+            </div>
+
+            {/* Rooms, Balconies & Furnishing */}
+            {formData.propertyType !== 'PLOT' && (
+              <>
+                <div className={styles.formGrid}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Bedrooms (BHK)</label>
+                    <select name="bedrooms" value={formData.bedrooms} onChange={handleInputChange} className={styles.select}>
+                      <option value="">Select Bedrooms</option>
+                      <option value="1">1 BHK</option>
+                      <option value="2">2 BHK</option>
+                      <option value="3">3 BHK</option>
+                      <option value="4">4 BHK</option>
+                      <option value="5">5+ BHK</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Bathrooms</label>
+                    <select name="bathrooms" value={formData.bathrooms} onChange={handleInputChange} className={styles.select}>
+                      <option value="">Select Bathrooms</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4+</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.formGrid}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Balconies</label>
+                    <select name="balconies" value={formData.balconies} onChange={handleInputChange} className={styles.select}>
+                      <option value="">Select Balconies</option>
+                      <option value="0">0</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4+</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Furnishing</label>
+                    <select 
+                      name="furnishing" 
+                      value={formData.furnishing} 
+                      onChange={handleInputChange} 
+                      className={styles.select}
+                    >
+                      <option value="FURNISHED">Fully Furnished</option>
+                      <option value="SEMI_FURNISHED">Semi Furnished</option>
+                      <option value="UNFURNISHED">Unfurnished</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Facing & Possession */}
+            <div className={styles.formGrid}>
               <div className={styles.formGroup}>
-                <label className={styles.label}>Furnishing</label>
-                <select 
-                  name="furnishing" 
-                  value={formData.furnishing} 
-                  onChange={handleInputChange} 
-                  className={styles.select}
-                >
-                  <option value="FURNISHED">Fully Furnished</option>
-                  <option value="SEMI_FURNISHED">Semi Furnished</option>
-                  <option value="UNFURNISHED">Unfurnished</option>
+                <label className={styles.label}>Facing</label>
+                <select name="facing" value={formData.facing} onChange={handleInputChange} className={styles.select}>
+                  <option value="EAST">East</option>
+                  <option value="NORTH">North</option>
+                  <option value="WEST">West</option>
+                  <option value="SOUTH">South</option>
+                  <option value="NORTH_EAST">North-East</option>
+                  <option value="NORTH_WEST">North-West</option>
+                  <option value="SOUTH_EAST">South-East</option>
+                  <option value="SOUTH_WEST">South-West</option>
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Possession</label>
+                <select name="possession" value={formData.possession} onChange={handleInputChange} className={styles.select}>
+                  <option value="READY">Ready to Move</option>
+                  <option value="UNDER_CONSTRUCTION">Under Construction</option>
                 </select>
               </div>
             </div>
 
-            {formData.propertyType !== 'PLOT' && (
-              <div className={styles.formGrid}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Bedrooms (BHK)</label>
-                  <select name="bedrooms" value={formData.bedrooms} onChange={handleInputChange} className={styles.select}>
-                    <option value="">Select Bedrooms</option>
-                    <option value="1">1 BHK</option>
-                    <option value="2">2 BHK</option>
-                    <option value="3">3 BHK</option>
-                    <option value="4">4 BHK</option>
-                    <option value="5">5+ BHK</option>
-                  </select>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Bathrooms</label>
-                  <select name="bathrooms" value={formData.bathrooms} onChange={handleInputChange} className={styles.select}>
-                    <option value="">Select Bathrooms</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4+</option>
-                  </select>
-                </div>
+            {/* Age of Property & Ownership */}
+            <div className={styles.formGrid}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Age of Property</label>
+                <select name="ageOfProperty" value={formData.ageOfProperty} onChange={handleInputChange} className={styles.select}>
+                  <option value="0_1_YEARS">0-1 Years</option>
+                  <option value="1_5_YEARS">1-5 Years</option>
+                  <option value="5_10_YEARS">5-10 Years</option>
+                  <option value="10_PLUS_YEARS">10+ Years</option>
+                </select>
               </div>
-            )}
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Ownership</label>
+                <select name="ownership" value={formData.ownership} onChange={handleInputChange} className={styles.select}>
+                  <option value="FREEHOLD">Freehold</option>
+                  <option value="LEASEHOLD">Leasehold</option>
+                  <option value="COOPERATIVE">Co-operative Society</option>
+                  <option value="POWER_OF_ATTORNEY">Power of Attorney</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Parking & Parking Count */}
+            <div className={styles.formGrid}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Parking</label>
+                <select name="parking" value={formData.parking} onChange={handleInputChange} className={styles.select}>
+                  <option value="NONE">None</option>
+                  <option value="COVERED">Covered</option>
+                  <option value="OPEN">Open</option>
+                  <option value="BOTH">Both</option>
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Parking Count</label>
+                <select name="parkingCount" value={formData.parkingCount} onChange={handleInputChange} className={styles.select}>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3+</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Water Supply & Power Backup */}
+            <div className={styles.formGrid}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Water Supply</label>
+                <select name="waterSupply" value={formData.waterSupply} onChange={handleInputChange} className={styles.select}>
+                  <option value="CORPORATION">Corporation / Municipal</option>
+                  <option value="BOREWELL">Borewell</option>
+                  <option value="CORP_WELL">Both Corporation & Borewell</option>
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Power Backup</label>
+                <select name="powerBackup" value={formData.powerBackup} onChange={handleInputChange} className={styles.select}>
+                  <option value="NONE">None</option>
+                  <option value="PARTIAL">Partial</option>
+                  <option value="FULL">Full 24x7</option>
+                </select>
+              </div>
+            </div>
+
+            {/* RERA Number */}
+            <div className={styles.formGroup}>
+              <Input
+                label="RERA Registration Number (Optional)"
+                name="reraNumber"
+                value={formData.reraNumber}
+                onChange={handleInputChange}
+                placeholder="e.g. UPRERA123456 or PRM/KA/RERA/..."
+                fullWidth
+              />
+            </div>
           </div>
         )}
 
@@ -1003,17 +1165,43 @@ export default function NewListing() {
 
               {selectedPhotos.length > 0 && (
                 <div className={styles.fileList}>
-                  {selectedPhotos.map((photo) => (
+                  {selectedPhotos.map((photo, index) => (
                     <div key={photo.id} className={styles.fileItem}>
                       <div className={styles.fileInfo}>
                         <FileText size={16} />
                         <span className={styles.fileName}>{photo.name}</span>
                       </div>
-                      <div className={styles.fileProgress}>
-                        {loading && !photo.uploaded ? (
-                          <div className={styles.progressBar} style={{ width: `${photo.progress}%` }} />
-                        ) : (
-                          <span className={styles.successText}><Check size={14} /> {photo.uploaded ? 'Uploaded' : 'Ready'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div className={styles.fileProgress}>
+                          {loading && !photo.uploaded ? (
+                            <div className={styles.progressBar} style={{ width: `${photo.progress}%` }} />
+                          ) : (
+                            <span className={styles.successText}><Check size={14} /> {photo.uploaded ? 'Uploaded' : 'Ready'}</span>
+                          )}
+                        </div>
+                        {!loading && (
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(index)}
+                            aria-label="Remove photo"
+                            title="Remove photo"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: 'var(--color-text-muted)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '4px',
+                              borderRadius: 'var(--radius-sm)',
+                              transition: 'color 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-error)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                          >
+                            <X size={16} />
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1043,17 +1231,43 @@ export default function NewListing() {
 
               {selectedDocs.length > 0 && (
                 <div className={styles.fileList}>
-                  {selectedDocs.map((doc) => (
+                  {selectedDocs.map((doc, index) => (
                     <div key={doc.id} className={styles.fileItem}>
                       <div className={styles.fileInfo}>
                         <FileText size={16} />
                         <span className={styles.fileName}>{doc.name}</span>
                       </div>
-                      <div className={styles.fileProgress}>
-                        {loading && !doc.uploaded ? (
-                          <div className={styles.progressBar} style={{ width: `${doc.progress}%` }} />
-                        ) : (
-                          <span className={styles.successText}><Check size={14} /> {doc.uploaded ? 'Uploaded' : 'Ready'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div className={styles.fileProgress}>
+                          {loading && !doc.uploaded ? (
+                            <div className={styles.progressBar} style={{ width: `${doc.progress}%` }} />
+                          ) : (
+                            <span className={styles.successText}><Check size={14} /> {doc.uploaded ? 'Uploaded' : 'Ready'}</span>
+                          )}
+                        </div>
+                        {!loading && (
+                          <button
+                            type="button"
+                            onClick={() => removeDoc(index)}
+                            aria-label="Remove document"
+                            title="Remove document"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: 'var(--color-text-muted)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '4px',
+                              borderRadius: 'var(--radius-sm)',
+                              transition: 'color 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-error)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                          >
+                            <X size={16} />
+                          </button>
                         )}
                       </div>
                     </div>

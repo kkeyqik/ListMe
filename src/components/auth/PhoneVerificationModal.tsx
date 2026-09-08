@@ -11,7 +11,7 @@ import styles from './PhoneVerificationModal.module.css';
 interface PhoneVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (verifiedPhone?: string) => void;
   initialPhone?: string;
 }
 
@@ -166,11 +166,12 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
     if (verifySuccess) {
       // Update phone verification status in database
       try {
+        const finalFormattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
         const res = await fetch('/api/users/verify-phone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            phone: phone.startsWith('+') ? phone : `+91${phone}`,
+            phone: finalFormattedPhone,
             otp: activeOtp,
           }),
         });
@@ -178,7 +179,7 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
         if (res.ok) {
           await refreshProfile();
           showToast('Phone Verified', 'Your phone number has been verified successfully.', 'success');
-          onSuccess();
+          onSuccess(finalFormattedPhone);
           onClose();
         } else {
           const errData = await res.json();
