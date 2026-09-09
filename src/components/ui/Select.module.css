@@ -1,0 +1,250 @@
+/* ═══════════════════════════════════════════════════════════
+   UNIFIED SELECT & COMBOBOX COMPONENT
+   Strictly adheres to Deep Navy & Sage Green design tokens
+   ═══════════════════════════════════════════════════════════ */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  position: relative;
+  width: auto;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.label {
+  font-family: var(--font-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-neutral-700);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.subLabel {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Native Select Element */
+.selectEl {
+  width: 100%;
+  padding: 0.625rem 2.5rem 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-neutral-300);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  min-height: 44px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+}
+
+.selectEl:hover:not(:disabled) {
+  border-color: var(--color-neutral-400);
+}
+
+.selectEl:focus {
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px var(--color-secondary-fade);
+  outline: none;
+}
+
+/* Small Variant */
+.sizeSm {
+  min-height: 36px;
+  padding: 0.375rem 2.25rem 0.375rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* With Left Icon */
+.hasLeftIcon {
+  padding-left: 2.75rem;
+}
+
+.iconLeft {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  width: 2.75rem;
+  pointer-events: none;
+}
+
+/* Chevron Icon */
+.chevron {
+  position: absolute;
+  right: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-neutral-500);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.chevronOpen {
+  transform: translateY(-50%) rotate(180deg);
+  color: var(--color-secondary);
+}
+
+.comboboxChevronBtn {
+  position: absolute;
+  right: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-neutral-500);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.comboboxChevronBtn:hover:not(:disabled) {
+  color: var(--color-secondary);
+}
+
+.comboboxChevronBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Error State */
+.error .selectEl,
+.error .comboboxInput {
+  border-color: var(--color-error);
+}
+
+.error .selectEl:focus,
+.error .comboboxInput:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.errorMessage {
+  font-size: 0.8125rem;
+  color: var(--color-error);
+  margin-top: 0.125rem;
+}
+
+/* Disabled State */
+.disabled .selectEl,
+.disabled .comboboxInput {
+  background-color: var(--color-neutral-100);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMBOBOX (Searchable / Creatable Input & Custom Dropdown)
+   ═══════════════════════════════════════════════════════════ */
+
+.comboboxInput {
+  width: 100%;
+  padding: 0.625rem 2.5rem 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-neutral-300);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  min-height: 44px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.comboboxInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.comboboxInput:hover:not(:disabled) {
+  border-color: var(--color-neutral-400);
+}
+
+.comboboxInput:focus {
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px var(--color-secondary-fade);
+  outline: none;
+}
+
+/* Custom Dropdown Menu */
+.dropdownMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-neutral-200);
+  box-shadow: 0 10px 25px -5px rgba(10, 17, 40, 0.1), 0 8px 10px -6px rgba(10, 17, 40, 0.05);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 50;
+  padding: 0.25rem 0;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdownItem {
+  padding: 0.625rem 1rem;
+  font-size: 0.9375rem;
+  color: var(--color-neutral-800);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dropdownItem:hover,
+.dropdownItemActive {
+  background-color: var(--color-secondary-fade);
+  color: var(--color-secondary-dark);
+}
+
+.dropdownItemSub {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.emptyItem {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}

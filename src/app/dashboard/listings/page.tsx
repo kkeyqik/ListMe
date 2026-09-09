@@ -10,7 +10,7 @@ import {
   Search,
   Filter
 } from 'lucide-react';
-import { useToast, Button, Input, Card, Badge, Modal } from '@/components/ui';
+import { useToast, Button, Input, Card, Badge, Modal, Select } from '@/components/ui';
 import styles from '../dashboard.module.css';
 
 export default function MyListings() {
@@ -115,28 +115,22 @@ export default function MyListings() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <Filter size={18} style={{ color: 'var(--color-text-secondary)' }} />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-neutral-300)',
-                background: '#fff',
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                minHeight: '44px'
-              }}
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="PENDING_REVIEW">Pending Review</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="DEACTIVATED">Deactivated</option>
-              <option value="EXPIRED">Expired</option>
-            </select>
+            <Filter size={18} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
+            <div style={{ minWidth: '170px' }}>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                size="sm"
+                fullWidth
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="PENDING_REVIEW">Pending Review</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="DEACTIVATED">Deactivated</option>
+                <option value="EXPIRED">Expired</option>
+              </Select>
+            </div>
           </div>
         </div>
       </Card>

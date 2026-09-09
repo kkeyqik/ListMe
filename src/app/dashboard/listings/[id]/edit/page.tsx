@@ -17,7 +17,7 @@ import {
   Locate,
   X
 } from 'lucide-react';
-import { useToast, Button, Input, Card } from '@/components/ui';
+import { useToast, Button, Input, Card, Select, Combobox } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import {
   generateFileName,
@@ -165,31 +165,38 @@ export default function EditListing({ params }: EditListingProps) {
     fetchAllData();
   }, [listingId, showToast, router]);
 
-  // Update localities list based on selected city (e.g. from loaded values)
+  // Track last resolved pin code to avoid duplicate fetches and loops
+  const lastResolvedPinRef = React.useRef<string>('');
+  const prevCityRef = React.useRef(formData.city);
+
+  // Update localities list based on selected city without wiping existing custom locality
   useEffect(() => {
     if (formData.city && cities.length > 0) {
-      const selectedCityObj = cities.find(
-        (c) => c.name.toLowerCase() === formData.city.toLowerCase()
-      );
-      const cityLocalities = selectedCityObj?.localities || [];
-      setLocalities(cityLocalities);
-
-      // Only reset locality/pincode if current locality doesn't belong to newly selected city
-      setFormData((prev: any) => {
-        const belongs = cityLocalities.some((l: any) => l.name.toLowerCase() === prev.locality.toLowerCase());
-        if (!belongs && prev.locality !== '') {
-          return { ...prev, locality: '', pinCode: '' };
+      if (prevCityRef.current && prevCityRef.current.toLowerCase() !== formData.city.toLowerCase()) {
+        const selectedCityObj = cities.find(
+          (c) => c.name.toLowerCase() === formData.city.toLowerCase()
+        );
+        const cityLocalities = selectedCityObj?.localities || [];
+        setLocalities(cityLocalities);
+        setFormData((prev: any) => ({ ...prev, locality: '', pinCode: '' }));
+        lastResolvedPinRef.current = '';
+      } else if (localities.length === 0) {
+        const selectedCityObj = cities.find(
+          (c) => c.name.toLowerCase() === formData.city.toLowerCase()
+        );
+        if (selectedCityObj?.localities?.length) {
+          setLocalities(selectedCityObj.localities);
         }
-        return prev;
-      });
+      }
+      prevCityRef.current = formData.city;
     }
   }, [formData.city, cities]);
 
-  // Auto-fill PIN Code when locality is selected
+  // Auto-fill PIN Code when locality is selected from pre-seeded list
   useEffect(() => {
     if (formData.locality && formData.city && localities.length > 0) {
       const selectedLocObj = localities.find(
-        (l) => l.name.toLowerCase() === formData.locality.toLowerCase()
+        (l) => typeof l !== 'string' && l.name?.toLowerCase() === formData.locality.toLowerCase()
       );
       if (selectedLocObj?.pinCode && formData.pinCode !== selectedLocObj.pinCode) {
         setFormData((prev: any) => ({ ...prev, pinCode: selectedLocObj.pinCode }));
@@ -198,33 +205,92 @@ export default function EditListing({ params }: EditListingProps) {
     }
   }, [formData.locality, localities, formData.city, showToast]);
 
-  // Auto-select city and locality when a 6-digit PIN Code is typed
+  // Live India Post API: Auto-resolve City, State & clean Localities when 6-digit PIN Code is typed
   useEffect(() => {
-    if (formData.pinCode && formData.pinCode.length === 6 && cities.length > 0) {
-      let foundCity = '';
-      let foundLocality = '';
-      
-      for (const city of cities) {
-        const matchingLoc = city.localities?.find(
-          (l: any) => l.pinCode === formData.pinCode
-        );
-        if (matchingLoc) {
-          foundCity = city.name;
-          foundLocality = matchingLoc.name;
-          break;
+    const cleanPin = (formData.pinCode || '').replace(/\D/g, '');
+    if (cleanPin.length === 6 && cleanPin !== lastResolvedPinRef.current) {
+      let isMounted = true;
+
+      const fetchPincodeDetails = async () => {
+        try {
+          const res = await fetch(`/api/locations/pincode/${cleanPin}`);
+          if (!isMounted) return;
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && isMounted) {
+              lastResolvedPinRef.current = cleanPin;
+              const resolvedCity = data.city || '';
+              const resolvedLocalities: string[] = data.localities || [];
+
+              // Dynamically ensure city exists in cities dropdown
+              if (resolvedCity) {
+                setCities((prev) => {
+                  if (!prev.some((c) => c.name.toLowerCase() === resolvedCity.toLowerCase())) {
+                    return [...prev, { id: `auto-${resolvedCity}`, name: resolvedCity, localities: [] }];
+                  }
+                  return prev;
+                });
+              }
+
+              // Update localities list with clean, sanitized names
+              const cleanLocObjects = resolvedLocalities.map((loc) => ({
+                id: loc,
+                name: loc,
+                pinCode: cleanPin,
+              }));
+              setLocalities(cleanLocObjects);
+
+              // Auto-fill city and locality
+              prevCityRef.current = resolvedCity;
+              setFormData((prev: any) => ({
+                ...prev,
+                city: resolvedCity || prev.city,
+                locality: resolvedLocalities.length === 1 ? resolvedLocalities[0] : prev.locality,
+              }));
+
+              showToast(
+                'PIN Code Verified',
+                `Located in ${resolvedCity}${data.state ? `, ${data.state}` : ''}`,
+                'success'
+              );
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching PIN code location:', err);
         }
-      }
-      
-      if (foundCity && foundLocality) {
-        setFormData((prev: any) => ({
-          ...prev,
-          city: foundCity,
-          locality: foundLocality,
-        }));
-        showToast('PIN Code Verified', `Located in ${foundCity} - ${foundLocality}`, 'success');
-      } else {
-        showToast('Validation Warning', 'This PIN Code was not found in our operated service areas.', 'warning');
-      }
+
+        // Local fallback if API fails
+        if (isMounted) {
+          let foundCity = '';
+          let foundLocality = '';
+          for (const city of cities) {
+            const matchingLoc = city.localities?.find((l: any) => l.pinCode === cleanPin);
+            if (matchingLoc) {
+              foundCity = city.name;
+              foundLocality = matchingLoc.name;
+              break;
+            }
+          }
+
+          if (foundCity) {
+            lastResolvedPinRef.current = cleanPin;
+            prevCityRef.current = foundCity;
+            setFormData((prev: any) => ({
+              ...prev,
+              city: foundCity,
+              locality: foundLocality || prev.locality,
+            }));
+            showToast('PIN Code Verified', `Located in ${foundCity}`, 'success');
+          }
+        }
+      };
+
+      fetchPincodeDetails();
+      return () => {
+        isMounted = false;
+      };
     }
   }, [formData.pinCode, cities, showToast]);
 
@@ -454,42 +520,39 @@ export default function EditListing({ params }: EditListingProps) {
             resolvedCity = 'Delhi NCR';
           } else if (normalizedRaw.includes('pune') || normalizedRaw.includes('poona')) {
             resolvedCity = 'Pune';
+          } else if (normalizedRaw.includes('hyderabad')) {
+            resolvedCity = 'Hyderabad';
           }
 
-          if (resolvedCity) {
-            const cityObj = cities.find(c => c.name === resolvedCity);
-            let resolvedLocality = '';
-            
-            if (cityObj) {
-              const cleanPostcode = rawPostcode.replace(/\s/g, '');
-              const locByPost = cityObj.localities?.find((l: any) => l.pinCode === cleanPostcode);
-              if (locByPost) {
-                resolvedLocality = locByPost.name;
-              } else {
-                const rawSub = (address.suburb || address.neighbourhood || address.residential || '').toLowerCase();
-                if (rawSub) {
-                  const locByName = cityObj.localities?.find((l: any) => rawSub.includes(l.name.toLowerCase()) || l.name.toLowerCase().includes(rawSub));
-                  if (locByName) resolvedLocality = locByName.name;
-                }
+          const finalCity = resolvedCity || rawCity || '';
+          if (finalCity) {
+            setCities((prev) => {
+              if (!prev.some((c) => c.name.toLowerCase() === finalCity.toLowerCase())) {
+                return [...prev, { id: `auto-${finalCity}`, name: finalCity, localities: [] }];
               }
-            }
+              return prev;
+            });
+
+            const rawSub = address.suburb || address.neighbourhood || address.residential || '';
+            const cleanPostcode = rawPostcode.replace(/\D/g, '').substring(0, 6);
+            prevCityRef.current = finalCity;
 
             setFormData((prev: any) => ({
               ...prev,
-              city: resolvedCity,
-              locality: resolvedLocality || prev.locality,
-              pinCode: rawPostcode.replace(/\s/g, '').substring(0, 6) || prev.pinCode,
+              city: finalCity,
+              locality: rawSub || prev.locality,
+              pinCode: cleanPostcode || prev.pinCode,
             }));
-            
+
             showToast(
               'Location Detected',
-              `Auto-selected ${resolvedCity} ${resolvedLocality ? ` - ${resolvedLocality}` : ''}`,
+              `Auto-selected ${finalCity}${rawSub ? ` - ${rawSub}` : ''}`,
               'success'
             );
           } else {
             showToast(
               'Location Unsupported',
-              `Detected location is ${rawCity || 'unknown'}, which is outside operational cities.`,
+              'Could not determine city from GPS coordinates. Please select manually.',
               'warning'
             );
           }
@@ -587,36 +650,32 @@ export default function EditListing({ params }: EditListingProps) {
             </div>
 
             <div className={styles.formGrid}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Listing For</label>
-                <select 
-                  name="listingFor" 
-                  value={formData.listingFor} 
-                  onChange={handleInputChange} 
-                  className={styles.select}
-                >
-                  <option value="SALE">Sell Property</option>
-                  <option value="RENT">Rent Out Property</option>
-                </select>
-              </div>
+              <Select
+                label="Listing For"
+                name="listingFor"
+                value={formData.listingFor}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="SALE">Sell Property</option>
+                <option value="RENT">Rent Out Property</option>
+              </Select>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Property Category</label>
-                <select 
-                  name="propertyType" 
-                  value={formData.propertyType} 
-                  onChange={handleInputChange} 
-                  className={styles.select}
-                >
-                  <option value="APARTMENT">Apartment / Flat</option>
-                  <option value="HOUSE">Independent House</option>
-                  <option value="VILLA">Villa</option>
-                  <option value="PLOT">Plot / Land</option>
-                  <option value="OFFICE">Commercial Office</option>
-                  <option value="SHOP">Shop / Retail Store</option>
-                  <option value="PG">PG / Hostel</option>
-                </select>
-              </div>
+              <Select
+                label="Property Category"
+                name="propertyType"
+                value={formData.propertyType}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="APARTMENT">Apartment / Flat</option>
+                <option value="HOUSE">Independent House</option>
+                <option value="VILLA">Villa</option>
+                <option value="PLOT">Plot / Land</option>
+                <option value="OFFICE">Commercial Office</option>
+                <option value="SHOP">Shop / Retail Store</option>
+                <option value="PG">PG / Hostel</option>
+              </Select>
             </div>
 
             <Input
@@ -641,21 +700,24 @@ export default function EditListing({ params }: EditListingProps) {
 
             <div className={styles.formGrid}>
               <div className={styles.formGroup}>
-                <label className={styles.label}>City</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <select 
-                    name="city" 
-                    value={formData.city} 
-                    onChange={handleInputChange} 
-                    className={styles.select}
-                    style={{ flex: 1 }}
-                    required
-                  >
-                    <option value="">Select City</option>
-                    {cities.map((city) => (
-                      <option key={city.id} value={city.name}>{city.name}</option>
-                    ))}
-                  </select>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', width: '100%' }}>
+                  <div style={{ flex: 1 }}>
+                    <Select
+                      label="City"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                      placeholder="Select City"
+                      required
+                      fullWidth
+                    >
+                      {cities.map((city) => (
+                        <option key={city.id || city.name} value={city.name}>
+                          {city.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
                   <button
                     type="button"
                     onClick={handleDetectLocation}
@@ -665,7 +727,7 @@ export default function EditListing({ params }: EditListingProps) {
                       width: '44px',
                       height: '44px',
                       borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-border)',
+                      border: '1px solid var(--color-neutral-300)',
                       background: '#fff',
                       display: 'flex',
                       alignItems: 'center',
@@ -674,7 +736,7 @@ export default function EditListing({ params }: EditListingProps) {
                       color: 'var(--color-primary)',
                       transition: 'all var(--transition-fast)',
                       opacity: detectingLocation ? 0.6 : 1,
-                      flexShrink: 0
+                      flexShrink: 0,
                     }}
                   >
                     <Locate size={18} className={detectingLocation ? styles.spinAnimation : ''} />
@@ -682,22 +744,24 @@ export default function EditListing({ params }: EditListingProps) {
                 </div>
               </div>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Locality</label>
-                <select 
-                  name="locality" 
-                  value={formData.locality} 
-                  onChange={handleInputChange} 
-                  className={styles.select}
-                  disabled={!formData.city}
-                  required
-                >
-                  <option value="">Select Locality</option>
-                  {localities.map((loc) => (
-                    <option key={loc.id} value={loc.name}>{loc.name}</option>
-                  ))}
-                </select>
-              </div>
+              <Combobox
+                label="Locality"
+                subLabel={localities.length > 0 ? "(Select or type custom)" : undefined}
+                name="locality"
+                value={formData.locality}
+                onChange={(val) => setFormData((prev: any) => ({ ...prev, locality: val }))}
+                options={localities.map((loc) => (typeof loc === 'string' ? loc : loc.name))}
+                placeholder={
+                  !formData.city
+                    ? 'Select City or enter PIN code first'
+                    : localities.length > 0
+                    ? 'Select or type locality...'
+                    : 'Enter locality (e.g. Indiranagar, HSR Layout)'
+                }
+                disabled={!formData.city && localities.length === 0}
+                required
+                fullWidth
+              />
             </div>
 
             <div className={styles.formGrid}>
@@ -818,150 +882,181 @@ export default function EditListing({ params }: EditListingProps) {
             {formData.propertyType !== 'PLOT' && (
               <>
                 <div className={styles.formGrid}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Bedrooms (BHK)</label>
-                    <select name="bedrooms" value={formData.bedrooms} onChange={handleInputChange} className={styles.select}>
-                      <option value="">Select Bedrooms</option>
-                      <option value="1">1 BHK</option>
-                      <option value="2">2 BHK</option>
-                      <option value="3">3 BHK</option>
-                      <option value="4">4 BHK</option>
-                      <option value="5">5+ BHK</option>
-                    </select>
-                  </div>
+                  <Select
+                    label="Bedrooms (BHK)"
+                    name="bedrooms"
+                    value={formData.bedrooms}
+                    onChange={handleInputChange}
+                    placeholder="Select Bedrooms"
+                    fullWidth
+                  >
+                    <option value="1">1 BHK</option>
+                    <option value="2">2 BHK</option>
+                    <option value="3">3 BHK</option>
+                    <option value="4">4 BHK</option>
+                    <option value="5">5+ BHK</option>
+                  </Select>
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Bathrooms</label>
-                    <select name="bathrooms" value={formData.bathrooms} onChange={handleInputChange} className={styles.select}>
-                      <option value="">Select Bathrooms</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4+</option>
-                    </select>
-                  </div>
+                  <Select
+                    label="Bathrooms"
+                    name="bathrooms"
+                    value={formData.bathrooms}
+                    onChange={handleInputChange}
+                    placeholder="Select Bathrooms"
+                    fullWidth
+                  >
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4+</option>
+                  </Select>
                 </div>
 
                 <div className={styles.formGrid}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Balconies</label>
-                    <select name="balconies" value={formData.balconies} onChange={handleInputChange} className={styles.select}>
-                      <option value="">Select Balconies</option>
-                      <option value="0">0</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4+</option>
-                    </select>
-                  </div>
+                  <Select
+                    label="Balconies"
+                    name="balconies"
+                    value={formData.balconies}
+                    onChange={handleInputChange}
+                    placeholder="Select Balconies"
+                    fullWidth
+                  >
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4+</option>
+                  </Select>
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Furnishing</label>
-                    <select 
-                      name="furnishing" 
-                      value={formData.furnishing} 
-                      onChange={handleInputChange} 
-                      className={styles.select}
-                    >
-                      <option value="FURNISHED">Fully Furnished</option>
-                      <option value="SEMI_FURNISHED">Semi Furnished</option>
-                      <option value="UNFURNISHED">Unfurnished</option>
-                    </select>
-                  </div>
+                  <Select
+                    label="Furnishing"
+                    name="furnishing"
+                    value={formData.furnishing}
+                    onChange={handleInputChange}
+                    fullWidth
+                  >
+                    <option value="FURNISHED">Fully Furnished</option>
+                    <option value="SEMI_FURNISHED">Semi Furnished</option>
+                    <option value="UNFURNISHED">Unfurnished</option>
+                  </Select>
                 </div>
               </>
             )}
 
             {/* Facing & Possession */}
             <div className={styles.formGrid}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Facing</label>
-                <select name="facing" value={formData.facing} onChange={handleInputChange} className={styles.select}>
-                  <option value="EAST">East</option>
-                  <option value="NORTH">North</option>
-                  <option value="WEST">West</option>
-                  <option value="SOUTH">South</option>
-                  <option value="NORTH_EAST">North-East</option>
-                  <option value="NORTH_WEST">North-West</option>
-                  <option value="SOUTH_EAST">South-East</option>
-                  <option value="SOUTH_WEST">South-West</option>
-                </select>
-              </div>
+              <Select
+                label="Facing"
+                name="facing"
+                value={formData.facing}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="EAST">East</option>
+                <option value="NORTH">North</option>
+                <option value="WEST">West</option>
+                <option value="SOUTH">South</option>
+                <option value="NORTH_EAST">North-East</option>
+                <option value="NORTH_WEST">North-West</option>
+                <option value="SOUTH_EAST">South-East</option>
+                <option value="SOUTH_WEST">South-West</option>
+              </Select>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Possession</label>
-                <select name="possession" value={formData.possession} onChange={handleInputChange} className={styles.select}>
-                  <option value="READY">Ready to Move</option>
-                  <option value="UNDER_CONSTRUCTION">Under Construction</option>
-                </select>
-              </div>
+              <Select
+                label="Possession"
+                name="possession"
+                value={formData.possession}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="READY">Ready to Move</option>
+                <option value="UNDER_CONSTRUCTION">Under Construction</option>
+              </Select>
             </div>
 
             {/* Age of Property & Ownership */}
             <div className={styles.formGrid}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Age of Property</label>
-                <select name="ageOfProperty" value={formData.ageOfProperty} onChange={handleInputChange} className={styles.select}>
-                  <option value="0_1_YEARS">0-1 Years</option>
-                  <option value="1_5_YEARS">1-5 Years</option>
-                  <option value="5_10_YEARS">5-10 Years</option>
-                  <option value="10_PLUS_YEARS">10+ Years</option>
-                </select>
-              </div>
+              <Select
+                label="Age of Property"
+                name="ageOfProperty"
+                value={formData.ageOfProperty}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="0_1_YEARS">0-1 Years</option>
+                <option value="1_5_YEARS">1-5 Years</option>
+                <option value="5_10_YEARS">5-10 Years</option>
+                <option value="10_PLUS_YEARS">10+ Years</option>
+              </Select>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Ownership</label>
-                <select name="ownership" value={formData.ownership} onChange={handleInputChange} className={styles.select}>
-                  <option value="FREEHOLD">Freehold</option>
-                  <option value="LEASEHOLD">Leasehold</option>
-                  <option value="COOPERATIVE">Co-operative Society</option>
-                  <option value="POWER_OF_ATTORNEY">Power of Attorney</option>
-                </select>
-              </div>
+              <Select
+                label="Ownership"
+                name="ownership"
+                value={formData.ownership}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="FREEHOLD">Freehold</option>
+                <option value="LEASEHOLD">Leasehold</option>
+                <option value="COOPERATIVE">Co-operative Society</option>
+                <option value="POWER_OF_ATTORNEY">Power of Attorney</option>
+              </Select>
             </div>
 
             {/* Parking & Parking Count */}
             <div className={styles.formGrid}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Parking</label>
-                <select name="parking" value={formData.parking} onChange={handleInputChange} className={styles.select}>
-                  <option value="NONE">None</option>
-                  <option value="COVERED">Covered</option>
-                  <option value="OPEN">Open</option>
-                  <option value="BOTH">Both</option>
-                </select>
-              </div>
+              <Select
+                label="Parking"
+                name="parking"
+                value={formData.parking}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="NONE">None</option>
+                <option value="COVERED">Covered</option>
+                <option value="OPEN">Open</option>
+                <option value="BOTH">Both</option>
+              </Select>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Parking Count</label>
-                <select name="parkingCount" value={formData.parkingCount} onChange={handleInputChange} className={styles.select}>
-                  <option value="0">0</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3+</option>
-                </select>
-              </div>
+              <Select
+                label="Parking Count"
+                name="parkingCount"
+                value={formData.parkingCount}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3+</option>
+              </Select>
             </div>
 
             {/* Water Supply & Power Backup */}
             <div className={styles.formGrid}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Water Supply</label>
-                <select name="waterSupply" value={formData.waterSupply} onChange={handleInputChange} className={styles.select}>
-                  <option value="CORPORATION">Corporation / Municipal</option>
-                  <option value="BOREWELL">Borewell</option>
-                  <option value="CORP_WELL">Both Corporation & Borewell</option>
-                </select>
-              </div>
+              <Select
+                label="Water Supply"
+                name="waterSupply"
+                value={formData.waterSupply}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="CORPORATION">Corporation / Municipal</option>
+                <option value="BOREWELL">Borewell</option>
+                <option value="CORP_WELL">Both Corporation & Borewell</option>
+              </Select>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Power Backup</label>
-                <select name="powerBackup" value={formData.powerBackup} onChange={handleInputChange} className={styles.select}>
-                  <option value="NONE">None</option>
-                  <option value="PARTIAL">Partial</option>
-                  <option value="FULL">Full 24x7</option>
-                </select>
-              </div>
+              <Select
+                label="Power Backup"
+                name="powerBackup"
+                value={formData.powerBackup}
+                onChange={handleInputChange}
+                fullWidth
+              >
+                <option value="NONE">None</option>
+                <option value="PARTIAL">Partial</option>
+                <option value="FULL">Full 24x7</option>
+              </Select>
             </div>
 
             {/* RERA Number */}
