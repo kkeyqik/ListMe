@@ -32,7 +32,7 @@ export interface AuthModalProps {
   initialPhone?: string;
 }
 
-type AuthView = 'identifier' | 'credential' | 'otp' | 'email-otp';
+type AuthView = 'identifier' | 'credential' | 'otp' | 'email-otp' | 'signup';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -41,7 +41,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   redirectPath,
   initialPhone,
 }) => {
-  const { signInWithGoogle, signInWithPassword, signInWithPhoneAndPassword, signInWithEmail, verifyEmailOtp, signInWithOtp, verifyOtp, refreshProfile } = useAuth();
+  const { signInWithGoogle, signInWithPassword, signInWithPhoneAndPassword, signInWithEmail, verifyEmailOtp, signInWithOtp, verifyOtp, refreshProfile, signUp } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const { settings } = useSettings();
@@ -61,6 +61,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [timer, setTimer] = useState(0);
   const [identifierError, setIdentifierError] = useState('');
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+
+  // Signup form states
+  const [signupName, setSignupName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupPhone, setSignupPhone] = useState('');
 
   // Firebase auth state variables
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
@@ -96,6 +102,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setIdentifier(clean);
         setIsPhoneDetected(true);
         setCountryCode('+91');
+        setSignupPhone(clean);
       }
     } else {
       setView('identifier');
@@ -105,6 +112,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setLoading(false);
       setTimer(0);
       setIdentifierError('');
+      setSignupName('');
+      setSignupEmail('');
+      setSignupPassword('');
+      setSignupPhone('');
     }
   }, [isOpen, initialPhone]);
 
@@ -247,6 +258,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
         setLoading(false);
       }
+    }
+  };
+
+  const handleModalSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signupName.trim()) {
+      showToast('Error', 'Please enter your full name', 'error');
+      return;
+    }
+    const cleanPhone = signupPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      showToast('Error', 'Please enter a valid 10-digit mobile number', 'error');
+      return;
+    }
+    if (!signupEmail.trim() || !/\S+@\S+\.\S+/.test(signupEmail)) {
+      showToast('Error', 'Please enter a valid email address', 'error');
+      return;
+    }
+    if (!signupPassword || signupPassword.length < 6) {
+      showToast('Error', 'Password must be at least 6 characters', 'error');
+      return;
+    }
+
+    setLoading(true);
+    const formattedPhone = signupPhone.startsWith('+') ? signupPhone : `+91${cleanPhone.slice(-10)}`;
+    const { error } = await signUp(signupName.trim(), formattedPhone, signupEmail.trim(), signupPassword);
+    setLoading(false);
+
+    if (error) {
+      showToast('Registration Failed', typeof error === 'string' ? error : error.message || 'Something went wrong', 'error');
+    } else {
+      showToast('Welcome to ListMe!', 'Your account has been created successfully.', 'success');
+      onClose();
+      onSuccess?.();
+      window.location.href = redirectPath || '/dashboard/listings/new';
     }
   };
 
@@ -544,7 +590,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <ShieldCheck size={28} />
               </div>
               <h2 className={styles.title}>Welcome to ListMe</h2>
-              <p className={styles.subtitle}>Login or create an account</p>
+              <p className={styles.subtitle}>
+                Login or{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignupPhone(identifier || phone || '');
+                    setView('signup');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-primary)',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    fontSize: 'inherit',
+                    padding: 0
+                  }}
+                >
+                  create an account
+                </button>
+              </p>
             </div>
 
             <form onSubmit={handleIdentifierSubmit} className={styles.form}>
@@ -655,6 +722,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
 
+            {/* Sign Up Prompt */}
+            <div style={{ textAlign: 'center', margin: '1.25rem 0 0.5rem', fontSize: '0.937rem' }}>
+              <span style={{ color: 'var(--color-neutral-600)' }}>Don&apos;t have an account? </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSignupPhone(identifier || phone || '');
+                  setView('signup');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-primary)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Sign Up / Create Account
+              </button>
+            </div>
+
             {/* Terms */}
             <p className={styles.terms}>
               By continuing, you agree to our{' '}
@@ -695,6 +784,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div style={{ marginTop: 12, textAlign: 'center' }}>
                 <button type="button" onClick={() => setLoginMethod(loginMethod === 'password' ? 'otp' : 'password')} style={{ background: 'none', border: 'none', color: 'var(--color-primary-500)', cursor: 'pointer', fontWeight: 500 }}>
                   Login with {loginMethod === 'password' ? 'OTP' : 'Password'} instead
+                </button>
+              </div>
+
+              <div style={{ marginTop: 12, textAlign: 'center', fontSize: '0.937rem' }}>
+                <span style={{ color: 'var(--color-neutral-600)' }}>Don&apos;t have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignupPhone(phone || identifier || '');
+                    setView('signup');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-primary)',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Create an account
                 </button>
               </div>
             </form>
@@ -765,6 +875,134 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── SIGNUP VIEW ── */}
+        {view === 'signup' && (
+          <div className={styles.content}>
+            <button
+              type="button"
+              className={styles.backBtn}
+              onClick={() => setView('identifier')}
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Login</span>
+            </button>
+
+            <div className={styles.header}>
+              <div className={styles.headerIcon}>
+                <ShieldCheck size={28} />
+              </div>
+              <h2 className={styles.title}>Create an Account</h2>
+              <p className={styles.subtitle}>Join ListMe to post listings and connect directly with verified buyers & owners</p>
+            </div>
+
+            <form onSubmit={handleModalSignup} className={styles.form}>
+              <Input
+                label="Full Name"
+                type="text"
+                placeholder="Enter your full name"
+                value={signupName}
+                onChange={(e) => setSignupName(e.target.value)}
+                leftIcon={<User size={18} />}
+                fullWidth
+                required
+              />
+
+              <Input
+                label="Mobile Number"
+                type="tel"
+                placeholder="10-digit mobile number"
+                value={signupPhone}
+                onChange={(e) => setSignupPhone(e.target.value)}
+                leftIcon={<Phone size={18} />}
+                fullWidth
+                required
+              />
+
+              <Input
+                label="Email Address"
+                type="email"
+                placeholder="name@example.com"
+                value={signupEmail}
+                onChange={(e) => setSignupEmail(e.target.value)}
+                leftIcon={<Mail size={18} />}
+                fullWidth
+                required
+              />
+
+              <Input
+                label="Password"
+                type="password"
+                placeholder="Create a password (min 6 characters)"
+                value={signupPassword}
+                onChange={(e) => setSignupPassword(e.target.value)}
+                fullWidth
+                required
+              />
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={loading}
+                rightIcon={<ArrowRight size={18} />}
+              >
+                Create Account & Continue
+              </Button>
+            </form>
+
+            {/* Divider */}
+            <div className={styles.divider}>
+              <span className={styles.dividerLine} />
+              <span className={styles.dividerText}>or</span>
+              <span className={styles.dividerLine} />
+            </div>
+
+            {/* Social Buttons */}
+            <div className={styles.socialButtons}>
+              <button
+                type="button"
+                className={styles.googleBtn}
+                onClick={handleGoogleLogin}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+            </div>
+
+            {/* Login Prompt */}
+            <div style={{ textAlign: 'center', margin: '0.5rem 0 0', fontSize: '0.937rem' }}>
+              <span style={{ color: 'var(--color-neutral-600)' }}>Already have an account? </span>
+              <button
+                type="button"
+                onClick={() => setView('identifier')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-primary)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Log In
+              </button>
+            </div>
+
+            {/* Terms */}
+            <p className={styles.terms}>
+              By signing up, you agree to our{' '}
+              <a href="/terms">Terms of Service</a> &{' '}
+              <a href="/privacy">Privacy Policy</a>
+            </p>
           </div>
         )}
 
