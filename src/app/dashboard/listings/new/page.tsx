@@ -563,9 +563,10 @@ export default function NewListing() {
       if (!isPhoneVerified) {
         showToast(
           'Phone Verification Required',
-          'Please verify your mobile phone number in your profile before posting a property listing.',
-          'error'
+          'Please verify your mobile phone number before proceeding to Step 2.',
+          'warning'
         );
+        setVerifyModalOpen(true);
         return;
       }
       if (!formData.title.trim()) {
