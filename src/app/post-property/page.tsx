@@ -827,6 +827,7 @@ export default function PostPropertyPage() {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
+        initialPhone={phone}
         redirectPath={`/dashboard/listings/new?type=${listingFor}&propertyType=${propertyType}`}
       />
       <PhoneVerificationModal

@@ -29,6 +29,7 @@ export interface AuthModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   redirectPath?: string;
+  initialPhone?: string;
 }
 
 type AuthView = 'identifier' | 'credential' | 'otp' | 'email-otp';
@@ -38,6 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onSuccess,
   redirectPath,
+  initialPhone,
 }) => {
   const { signInWithGoogle, signInWithPassword, signInWithPhoneAndPassword, signInWithEmail, verifyEmailOtp, signInWithOtp, verifyOtp, refreshProfile } = useAuth();
   const { showToast } = useToast();
@@ -85,9 +87,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     return () => setMounted(false);
   }, []);
 
-  // Reset state when modal closes
+  // Reset state when modal closes or prefill on open
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      const prefill = initialPhone || (typeof window !== 'undefined' ? window.sessionStorage.getItem('onboarding_phone') : '');
+      if (prefill && prefill.trim()) {
+        const clean = prefill.trim().replace('+91', '').trim();
+        setIdentifier(clean);
+        setIsPhoneDetected(true);
+        setCountryCode('+91');
+      }
+    } else {
       setView('identifier');
       setPhone('');
       setOtp('');
@@ -96,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimer(0);
       setIdentifierError('');
     }
-  }, [isOpen]);
+  }, [isOpen, initialPhone]);
 
   // Escape key + body scroll lock
   useEffect(() => {

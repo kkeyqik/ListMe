@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useToast, Button, Input, Card } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
 import { createClient } from '@/lib/supabase/client';
 import {
   generateFileName,
@@ -37,8 +38,9 @@ import styles from './new.module.css';
 export default function NewListing() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, refreshProfile } = useAuth();
   const isPhoneVerified = Boolean(profile?.phoneVerified || profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN');
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   
   // Data lists from backend APIs
   const [cities, setCities] = useState<any[]>([]);
@@ -629,8 +631,17 @@ export default function NewListing() {
                     To prevent spam and ensure real, verified property owners on ListMe, your mobile phone number must be verified before you can list a property.
                   </p>
                   <div className={styles.warningActions}>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setVerifyModalOpen(true)}
+                      style={{ padding: '0.4rem 0.85rem' }}
+                    >
+                      Verify Phone via OTP &rarr;
+                    </Button>
                     <Link href="/dashboard/profile" className={styles.verifyLink}>
-                      Go to Profile & Verify Phone &rarr;
+                      Or edit in Profile
                     </Link>
                   </div>
                 </div>
@@ -1304,6 +1315,17 @@ export default function NewListing() {
           )}
         </div>
       </Card>
+
+      <PhoneVerificationModal
+        isOpen={verifyModalOpen}
+        onClose={() => setVerifyModalOpen(false)}
+        onSuccess={async () => {
+          await refreshProfile();
+          setVerifyModalOpen(false);
+          showToast('Success', 'Your phone number has been verified! You can now proceed with your listing.', 'success');
+        }}
+        initialPhone={typeof window !== 'undefined' ? window.sessionStorage.getItem('onboarding_phone') || profile?.phone || '' : profile?.phone || ''}
+      />
     </div>
   );
 }
