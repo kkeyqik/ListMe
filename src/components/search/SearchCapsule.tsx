@@ -178,9 +178,10 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     e.preventDefault();
     const params = new URLSearchParams();
 
-    // 1. Resolve Location
+    // 1. Resolve Location & Query Parsing
     const queryLower = searchQuery.toLowerCase();
     let resolvedCity = '';
+    let matchedCityTerm = '';
     const recognizedCities = [
       'mumbai', 'pune', 'delhi', 'ghaziabad', 'noida', 'gurgaon', 'gurugram',
       'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'kolkata', 'ahmedabad',
@@ -189,6 +190,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     ];
     for (const city of recognizedCities) {
       if (queryLower.includes(city)) {
+        matchedCityTerm = city;
         if (city === 'bengaluru') resolvedCity = 'bangalore';
         else if (city === 'gurugram') resolvedCity = 'gurgaon';
         else resolvedCity = city;
@@ -200,7 +202,6 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     }
 
     if (resolvedCity) params.set('city', resolvedCity);
-    if (searchQuery.trim()) params.set('query', searchQuery.trim());
 
     // 2. Resolve BHK
     let resolvedBhk = '';
@@ -210,6 +211,25 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     else if (queryLower.includes('4 bhk') || queryLower.includes('4bhk')) resolvedBhk = '4';
 
     if (resolvedBhk) params.set('bhk', resolvedBhk);
+
+    // 3. Extract clean residual text query (stripping parsed city, bhk tokens, and prepositions)
+    let residualQuery = searchQuery.trim();
+    if (matchedCityTerm) {
+      const cityRegex = new RegExp(`\\b${matchedCityTerm}\\b`, 'gi');
+      residualQuery = residualQuery.replace(cityRegex, ' ');
+    }
+    if (resolvedBhk) {
+      residualQuery = residualQuery.replace(/\b[1-4]\s*bhk\b/gi, ' ');
+    }
+    residualQuery = residualQuery
+      .replace(/\b(for\s+sale|for\s+rent|in|at|near)\b/gi, ' ')
+      .replace(/[,;]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (residualQuery) {
+      params.set('query', residualQuery);
+    }
 
     // 3. Resolve active tab type
     if (activeTab === 'Rent') {

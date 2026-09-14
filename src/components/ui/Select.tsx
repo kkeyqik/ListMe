@@ -210,7 +210,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
   };
 
   const handleOpenDropdown = () => {
-    if (disabled || normalizedOptions.length === 0) return;
+    if (disabled || normalizedOptions.length === 0 || isOpen) return;
     setIsTyping(false);
     // Find index of currently selected item to pre-highlight it
     const currentIdx = normalizedOptions.findIndex(
@@ -238,9 +238,14 @@ export const Combobox: React.FC<ComboboxProps> = ({
         setActiveIndex((prev) => (prev <= 0 ? filteredOptions.length - 1 : prev - 1));
       }
     } else if (e.key === 'Enter') {
-      if (isOpen && activeIndex >= 0 && activeIndex < filteredOptions.length) {
+      if (isOpen) {
         e.preventDefault(); // Crucial: Prevent accidental form submission
-        handleSelectOption(filteredOptions[activeIndex].value);
+        if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
+          handleSelectOption(filteredOptions[activeIndex].value);
+        } else {
+          setIsOpen(false);
+          setIsTyping(false);
+        }
       }
     } else if (e.key === 'Escape') {
       if (isOpen) {
@@ -302,7 +307,11 @@ export const Combobox: React.FC<ComboboxProps> = ({
           aria-haspopup="listbox"
           aria-autocomplete="list"
           aria-controls={listboxId}
-          aria-activedescendant={activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined}
+          aria-activedescendant={
+            activeIndex >= 0 && activeIndex < filteredOptions.length
+              ? `${listboxId}-opt-${activeIndex}`
+              : undefined
+          }
           className={`${styles.comboboxInput} ${className}`}
         />
 

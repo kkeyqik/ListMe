@@ -127,6 +127,14 @@ function ListingsSearchContent() {
     router.push(`/listings?${params.toString()}`);
   };
 
+  const handleSortChange = (newSort: string) => {
+    setSort(newSort);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('sort', newSort);
+    params.set('page', '1');
+    router.push(`/listings?${params.toString()}`);
+  };
+
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -170,8 +178,8 @@ function ListingsSearchContent() {
 
           {/* Property Type */}
           <div className={styles.filterGroup}>
+            <label className={styles.filterTitle}>Property Type</label>
             <Select
-              label="Property Type"
               size="sm"
               fullWidth
               value={propertyType}
@@ -210,8 +218,8 @@ function ListingsSearchContent() {
 
           {/* BHK Configuration */}
           <div className={styles.filterGroup}>
+            <label className={styles.filterTitle}>Configuration</label>
             <Select
-              label="Configuration"
               size="sm"
               fullWidth
               value={bhk}
@@ -229,8 +237,8 @@ function ListingsSearchContent() {
 
           {/* Furnishing Status */}
           <div className={styles.filterGroup}>
+            <label className={styles.filterTitle}>Furnishing</label>
             <Select
-              label="Furnishing"
               size="sm"
               fullWidth
               value={furnishing}
@@ -262,7 +270,7 @@ function ListingsSearchContent() {
               <Select
                 size="sm"
                 value={sort}
-                onChange={(e) => setSort(e.target.value)}
+                onChange={(e) => handleSortChange(e.target.value)}
                 options={[
                   { value: 'newest', label: 'Newest First' },
                   { value: 'price_asc', label: 'Price: Low to High' },
