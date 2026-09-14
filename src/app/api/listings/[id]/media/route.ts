@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
-import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { DocType } from '@prisma/client';
 
@@ -58,15 +57,49 @@ export async function POST(
     }
 
     const body = await request.json();
-    const images = Array.isArray(body.images) ? (body.images as ImagePayload[]) : [];
-    const documents = Array.isArray(body.documents) ? (body.documents as DocumentPayload[]) : [];
-    const videos = Array.isArray(body.videos) ? (body.videos as VideoPayload[]) : [];
+    const rawImages = Array.isArray(body.images) ? (body.images as ImagePayload[]) : [];
+    const rawDocuments = Array.isArray(body.documents) ? (body.documents as DocumentPayload[]) : [];
+    const rawVideos = Array.isArray(body.videos) ? (body.videos as VideoPayload[]) : [];
+
+    // Filter valid images and documents
+    const images = rawImages.filter(
+      (img) => typeof img?.imageUrl === 'string' && img.imageUrl.trim().length > 0
+    );
+    const documents = rawDocuments.filter(
+      (doc) => typeof doc?.docUrl === 'string' && doc.docUrl.trim().length > 0
+    );
+
+    // Validate and sanitize videos
+    const validVideos: VideoPayload[] = [];
+    for (const vid of rawVideos) {
+      if (typeof vid?.videoUrl === 'string' && vid.videoUrl.trim().length > 0) {
+        const trimmed = vid.videoUrl.trim();
+        if (!/^https?:\/\//i.test(trimmed)) {
+          return NextResponse.json(
+            { message: 'Video URL must start with http:// or https://' },
+            { status: 400 }
+          );
+        }
+        try {
+          new URL(trimmed);
+          validVideos.push({
+            videoUrl: trimmed.slice(0, 2048),
+            videoType: vid.videoType?.trim() || 'walkthrough',
+          });
+        } catch {
+          return NextResponse.json(
+            { message: 'Invalid video URL format' },
+            { status: 400 }
+          );
+        }
+      }
+    }
 
     const createdImages = images.length
       ? await prisma.listingImage.createManyAndReturn({
           data: images.map((image, index) => ({
             listingId: id,
-            imageUrl: image.imageUrl,
+            imageUrl: image.imageUrl.trim(),
             imageType: image.imageType || 'photo',
             displayOrder: image.displayOrder ?? index,
             isPrimary: image.isPrimary ?? index === 0,
@@ -79,28 +112,31 @@ export async function POST(
           data: documents.map((document) => ({
             listingId: id,
             docType: (document.docType || 'OTHER').toUpperCase() as DocType,
-            docName: document.docName,
-            docUrl: document.docUrl,
+            docName: document.docName || 'Document',
+            docUrl: document.docUrl.trim(),
           })),
         })
       : [];
 
     let createdVideos: any[] = [];
-    if (body.replaceVideos || videos.length > 0) {
-      if (body.replaceVideos) {
-        await prisma.listingVideo.deleteMany({
-          where: { listingId: id },
-        });
-      }
-      if (videos.length > 0) {
-        createdVideos = await prisma.listingVideo.createManyAndReturn({
-          data: videos.map((video) => ({
-            listingId: id,
-            videoUrl: video.videoUrl,
-            videoType: video.videoType || 'walkthrough',
-          })),
-        });
-      }
+    if (body.replaceVideos || validVideos.length > 0) {
+      createdVideos = await prisma.$transaction(async (tx) => {
+        if (body.replaceVideos) {
+          await tx.listingVideo.deleteMany({
+            where: { listingId: id },
+          });
+        }
+        if (validVideos.length > 0) {
+          return await tx.listingVideo.createManyAndReturn({
+            data: validVideos.map((video) => ({
+              listingId: id,
+              videoUrl: video.videoUrl,
+              videoType: video.videoType || 'walkthrough',
+            })),
+          });
+        }
+        return [];
+      });
     }
 
     return NextResponse.json({

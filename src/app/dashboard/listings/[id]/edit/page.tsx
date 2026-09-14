@@ -93,6 +93,7 @@ export default function EditListing({ params }: EditListingProps) {
   const [currentPhotos, setCurrentPhotos] = useState<any[]>([]);
   const [selectedPhotos, setSelectedPhotos] = useState<any[]>([]);
   const [selectedDocs, setSelectedDocs] = useState<any[]>([]);
+  const [initialVideoUrl, setInitialVideoUrl] = useState('');
 
   // Fetch Cities, Amenities, and Existing Listing Details
   useEffect(() => {
@@ -109,24 +110,31 @@ export default function EditListing({ params }: EditListingProps) {
         if (citiesRes.ok && amenitiesRes.ok && listingRes.ok) {
           const citiesData = await citiesRes.ok ? await citiesRes.json() : { cities: [] };
           const amenitiesData = await amenitiesRes.ok ? await amenitiesRes.json() : { amenities: [] };
-          const listingData = await listingRes.json();
+          const listingData = await listingRes.ok ? await listingRes.json() : null;
+
+          if (!listingData || !listingData.listing) {
+            showToast('Error', 'Listing not found', 'error');
+            router.push('/dashboard/listings');
+            return;
+          }
 
           setCities(citiesData.cities || []);
           setAmenities(amenitiesData.amenities || []);
 
           // Map existing listing details to form state
           const listing = listingData.listing;
+          const existingVideo = listing.videos?.[0]?.videoUrl || '';
           
           setFormData({
-            listingFor: listing.listingFor,
-            propertyType: listing.propertyType,
-            title: listing.title,
+            listingFor: listing.listingFor || 'SALE',
+            propertyType: listing.propertyType || 'APARTMENT',
+            title: listing.title || '',
             description: listing.description || '',
             keyHighlights: listing.keyHighlights?.length ? listing.keyHighlights : [''],
-            city: listing.city,
-            locality: listing.locality,
+            city: listing.city || '',
+            locality: listing.locality || '',
             subLocality: listing.subLocality || '',
-            pinCode: listing.pinCode,
+            pinCode: listing.pinCode || '',
             fullAddress: listing.fullAddress || '',
             landmark: listing.landmark || '',
             bedrooms: listing.bedrooms?.toString() || '',
@@ -148,9 +156,11 @@ export default function EditListing({ params }: EditListingProps) {
             waterSupply: listing.waterSupply || 'CORP_WELL',
             powerBackup: listing.powerBackup || 'FULL',
             reraNumber: listing.reraNumber || '',
-            videoUrl: listing.videos?.[0]?.videoUrl || '',
+            videoUrl: existingVideo,
             selectedAmenities: listing.amenities?.map((a: any) => a.amenityId) || [],
           });
+
+          setInitialVideoUrl(existingVideo);
 
           // Preload current photo names for visual feedback
           setCurrentPhotos(listing.images || []);
@@ -401,7 +411,7 @@ export default function EditListing({ params }: EditListingProps) {
     setSelectedDocs((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const uploadListingMedia = async () => {
+  const uploadListingMedia = async (videoHasChanged = false, videoUrlToSave = '') => {
     const supabase = createClient();
 
     const images = [];
@@ -473,15 +483,20 @@ export default function EditListing({ params }: EditListingProps) {
       });
     }
 
-    const videos = formData.videoUrl?.trim()
-      ? [{ videoUrl: formData.videoUrl.trim(), videoType: 'walkthrough' }]
+    const videos = videoUrlToSave?.trim()
+      ? [{ videoUrl: videoUrlToSave.trim(), videoType: 'walkthrough' }]
       : [];
 
-    if (images.length || documents.length || videos.length || formData.videoUrl !== undefined) {
+    if (images.length || documents.length || videoHasChanged) {
       const mediaResponse = await fetch(`/api/listings/${listingId}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images, documents, videos, replaceVideos: true }),
+        body: JSON.stringify({
+          images,
+          documents,
+          videos: videoHasChanged ? videos : undefined,
+          replaceVideos: videoHasChanged,
+        }),
       });
 
       if (!mediaResponse.ok) {
@@ -509,25 +524,44 @@ export default function EditListing({ params }: EditListingProps) {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
           );
-          if (!res.ok) throw new Error('Failed to resolve coordinates');
           const data = await res.json();
-          
           const address = data.address || {};
           const rawCity = address.city || address.town || address.village || address.state_district || '';
+          const rawSub = address.suburb || address.neighbourhood || address.residential || address.road || '';
           const rawPostcode = address.postcode || '';
-          
+
+          const combinedLoc = `${rawCity} ${rawSub} ${data.display_name || ''}`.toLowerCase();
           let resolvedCity = '';
-          const normalizedRaw = rawCity.toLowerCase();
-          
-          if (normalizedRaw.includes('bangalore') || normalizedRaw.includes('bengaluru')) {
+
+          const directMatch = cities.find((c) => {
+            const cName = c.name.toLowerCase();
+            return combinedLoc.includes(` ${cName} `) ||
+                   combinedLoc.startsWith(`${cName} `) ||
+                   combinedLoc.endsWith(` ${cName}`) ||
+                   combinedLoc === cName ||
+                   combinedLoc.includes(cName);
+          });
+
+          if (directMatch) {
+            resolvedCity = directMatch.name;
+          } else if (
+            combinedLoc.includes('delhi') ||
+            combinedLoc.includes('noida') ||
+            combinedLoc.includes('gurgaon') ||
+            combinedLoc.includes('gurugram') ||
+            combinedLoc.includes('faridabad') ||
+            combinedLoc.includes('ghaziabad')
+          ) {
+            const ncrCity = cities.find(c => combinedLoc.includes(c.name.toLowerCase()));
+            resolvedCity = ncrCity ? ncrCity.name : 'Delhi NCR';
+          } else if (combinedLoc.includes('bangalore') || combinedLoc.includes('bengaluru')) {
             resolvedCity = 'Bangalore';
-          } else if (normalizedRaw.includes('mumbai') || normalizedRaw.includes('bombay')) {
-            resolvedCity = 'Mumbai';
-          } else if (normalizedRaw.includes('delhi') || normalizedRaw.includes('noida') || normalizedRaw.includes('gurgaon') || normalizedRaw.includes('gurugram')) {
-            resolvedCity = 'Delhi NCR';
-          } else if (normalizedRaw.includes('pune') || normalizedRaw.includes('poona')) {
+          } else if (combinedLoc.includes('mumbai') || combinedLoc.includes('bombay') || combinedLoc.includes('thane') || combinedLoc.includes('navi mumbai')) {
+            const mumbaiCity = cities.find(c => combinedLoc.includes(c.name.toLowerCase()));
+            resolvedCity = mumbaiCity ? mumbaiCity.name : 'Mumbai';
+          } else if (combinedLoc.includes('pune') || combinedLoc.includes('poona')) {
             resolvedCity = 'Pune';
-          } else if (normalizedRaw.includes('hyderabad')) {
+          } else if (combinedLoc.includes('hyderabad') || combinedLoc.includes('secunderabad')) {
             resolvedCity = 'Hyderabad';
           }
 
@@ -540,7 +574,6 @@ export default function EditListing({ params }: EditListingProps) {
               return prev;
             });
 
-            const rawSub = address.suburb || address.neighbourhood || address.residential || '';
             const cleanPostcode = rawPostcode.replace(/\D/g, '').substring(0, 6);
             prevCityRef.current = finalCity;
 
@@ -581,6 +614,33 @@ export default function EditListing({ params }: EditListingProps) {
 
   // Submit edits PUT
   const handleSubmit = async () => {
+    let normalizedVideo = formData.videoUrl?.trim() || '';
+    if (normalizedVideo && !/^[a-zA-Z]+:\/\//.test(normalizedVideo)) {
+      if (
+        normalizedVideo.startsWith('youtube.com') ||
+        normalizedVideo.startsWith('youtu.be') ||
+        normalizedVideo.startsWith('vimeo.com') ||
+        normalizedVideo.startsWith('www.')
+      ) {
+        normalizedVideo = `https://${normalizedVideo}`;
+      }
+    }
+
+    if (normalizedVideo) {
+      try {
+        const parsed = new URL(normalizedVideo);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          showToast('Invalid Video URL', 'Video URL must use http or https protocol', 'warning');
+          return;
+        }
+      } catch {
+        showToast('Invalid Video URL', 'Please enter a valid video link (e.g. YouTube or Vimeo)', 'warning');
+        return;
+      }
+    }
+
+    const videoChanged = normalizedVideo !== initialVideoUrl.trim();
+
     setSubmitting(true);
     try {
       const response = await fetch(`/api/listings/${listingId}`, {
@@ -588,6 +648,7 @@ export default function EditListing({ params }: EditListingProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          videoUrl: normalizedVideo,
           amenities: formData.selectedAmenities,
         }),
       });
@@ -595,8 +656,8 @@ export default function EditListing({ params }: EditListingProps) {
       const data = await response.json();
 
       if (response.ok) {
-        if (selectedPhotos.length > 0 || selectedDocs.length > 0 || formData.videoUrl !== undefined) {
-          await uploadListingMedia();
+        if (selectedPhotos.length > 0 || selectedDocs.length > 0 || videoChanged) {
+          await uploadListingMedia(videoChanged, normalizedVideo);
         }
 
         showToast('Success', 'Listing updated successfully', 'success');

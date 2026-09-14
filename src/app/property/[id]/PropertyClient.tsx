@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -20,7 +20,9 @@ import {
   ChevronRight,
   Video,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ExternalLink,
+  Play
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -34,39 +36,101 @@ interface PropertyClientProps {
   initialListing: any;
 }
 
-function getEmbedUrl(rawUrl: string): { type: 'iframe' | 'video' | 'invalid'; url: string } {
-  if (!rawUrl) return { type: 'invalid', url: '' };
+function getEmbedUrl(rawUrl: string): { type: 'iframe' | 'video' | 'link' | 'invalid'; url: string } {
+  if (!rawUrl || typeof rawUrl !== 'string') return { type: 'invalid', url: '' };
   const trimmed = rawUrl.trim();
+  if (!trimmed) return { type: 'invalid', url: '' };
 
-  // YouTube match
-  const ytMatch = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  // Reject unsafe schemes (XSS prevention)
+  if (/^(javascript|data|vbscript):/i.test(trimmed)) {
+    return { type: 'invalid', url: '' };
+  }
+
+  // Parse start timestamp if present in query param (e.g. ?t=45, ?t=1m30s, &start=45)
+  const extractTime = (url: string): number | null => {
+    try {
+      const match = url.match(/[?&#](?:t|start)=([0-9mh]+[0-9s]?|[0-9]+)/i);
+      if (!match || !match[1]) return null;
+      const val = match[1].toLowerCase();
+      if (/^\d+$/.test(val)) return parseInt(val, 10);
+      let totalSec = 0;
+      const hMatch = val.match(/(\d+)h/);
+      const mMatch = val.match(/(\d+)m/);
+      const sMatch = val.match(/(\d+)s/);
+      if (hMatch) totalSec += parseInt(hMatch[1], 10) * 3600;
+      if (mMatch) totalSec += parseInt(mMatch[1], 10) * 60;
+      if (sMatch) totalSec += parseInt(sMatch[1], 10);
+      return totalSec > 0 ? totalSec : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // 1. YouTube (watch, embed, v, shorts, live, youtu.be)
+  const ytMatch = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]{11})/i);
   if (ytMatch && ytMatch[1]) {
+    const startTime = extractTime(trimmed);
+    const startParam = startTime ? `&start=${startTime}` : '';
     return {
       type: 'iframe',
-      url: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`,
+      url: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0&modestbranding=1${startParam}`,
     };
   }
 
-  // Vimeo match
-  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/);
-  if (vimeoMatch && vimeoMatch[3]) {
+  // 2. Vimeo (standard, unlisted with hash, channels, groups, player)
+  const vimeoRegex = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/[^\/]*\/videos\/|album\/\d+\/video\/|video\/|)(\d+)(?:\/([a-zA-Z0-9]+))?)|(?:player\.vimeo\.com\/video\/(\d+)(?:\?h=([a-zA-Z0-9]+))?)/;
+  const vimeoMatch = trimmed.match(vimeoRegex);
+  if (vimeoMatch) {
+    const vimeoId = vimeoMatch[1] || vimeoMatch[3];
+    const vimeoHash = vimeoMatch[2] || vimeoMatch[4];
+    if (vimeoId) {
+      const hashParam = vimeoHash ? `&h=${vimeoHash}` : '';
+      return {
+        type: 'iframe',
+        url: `https://player.vimeo.com/video/${vimeoId}?title=0&byline=0&portrait=0${hashParam}`,
+      };
+    }
+  }
+
+  // 3. Matterport 3D Showcase
+  const matterportMatch = trimmed.match(/my\.matterport\.com\/show\/\?m=([a-zA-Z0-9]+)/i);
+  if (matterportMatch && matterportMatch[1]) {
     return {
       type: 'iframe',
-      url: `https://player.vimeo.com/video/${vimeoMatch[3]}?title=0&byline=0&portrait=0`,
+      url: `https://my.matterport.com/show/?m=${matterportMatch[1]}&play=1`,
     };
   }
 
-  // Direct video format (.mp4, .webm, .ogg)
-  if (/\.(mp4|webm|ogg)($|\?)/i.test(trimmed)) {
+  // 4. Loom embed
+  const loomMatch = trimmed.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9]+)/i);
+  if (loomMatch && loomMatch[1]) {
+    return {
+      type: 'iframe',
+      url: `https://www.loom.com/embed/${loomMatch[1]}`,
+    };
+  }
+
+  // 5. Streamable embed
+  const streamableMatch = trimmed.match(/streamable\.com\/(?:e\/)?([a-zA-Z0-9]+)/i);
+  if (streamableMatch && streamableMatch[1]) {
+    return {
+      type: 'iframe',
+      url: `https://streamable.com/e/${streamableMatch[1]}`,
+    };
+  }
+
+  // 6. Direct video format (.mp4, .webm, .ogg, .mov)
+  if (/\.(mp4|webm|ogg|mov)($|\?)/i.test(trimmed)) {
     return {
       type: 'video',
       url: trimmed,
     };
   }
 
+  // 7. Any other valid HTTP/HTTPS link -> External Link Tour
   if (/^https?:\/\//i.test(trimmed)) {
     return {
-      type: 'iframe',
+      type: 'link',
       url: trimmed,
     };
   }
@@ -87,20 +151,75 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
   // Media gallery & video walkthrough state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'video'>('photos');
+  const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Mobile touch gesture tracking
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
 
   const images = listing?.images || [];
   const videos = listing?.videos || [];
   const hasVideos = videos.length > 0;
   const currentVideo = hasVideos ? videos[0] : null;
 
+  const isOwnerVerified = Boolean(
+    listing?.owner?.phoneVerified ||
+    listing?.owner?.role === 'ADMIN' ||
+    listing?.owner?.role === 'SUPER_ADMIN'
+  );
+
+  const safeImageIndex = images.length > 0 ? Math.max(0, Math.min(activeImageIndex, images.length - 1)) : 0;
+
+  // Auto-scroll active thumbnail into view
+  useEffect(() => {
+    if (thumbnailRefs.current[safeImageIndex]) {
+      thumbnailRefs.current[safeImageIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [safeImageIndex]);
+
+  // Keep active index in bounds if images change
+  useEffect(() => {
+    if (activeImageIndex >= images.length && images.length > 0) {
+      setActiveImageIndex(images.length - 1);
+    }
+  }, [images.length, activeImageIndex]);
+
   const handlePrevImage = () => {
     if (images.length <= 1) return;
-    setActiveImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    setActiveImageIndex((prev) => (prev <= 0 ? images.length - 1 : prev - 1));
   };
 
   const handleNextImage = () => {
     if (images.length <= 1) return;
-    setActiveImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    setActiveImageIndex((prev) => (prev >= images.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const distance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 45;
+
+    if (distance > minSwipeDistance) {
+      handleNextImage();
+    } else if (distance < -minSwipeDistance) {
+      handlePrevImage();
+    }
+
+    touchStartX.current = null;
+    touchEndX.current = null;
   };
 
   // Phone verification modal
@@ -122,7 +241,7 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
             setHasExpressedInterest(true);
             
             // If interest exists, pull contact details
-            if (matchingInterest.listing.ownerPhone) {
+            if (matchingInterest.listing?.ownerPhone && !matchingInterest.listing.ownerPhone.startsWith('[Hidden')) {
               setOwnerContact({
                 phone: matchingInterest.listing.ownerPhone,
                 email: matchingInterest.listing.ownerEmail,
@@ -132,7 +251,7 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
               const authorizedDetailRes = await fetch(`/api/listings/${listingId}`);
               if (authorizedDetailRes.ok) {
                 const authData = await authorizedDetailRes.json();
-                if (authData.listing.owner && authData.listing.owner.phone !== '[Hidden — Click Interested to Contact]') {
+                if (authData.listing?.owner && authData.listing.owner.phone && !authData.listing.owner.phone.startsWith('[Hidden')) {
                   setOwnerContact({
                     phone: authData.listing.owner.phone,
                     email: authData.listing.owner.email,
@@ -251,9 +370,11 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
           <div className={styles.leftCol}>
             {/* Media Tabs (Photos vs Video Walkthrough) */}
             {hasVideos && (
-              <div className={styles.mediaTabs}>
+              <div className={styles.mediaTabs} role="tablist" aria-label="Media view options">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeMediaTab === 'photos'}
                   className={`${styles.mediaTab} ${activeMediaTab === 'photos' ? styles.mediaTabActive : ''}`}
                   onClick={() => setActiveMediaTab('photos')}
                 >
@@ -263,6 +384,8 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeMediaTab === 'video'}
                   className={`${styles.mediaTab} ${activeMediaTab === 'video' ? styles.mediaTabActive : ''}`}
                   onClick={() => setActiveMediaTab('video')}
                 >
@@ -299,18 +422,36 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                       />
                     </div>
                   );
-                } else {
+                } else if (videoEmbed.type === 'link') {
                   return (
-                    <div className={styles.videoContainer} style={{ color: '#fff', textAlign: 'center', padding: '2rem' }}>
-                      <p style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Video Walkthrough Available</p>
+                    <div className={styles.videoFallback}>
+                      <div className={styles.videoFallbackIcon}>
+                        <Play size={24} />
+                      </div>
+                      <div className={styles.videoFallbackTitle}>Property Video Tour</div>
+                      <p className={styles.videoFallbackText}>
+                        The owner has provided an external video walkthrough tour for this listing.
+                      </p>
                       <a
-                        href={currentVideo.videoUrl}
+                        href={videoEmbed.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: 'var(--color-secondary-light)', textDecoration: 'underline', fontSize: '0.875rem' }}
+                        className={styles.videoFallbackBtn}
                       >
-                        Click here to watch video tour ↗
+                        <ExternalLink size={16} /> Watch Video Tour
                       </a>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className={styles.videoFallback}>
+                      <div className={styles.videoFallbackIcon}>
+                        <Video size={24} />
+                      </div>
+                      <div className={styles.videoFallbackTitle}>Video Tour Unavailable</div>
+                      <p className={styles.videoFallbackText}>
+                        The provided video link is invalid or temporarily unavailable.
+                      </p>
                     </div>
                   );
                 }
@@ -321,17 +462,31 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                   className={styles.gallery}
                   tabIndex={0}
                   role="region"
-                  aria-label="Property photos gallery"
+                  aria-label="Property photos gallery. Use left and right arrow keys to navigate."
                   onKeyDown={(e) => {
-                    if (e.key === 'ArrowLeft') handlePrevImage();
-                    if (e.key === 'ArrowRight') handleNextImage();
+                    if (e.key === 'ArrowLeft') {
+                      e.preventDefault();
+                      handlePrevImage();
+                    } else if (e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      handleNextImage();
+                    } else if (e.key === 'Home') {
+                      e.preventDefault();
+                      setActiveImageIndex(0);
+                    } else if (e.key === 'End' && images.length > 0) {
+                      e.preventDefault();
+                      setActiveImageIndex(images.length - 1);
+                    }
                   }}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                 >
                   {images.length > 0 ? (
                     <>
                       <img
-                        src={images[Math.min(activeImageIndex, images.length - 1)]?.imageUrl || images[0].imageUrl}
-                        alt={`${listing.title} - Photo ${activeImageIndex + 1}`}
+                        src={images[safeImageIndex]?.imageUrl || images[0].imageUrl}
+                        alt={`${listing.title} - Photo ${safeImageIndex + 1} of ${images.length}`}
                         className={styles.galleryImage}
                       />
                       {images.length > 1 && (
@@ -360,7 +515,7 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                           </button>
                           <div className={styles.galleryCounter}>
                             <Camera size={14} />
-                            <span>{activeImageIndex + 1} / {images.length}</span>
+                            <span>{safeImageIndex + 1} / {images.length}</span>
                           </div>
                         </>
                       )}
@@ -371,17 +526,22 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                 </div>
 
                 {images.length > 1 && (
-                  <div className={styles.thumbnailTrack} role="region" aria-label="Photo thumbnails">
+                  <div className={styles.thumbnailTrack} role="tablist" aria-label="Photo thumbnails">
                     {images.map((img: any, idx: number) => (
                       <button
                         key={img.id || idx}
+                        ref={(el) => {
+                          thumbnailRefs.current[idx] = el;
+                        }}
                         type="button"
-                        className={`${styles.thumbnailBtn} ${activeImageIndex === idx ? styles.thumbnailActive : ''}`}
+                        role="tab"
+                        aria-selected={safeImageIndex === idx}
+                        className={`${styles.thumbnailBtn} ${safeImageIndex === idx ? styles.thumbnailActive : ''}`}
                         onClick={() => {
                           setActiveImageIndex(idx);
                           setActiveMediaTab('photos');
                         }}
-                        aria-label={`View photo ${idx + 1}`}
+                        aria-label={`View photo ${idx + 1} of ${images.length}`}
                       >
                         <img src={img.imageUrl} alt={`Thumbnail ${idx + 1}`} className={styles.thumbnailImg} />
                       </button>
@@ -411,7 +571,9 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                     <ShieldCheck size={22} />
                   </div>
                   <div>
-                    <div className={styles.trustMainTitle}>100% Direct from Verified Owner</div>
+                    <div className={styles.trustMainTitle}>
+                      {isOwnerVerified ? '100% Direct from Verified Owner' : 'Direct from Property Owner'}
+                    </div>
                     <div className={styles.trustSubTitle}>Zero Brokerage • Zero Middlemen • Direct Connection</div>
                   </div>
                 </div>
@@ -419,9 +581,15 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                   <span className={`${styles.trustBadge} ${styles.trustBadgeZero}`}>
                     <CheckCircle2 size={13} /> 0% Brokerage
                   </span>
-                  <span className={`${styles.trustBadge} ${styles.trustBadgeVerified}`}>
-                    <ShieldCheck size={13} /> Identity Verified
-                  </span>
+                  {isOwnerVerified ? (
+                    <span className={`${styles.trustBadge} ${styles.trustBadgeVerified}`}>
+                      <ShieldCheck size={13} /> Phone Verified
+                    </span>
+                  ) : (
+                    <span className={`${styles.trustBadge} ${styles.trustBadgePending}`}>
+                      <AlertCircle size={13} /> Direct Listing
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -443,8 +611,12 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                 <div className={styles.trustFeatureItem}>
                   <CheckCircle2 size={16} className={styles.trustFeatureCheck} />
                   <div className={styles.trustFeatureText}>
-                    <span className={styles.trustFeatureBold}>Verified Contact</span>
-                    Owner phone number is verified via mobile OTP for authentic listings.
+                    <span className={styles.trustFeatureBold}>
+                      {isOwnerVerified ? 'Verified Contact' : 'Direct Owner Listing'}
+                    </span>
+                    {isOwnerVerified
+                      ? 'Owner phone number is verified via mobile OTP for authentic listings.'
+                      : 'Direct listing by owner. No broker intermediation.'}
                   </div>
                 </div>
               </div>
@@ -530,9 +702,15 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                     </div>
                     <div>
                       <div className={styles.ownerName}>{listing.owner?.name || 'Property Owner'}</div>
-                      <div className={styles.ownerVerifiedPill}>
-                        <ShieldCheck size={11} /> Verified Owner
-                      </div>
+                      {isOwnerVerified ? (
+                        <div className={styles.ownerVerifiedPill}>
+                          <ShieldCheck size={11} /> Verified Owner
+                        </div>
+                      ) : (
+                        <div className={styles.ownerUnverifiedPill}>
+                          <AlertCircle size={11} /> Owner Listing
+                        </div>
+                      )}
                       <div className={styles.ownerZeroBrokerage}>
                         <CheckCircle2 size={12} /> Direct Owner • 0% Brokerage
                       </div>

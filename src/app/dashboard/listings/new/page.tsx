@@ -389,7 +389,7 @@ export default function NewListing() {
     setSelectedDocs((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const uploadListingMedia = async (listingId: string) => {
+  const uploadListingMedia = async (listingId: string, videoUrlToSave = '') => {
     const supabase = createClient();
 
     const images = [];
@@ -461,8 +461,8 @@ export default function NewListing() {
       });
     }
 
-    const videos = formData.videoUrl?.trim()
-      ? [{ videoUrl: formData.videoUrl.trim(), videoType: 'walkthrough' }]
+    const videos = videoUrlToSave?.trim()
+      ? [{ videoUrl: videoUrlToSave.trim(), videoType: 'walkthrough' }]
       : [];
 
     if (images.length || documents.length || videos.length) {
@@ -594,6 +594,31 @@ export default function NewListing() {
 
   // Form submission handler
   const handleSubmit = async () => {
+    let normalizedVideo = formData.videoUrl?.trim() || '';
+    if (normalizedVideo && !/^[a-zA-Z]+:\/\//.test(normalizedVideo)) {
+      if (
+        normalizedVideo.startsWith('youtube.com') ||
+        normalizedVideo.startsWith('youtu.be') ||
+        normalizedVideo.startsWith('vimeo.com') ||
+        normalizedVideo.startsWith('www.')
+      ) {
+        normalizedVideo = `https://${normalizedVideo}`;
+      }
+    }
+
+    if (normalizedVideo) {
+      try {
+        const parsed = new URL(normalizedVideo);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          showToast('Invalid Video URL', 'Video URL must use http or https protocol', 'warning');
+          return;
+        }
+      } catch {
+        showToast('Invalid Video URL', 'Please enter a valid video link (e.g. YouTube or Vimeo)', 'warning');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const response = await fetch('/api/listings', {
@@ -601,6 +626,7 @@ export default function NewListing() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          videoUrl: normalizedVideo,
           amenities: formData.selectedAmenities,
         }),
       });
@@ -608,8 +634,8 @@ export default function NewListing() {
       const data = await response.json();
 
       if (response.ok) {
-        if (data.listing?.id && (selectedPhotos.length > 0 || selectedDocs.length > 0 || formData.videoUrl?.trim())) {
-          await uploadListingMedia(data.listing.id);
+        if (data.listing?.id && (selectedPhotos.length > 0 || selectedDocs.length > 0 || normalizedVideo)) {
+          await uploadListingMedia(data.listing.id, normalizedVideo);
         }
 
         showToast('Success', 'Listing submitted successfully for moderation', 'success');
