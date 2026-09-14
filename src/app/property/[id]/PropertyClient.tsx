@@ -13,7 +13,14 @@ import {
   Phone, 
   Mail, 
   Calendar,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Video,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -27,6 +34,46 @@ interface PropertyClientProps {
   initialListing: any;
 }
 
+function getEmbedUrl(rawUrl: string): { type: 'iframe' | 'video' | 'invalid'; url: string } {
+  if (!rawUrl) return { type: 'invalid', url: '' };
+  const trimmed = rawUrl.trim();
+
+  // YouTube match
+  const ytMatch = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  if (ytMatch && ytMatch[1]) {
+    return {
+      type: 'iframe',
+      url: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`,
+    };
+  }
+
+  // Vimeo match
+  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/);
+  if (vimeoMatch && vimeoMatch[3]) {
+    return {
+      type: 'iframe',
+      url: `https://player.vimeo.com/video/${vimeoMatch[3]}?title=0&byline=0&portrait=0`,
+    };
+  }
+
+  // Direct video format (.mp4, .webm, .ogg)
+  if (/\.(mp4|webm|ogg)($|\?)/i.test(trimmed)) {
+    return {
+      type: 'video',
+      url: trimmed,
+    };
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return {
+      type: 'iframe',
+      url: trimmed,
+    };
+  }
+
+  return { type: 'invalid', url: '' };
+}
+
 export default function PropertyClient({ listingId, initialListing }: PropertyClientProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -36,6 +83,25 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
   const [interestLoading, setInterestLoading] = useState(false);
   const [hasExpressedInterest, setHasExpressedInterest] = useState(false);
   const [ownerContact, setOwnerContact] = useState<any | null>(null);
+
+  // Media gallery & video walkthrough state
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'video'>('photos');
+
+  const images = listing?.images || [];
+  const videos = listing?.videos || [];
+  const hasVideos = videos.length > 0;
+  const currentVideo = hasVideos ? videos[0] : null;
+
+  const handlePrevImage = () => {
+    if (images.length <= 1) return;
+    setActiveImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNextImage = () => {
+    if (images.length <= 1) return;
+    setActiveImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
 
   // Phone verification modal
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
@@ -183,17 +249,147 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
 
         <div className={styles.detailGrid}>
           <div className={styles.leftCol}>
-            <div className={styles.gallery}>
-              {listing.images?.[0]?.imageUrl ? (
-                <img
-                  src={listing.images[0].imageUrl}
-                  alt={listing.title}
-                  className={styles.galleryImage}
-                />
-              ) : (
-                <Building size={96} className={styles.galleryIcon} />
-              )}
-            </div>
+            {/* Media Tabs (Photos vs Video Walkthrough) */}
+            {hasVideos && (
+              <div className={styles.mediaTabs}>
+                <button
+                  type="button"
+                  className={`${styles.mediaTab} ${activeMediaTab === 'photos' ? styles.mediaTabActive : ''}`}
+                  onClick={() => setActiveMediaTab('photos')}
+                >
+                  <ImageIcon size={16} />
+                  <span>Photos</span>
+                  <span className={styles.mediaTabBadge}>{images.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.mediaTab} ${activeMediaTab === 'video' ? styles.mediaTabActive : ''}`}
+                  onClick={() => setActiveMediaTab('video')}
+                >
+                  <Video size={16} />
+                  <span>Video Tour</span>
+                </button>
+              </div>
+            )}
+
+            {/* Media Display: Video Player or Photo Gallery Slider */}
+            {activeMediaTab === 'video' && currentVideo ? (
+              (() => {
+                const videoEmbed = getEmbedUrl(currentVideo.videoUrl);
+                if (videoEmbed.type === 'iframe') {
+                  return (
+                    <div className={styles.videoContainer}>
+                      <iframe
+                        src={videoEmbed.url}
+                        className={styles.videoIframe}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        title={`Video walkthrough for ${listing.title}`}
+                      />
+                    </div>
+                  );
+                } else if (videoEmbed.type === 'video') {
+                  return (
+                    <div className={styles.videoContainer}>
+                      <video
+                        src={videoEmbed.url}
+                        controls
+                        className={styles.videoPlayer}
+                        poster={images[0]?.imageUrl}
+                      />
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className={styles.videoContainer} style={{ color: '#fff', textAlign: 'center', padding: '2rem' }}>
+                      <p style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Video Walkthrough Available</p>
+                      <a
+                        href={currentVideo.videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'var(--color-secondary-light)', textDecoration: 'underline', fontSize: '0.875rem' }}
+                      >
+                        Click here to watch video tour ↗
+                      </a>
+                    </div>
+                  );
+                }
+              })()
+            ) : (
+              <div>
+                <div
+                  className={styles.gallery}
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Property photos gallery"
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft') handlePrevImage();
+                    if (e.key === 'ArrowRight') handleNextImage();
+                  }}
+                >
+                  {images.length > 0 ? (
+                    <>
+                      <img
+                        src={images[Math.min(activeImageIndex, images.length - 1)]?.imageUrl || images[0].imageUrl}
+                        alt={`${listing.title} - Photo ${activeImageIndex + 1}`}
+                        className={styles.galleryImage}
+                      />
+                      {images.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            className={`${styles.galleryNavBtn} ${styles.galleryNavPrev}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrevImage();
+                            }}
+                            aria-label="Previous photo"
+                          >
+                            <ChevronLeft size={22} />
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.galleryNavBtn} ${styles.galleryNavNext}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNextImage();
+                            }}
+                            aria-label="Next photo"
+                          >
+                            <ChevronRight size={22} />
+                          </button>
+                          <div className={styles.galleryCounter}>
+                            <Camera size={14} />
+                            <span>{activeImageIndex + 1} / {images.length}</span>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <Building size={96} className={styles.galleryIcon} />
+                  )}
+                </div>
+
+                {images.length > 1 && (
+                  <div className={styles.thumbnailTrack} role="region" aria-label="Photo thumbnails">
+                    {images.map((img: any, idx: number) => (
+                      <button
+                        key={img.id || idx}
+                        type="button"
+                        className={`${styles.thumbnailBtn} ${activeImageIndex === idx ? styles.thumbnailActive : ''}`}
+                        onClick={() => {
+                          setActiveImageIndex(idx);
+                          setActiveMediaTab('photos');
+                        }}
+                        aria-label={`View photo ${idx + 1}`}
+                      >
+                        <img src={img.imageUrl} alt={`Thumbnail ${idx + 1}`} className={styles.thumbnailImg} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className={styles.titleBlock}>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -204,6 +400,53 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
               <div className={styles.cardLocation}>
                 <MapPin size={16} style={{ color: 'var(--color-primary)' }} />
                 <span className={styles.location}>{listing.locality}, {listing.city} - {listing.pinCode}</span>
+              </div>
+            </div>
+
+            {/* 100% Direct from Verified Owner — Zero Brokerage Trust Banner */}
+            <div className={styles.trustBanner}>
+              <div className={styles.trustHeader}>
+                <div className={styles.trustTitleGroup}>
+                  <div className={styles.trustIconWrap}>
+                    <ShieldCheck size={22} />
+                  </div>
+                  <div>
+                    <div className={styles.trustMainTitle}>100% Direct from Verified Owner</div>
+                    <div className={styles.trustSubTitle}>Zero Brokerage • Zero Middlemen • Direct Connection</div>
+                  </div>
+                </div>
+                <div className={styles.trustBadgeGroup}>
+                  <span className={`${styles.trustBadge} ${styles.trustBadgeZero}`}>
+                    <CheckCircle2 size={13} /> 0% Brokerage
+                  </span>
+                  <span className={`${styles.trustBadge} ${styles.trustBadgeVerified}`}>
+                    <ShieldCheck size={13} /> Identity Verified
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.trustFeaturesGrid}>
+                <div className={styles.trustFeatureItem}>
+                  <CheckCircle2 size={16} className={styles.trustFeatureCheck} />
+                  <div className={styles.trustFeatureText}>
+                    <span className={styles.trustFeatureBold}>Zero Brokerage Guaranteed</span>
+                    Save thousands on broker commissions. Deal directly with the property owner.
+                  </div>
+                </div>
+                <div className={styles.trustFeatureItem}>
+                  <CheckCircle2 size={16} className={styles.trustFeatureCheck} />
+                  <div className={styles.trustFeatureText}>
+                    <span className={styles.trustFeatureBold}>Direct Owner Connection</span>
+                    Talk directly with the genuine owner. No agents or middlemen involved.
+                  </div>
+                </div>
+                <div className={styles.trustFeatureItem}>
+                  <CheckCircle2 size={16} className={styles.trustFeatureCheck} />
+                  <div className={styles.trustFeatureText}>
+                    <span className={styles.trustFeatureBold}>Verified Contact</span>
+                    Owner phone number is verified via mobile OTP for authentic listings.
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -287,7 +530,13 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                     </div>
                     <div>
                       <div className={styles.ownerName}>{listing.owner?.name || 'Property Owner'}</div>
-                      <div className={styles.ownerSub}>Listing ID: {listing.id.substring(0, 8)}</div>
+                      <div className={styles.ownerVerifiedPill}>
+                        <ShieldCheck size={11} /> Verified Owner
+                      </div>
+                      <div className={styles.ownerZeroBrokerage}>
+                        <CheckCircle2 size={12} /> Direct Owner • 0% Brokerage
+                      </div>
+                      <div className={styles.ownerSub} style={{ marginTop: '4px' }}>Listing ID: {listing.id.substring(0, 8)}</div>
                     </div>
                   </div>
 

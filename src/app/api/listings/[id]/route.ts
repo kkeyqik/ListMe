@@ -35,6 +35,7 @@ export async function GET(
             phone: true, // we fetch it, but will strip it if public
             avatarUrl: true,
             role: true,
+            phoneVerified: true,
           },
         },
       },

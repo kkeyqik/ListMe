@@ -15,7 +15,8 @@ import {
   Plus,
   FileText,
   Locate,
-  X
+  X,
+  Video
 } from 'lucide-react';
 import { useToast, Button, Input, Card, Select, Combobox } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
@@ -84,6 +85,7 @@ export default function EditListing({ params }: EditListingProps) {
     waterSupply: 'CORP_WELL',
     powerBackup: 'FULL',
     reraNumber: '',
+    videoUrl: '',
     selectedAmenities: [], // array of ids
   });
 
@@ -146,6 +148,7 @@ export default function EditListing({ params }: EditListingProps) {
             waterSupply: listing.waterSupply || 'CORP_WELL',
             powerBackup: listing.powerBackup || 'FULL',
             reraNumber: listing.reraNumber || '',
+            videoUrl: listing.videos?.[0]?.videoUrl || '',
             selectedAmenities: listing.amenities?.map((a: any) => a.amenityId) || [],
           });
 
@@ -470,11 +473,15 @@ export default function EditListing({ params }: EditListingProps) {
       });
     }
 
-    if (images.length || documents.length) {
+    const videos = formData.videoUrl?.trim()
+      ? [{ videoUrl: formData.videoUrl.trim(), videoType: 'walkthrough' }]
+      : [];
+
+    if (images.length || documents.length || videos.length || formData.videoUrl !== undefined) {
       const mediaResponse = await fetch(`/api/listings/${listingId}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images, documents }),
+        body: JSON.stringify({ images, documents, videos, replaceVideos: true }),
       });
 
       if (!mediaResponse.ok) {
@@ -588,7 +595,7 @@ export default function EditListing({ params }: EditListingProps) {
       const data = await response.json();
 
       if (response.ok) {
-        if (selectedPhotos.length > 0 || selectedDocs.length > 0) {
+        if (selectedPhotos.length > 0 || selectedDocs.length > 0 || formData.videoUrl !== undefined) {
           await uploadListingMedia();
         }
 
@@ -1291,6 +1298,25 @@ export default function EditListing({ params }: EditListingProps) {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Video walkthrough section */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>
+                <Video size={18} style={{ color: 'var(--color-secondary)' }} />
+                <span>Property Walkthrough Video (Optional)</span>
+              </label>
+              <Input
+                name="videoUrl"
+                value={formData.videoUrl}
+                onChange={handleInputChange}
+                placeholder="Paste YouTube, Vimeo, or direct video URL (e.g. https://www.youtube.com/watch?v=...)"
+                leftIcon={<Video size={16} />}
+                fullWidth
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
+                Embed a video tour of your property. Buyers love seeing walkthroughs! Supports YouTube, Vimeo, and direct video links.
+              </span>
             </div>
 
             <div className={styles.formGroup}>

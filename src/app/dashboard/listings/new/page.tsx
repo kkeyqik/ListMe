@@ -17,7 +17,8 @@ import {
   FileText,
   Locate,
   ShieldAlert,
-  X
+  X,
+  Video
 } from 'lucide-react';
 import { useToast, Button, Input, Card, Select, Combobox } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
@@ -82,6 +83,7 @@ export default function NewListing() {
     waterSupply: 'CORP_WELL',
     powerBackup: 'FULL',
     reraNumber: '',
+    videoUrl: '',
     selectedAmenities: [], // array of ids
   });
 
@@ -459,11 +461,15 @@ export default function NewListing() {
       });
     }
 
-    if (images.length || documents.length) {
+    const videos = formData.videoUrl?.trim()
+      ? [{ videoUrl: formData.videoUrl.trim(), videoType: 'walkthrough' }]
+      : [];
+
+    if (images.length || documents.length || videos.length) {
       const mediaResponse = await fetch(`/api/listings/${listingId}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images, documents }),
+        body: JSON.stringify({ images, documents, videos, replaceVideos: true }),
       });
 
       if (!mediaResponse.ok) {
@@ -602,7 +608,7 @@ export default function NewListing() {
       const data = await response.json();
 
       if (response.ok) {
-        if (data.listing?.id && (selectedPhotos.length > 0 || selectedDocs.length > 0)) {
+        if (data.listing?.id && (selectedPhotos.length > 0 || selectedDocs.length > 0 || formData.videoUrl?.trim())) {
           await uploadListingMedia(data.listing.id);
         }
 
@@ -1301,6 +1307,25 @@ export default function NewListing() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Video walkthrough section */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>
+                <Video size={18} style={{ color: 'var(--color-secondary)' }} />
+                <span>Property Walkthrough Video (Optional)</span>
+              </label>
+              <Input
+                name="videoUrl"
+                value={formData.videoUrl}
+                onChange={handleInputChange}
+                placeholder="Paste YouTube, Vimeo, or direct video URL (e.g. https://www.youtube.com/watch?v=...)"
+                leftIcon={<Video size={16} />}
+                fullWidth
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
+                Embed a video tour of your property. Buyers love seeing walkthroughs! Supports YouTube, Vimeo, and direct video links.
+              </span>
             </div>
 
             {/* Document upload section */}

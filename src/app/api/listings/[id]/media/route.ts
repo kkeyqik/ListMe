@@ -17,6 +17,11 @@ interface DocumentPayload {
   docUrl: string;
 }
 
+interface VideoPayload {
+  videoUrl: string;
+  videoType?: string;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -55,6 +60,7 @@ export async function POST(
     const body = await request.json();
     const images = Array.isArray(body.images) ? (body.images as ImagePayload[]) : [];
     const documents = Array.isArray(body.documents) ? (body.documents as DocumentPayload[]) : [];
+    const videos = Array.isArray(body.videos) ? (body.videos as VideoPayload[]) : [];
 
     const createdImages = images.length
       ? await prisma.listingImage.createManyAndReturn({
@@ -79,10 +85,29 @@ export async function POST(
         })
       : [];
 
+    let createdVideos: any[] = [];
+    if (body.replaceVideos || videos.length > 0) {
+      if (body.replaceVideos) {
+        await prisma.listingVideo.deleteMany({
+          where: { listingId: id },
+        });
+      }
+      if (videos.length > 0) {
+        createdVideos = await prisma.listingVideo.createManyAndReturn({
+          data: videos.map((video) => ({
+            listingId: id,
+            videoUrl: video.videoUrl,
+            videoType: video.videoType || 'walkthrough',
+          })),
+        });
+      }
+    }
+
     return NextResponse.json({
       message: 'Listing media saved successfully',
       images: createdImages,
       documents: createdDocuments,
+      videos: createdVideos,
     });
   } catch (error: any) {
     return NextResponse.json(
