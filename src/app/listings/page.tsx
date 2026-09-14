@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Building, Bed, Square, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header, Footer } from '@/components/layout';
-import { Card, Badge, Button, Input } from '@/components/ui';
+import { Card, Badge, Button, Input, Select } from '@/components/ui';
 import styles from './listings.module.css';
 
 function ListingsSearchContent() {
@@ -170,22 +170,23 @@ function ListingsSearchContent() {
 
           {/* Property Type */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>Property Type</label>
-            <select
+            <Select
+              label="Property Type"
+              size="sm"
+              fullWidth
               value={propertyType}
               onChange={(e) => setPropertyType(e.target.value)}
-              className={styles.sortingSelect}
-              style={{ width: '100%' }}
-            >
-              <option value="ALL">All Categories</option>
-              <option value="APARTMENT">Apartment / Flat</option>
-              <option value="HOUSE">Independent House</option>
-              <option value="VILLA">Villa</option>
-              <option value="PLOT">Plot / Land</option>
-              <option value="OFFICE">Office Space</option>
-              <option value="SHOP">Shop / Retail</option>
-              <option value="PG">PG / Hostel</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'All Categories' },
+                { value: 'APARTMENT', label: 'Apartment / Flat' },
+                { value: 'HOUSE', label: 'Independent House' },
+                { value: 'VILLA', label: 'Villa' },
+                { value: 'PLOT', label: 'Plot / Land' },
+                { value: 'OFFICE', label: 'Office Space' },
+                { value: 'SHOP', label: 'Shop / Retail' },
+                { value: 'PG', label: 'PG / Hostel' },
+              ]}
+            />
           </div>
 
           {/* Pricing Range */}
@@ -209,36 +210,38 @@ function ListingsSearchContent() {
 
           {/* BHK Configuration */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>Configuration</label>
-            <select
+            <Select
+              label="Configuration"
+              size="sm"
+              fullWidth
               value={bhk}
               onChange={(e) => setBhk(e.target.value)}
-              className={styles.sortingSelect}
-              style={{ width: '100%' }}
-            >
-              <option value="ALL">Any BHK</option>
-              <option value="1">1 BHK</option>
-              <option value="2">2 BHK</option>
-              <option value="3">3 BHK</option>
-              <option value="4">4 BHK</option>
-              <option value="5">5+ BHK</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'Any BHK' },
+                { value: '1', label: '1 BHK' },
+                { value: '2', label: '2 BHK' },
+                { value: '3', label: '3 BHK' },
+                { value: '4', label: '4 BHK' },
+                { value: '5', label: '5+ BHK' },
+              ]}
+            />
           </div>
 
           {/* Furnishing Status */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>Furnishing</label>
-            <select
+            <Select
+              label="Furnishing"
+              size="sm"
+              fullWidth
               value={furnishing}
               onChange={(e) => setFurnishing(e.target.value)}
-              className={styles.sortingSelect}
-              style={{ width: '100%' }}
-            >
-              <option value="ALL">Any Furnishing</option>
-              <option value="FURNISHED">Fully Furnished</option>
-              <option value="SEMI_FURNISHED">Semi Furnished</option>
-              <option value="UNFURNISHED">Unfurnished</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'Any Furnishing' },
+                { value: 'FURNISHED', label: 'Fully Furnished' },
+                { value: 'SEMI_FURNISHED', label: 'Semi Furnished' },
+                { value: 'UNFURNISHED', label: 'Unfurnished' },
+              ]}
+            />
           </div>
 
           <Button onClick={applyFilters} variant="primary" fullWidth>
@@ -255,17 +258,18 @@ function ListingsSearchContent() {
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Sort By:</span>
-              <select
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>Sort By:</span>
+              <Select
+                size="sm"
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className={styles.sortingSelect}
-              >
-                <option value="newest">Newest First</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="area_desc">Area: High to Low</option>
-              </select>
+                options={[
+                  { value: 'newest', label: 'Newest First' },
+                  { value: 'price_asc', label: 'Price: Low to High' },
+                  { value: 'price_desc', label: 'Price: High to Low' },
+                  { value: 'area_desc', label: 'Area: High to Low' },
+                ]}
+              />
             </div>
           </div>
 

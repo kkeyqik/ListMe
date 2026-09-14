@@ -181,13 +181,26 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     // 1. Resolve Location
     const queryLower = searchQuery.toLowerCase();
     let resolvedCity = '';
-    if (queryLower.includes('mumbai')) resolvedCity = 'mumbai';
-    else if (queryLower.includes('pune')) resolvedCity = 'pune';
-    else if (queryLower.includes('delhi')) resolvedCity = 'delhi';
-    else if (queryLower.includes('ghaziabad')) resolvedCity = 'ghaziabad';
-    else if (searchLocation) resolvedCity = searchLocation;
+    const recognizedCities = [
+      'mumbai', 'pune', 'delhi', 'ghaziabad', 'noida', 'gurgaon', 'gurugram',
+      'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'kolkata', 'ahmedabad',
+      'jaipur', 'lucknow', 'faridabad', 'thane', 'navi mumbai', 'chandigarh',
+      'indore', 'bhopal', 'kochi', 'coimbatore', 'patna', 'surat', 'nagpur', 'kanpur'
+    ];
+    for (const city of recognizedCities) {
+      if (queryLower.includes(city)) {
+        if (city === 'bengaluru') resolvedCity = 'bangalore';
+        else if (city === 'gurugram') resolvedCity = 'gurgaon';
+        else resolvedCity = city;
+        break;
+      }
+    }
+    if (!resolvedCity && searchLocation) {
+      resolvedCity = searchLocation.toLowerCase();
+    }
 
     if (resolvedCity) params.set('city', resolvedCity);
+    if (searchQuery.trim()) params.set('query', searchQuery.trim());
 
     // 2. Resolve BHK
     let resolvedBhk = '';

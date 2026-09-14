@@ -232,7 +232,8 @@
 }
 
 .dropdownItem:hover,
-.dropdownItemActive {
+.dropdownItemActive,
+.dropdownItemHighlighted {
   background-color: var(--color-secondary-fade);
   color: var(--color-secondary-dark);
 }

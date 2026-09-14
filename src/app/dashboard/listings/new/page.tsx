@@ -641,6 +641,11 @@ export default function NewListing() {
         showToast('Required', 'Please fill in all location details', 'warning');
         return;
       }
+      const cleanPin = (formData.pinCode || '').replace(/\D/g, '');
+      if (cleanPin.length !== 6) {
+        showToast('Invalid PIN Code', 'Please enter a valid 6-digit Indian PIN code', 'warning');
+        return;
+      }
     }
     if (step === 3) {
       if (!formData.askingPrice) {

@@ -605,7 +605,32 @@ export default function EditListing({ params }: EditListingProps) {
     }
   };
 
-  const nextStep = () => setStep((prev) => prev + 1);
+  const nextStep = () => {
+    if (step === 1) {
+      if (!formData.title.trim()) {
+        showToast('Required', 'Please enter a title for your listing', 'warning');
+        return;
+      }
+    }
+    if (step === 2) {
+      if (!formData.city || !formData.locality || !formData.pinCode || !formData.fullAddress) {
+        showToast('Required', 'Please fill in all location details', 'warning');
+        return;
+      }
+      const cleanPin = (formData.pinCode || '').replace(/\D/g, '');
+      if (cleanPin.length !== 6) {
+        showToast('Invalid PIN Code', 'Please enter a valid 6-digit Indian PIN code', 'warning');
+        return;
+      }
+    }
+    if (step === 3) {
+      if (!formData.askingPrice) {
+        showToast('Required', 'Please enter asking price', 'warning');
+        return;
+      }
+    }
+    setStep((prev) => prev + 1);
+  };
   const prevStep = () => setStep((prev) => prev - 1);
 
   // Grouped Amenities display helper

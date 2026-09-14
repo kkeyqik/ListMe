@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header, Footer } from '@/components/layout';
-import { Input, Button, Badge, useToast } from '@/components/ui';
+import { Input, Button, Badge, Select, useToast } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
@@ -371,24 +371,14 @@ export default function PostPropertyPage() {
                   </div>
 
                   {/* Property Sub-category */}
-                  <div className={styles.formGroup}>
-                    <label htmlFor="sub-category" className={styles.label}>Property Sub-category</label>
-                    <div className={styles.selectWrapper}>
-                      <select
-                        id="sub-category"
-                        value={propertyType}
-                        onChange={(e) => setPropertyType(e.target.value)}
-                        className={styles.selectEl}
-                      >
-                        {currentSubCategories.map((sub) => (
-                          <option key={sub.value} value={sub.value}>
-                            {sub.label}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className={styles.selectIcon} size={18} />
-                    </div>
-                  </div>
+                  <Select
+                    id="sub-category"
+                    label="Property Sub-category"
+                    value={propertyType}
+                    onChange={(e) => setPropertyType(e.target.value)}
+                    options={currentSubCategories}
+                    fullWidth
+                  />
 
                   {/* Contact Number */}
                   <Input

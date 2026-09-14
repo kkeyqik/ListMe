@@ -139,35 +139,124 @@ export const Combobox: React.FC<ComboboxProps> = ({
   emptyText = 'No matching options (you can still type your own)'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const generatedId = React.useId();
+  const comboboxId = id || generatedId;
+  const listboxId = `${comboboxId}-listbox`;
 
-  // Parse options
-  const normalizedOptions: SelectOption[] = options.map((opt) => {
-    if (typeof opt === 'string') {
-      return { value: opt, label: opt };
+  // Parse and deduplicate options
+  const normalizedOptions: SelectOption[] = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: SelectOption[] = [];
+    for (const opt of options) {
+      const optVal = typeof opt === 'string' ? opt : opt.value;
+      const optLabel = typeof opt === 'string' ? opt : opt.label;
+      const optSub = typeof opt === 'string' ? undefined : opt.subLabel;
+      if (optVal && !seen.has(optVal.toLowerCase())) {
+        seen.add(optVal.toLowerCase());
+        list.push({ value: optVal, label: optLabel, subLabel: optSub });
+      }
     }
-    return opt;
-  });
+    return list;
+  }, [options]);
 
-  // Filter options based on typed value
-  const filteredOptions = normalizedOptions.filter((opt) =>
-    opt.label.toLowerCase().includes((value || '').toLowerCase())
-  );
+  // Filter options: if user is actively typing, filter by input; otherwise, show all options!
+  const filteredOptions = React.useMemo(() => {
+    if (!isTyping || !value) {
+      return normalizedOptions;
+    }
+    const query = value.toLowerCase().trim();
+    return normalizedOptions.filter((opt) =>
+      opt.label.toLowerCase().includes(query)
+    );
+  }, [normalizedOptions, isTyping, value]);
 
-  // Close on click outside
+  // Scroll active option into view
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    if (isOpen && activeIndex >= 0 && listRef.current) {
+      const activeEl = listRef.current.children[activeIndex] as HTMLElement;
+      if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [activeIndex, isOpen]);
+
+  // Close on click or touch outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setIsTyping(false);
+        setActiveIndex(-1);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const handleSelectOption = (optValue: string) => {
     onChange(optValue);
+    setIsTyping(false);
     setIsOpen(false);
+    setActiveIndex(-1);
+  };
+
+  const handleOpenDropdown = () => {
+    if (disabled || normalizedOptions.length === 0) return;
+    setIsTyping(false);
+    // Find index of currently selected item to pre-highlight it
+    const currentIdx = normalizedOptions.findIndex(
+      (opt) => opt.value.toLowerCase() === (value || '').toLowerCase()
+    );
+    setActiveIndex(currentIdx >= 0 ? currentIdx : 0);
+    setIsOpen(true);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen) {
+        handleOpenDropdown();
+      } else if (filteredOptions.length > 0) {
+        setActiveIndex((prev) => (prev + 1) % filteredOptions.length);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isOpen) {
+        handleOpenDropdown();
+      } else if (filteredOptions.length > 0) {
+        setActiveIndex((prev) => (prev <= 0 ? filteredOptions.length - 1 : prev - 1));
+      }
+    } else if (e.key === 'Enter') {
+      if (isOpen && activeIndex >= 0 && activeIndex < filteredOptions.length) {
+        e.preventDefault(); // Crucial: Prevent accidental form submission
+        handleSelectOption(filteredOptions[activeIndex].value);
+      }
+    } else if (e.key === 'Escape') {
+      if (isOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsOpen(false);
+        setIsTyping(false);
+        setActiveIndex(-1);
+      }
+    } else if (e.key === 'Tab') {
+      if (isOpen) {
+        setIsOpen(false);
+        setIsTyping(false);
+        setActiveIndex(-1);
+      }
+    }
   };
 
   return (
@@ -182,7 +271,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
       `}
     >
       {label && (
-        <label className={styles.label} htmlFor={id || name}>
+        <label className={styles.label} htmlFor={comboboxId}>
           <span>{label}</span>
           {subLabel && <span className={styles.subLabel}>{subLabel}</span>}
         </label>
@@ -190,23 +279,30 @@ export const Combobox: React.FC<ComboboxProps> = ({
 
       <div className={styles.container}>
         <input
-          id={id}
+          ref={inputRef}
+          id={comboboxId}
           name={name}
           type="text"
           value={value}
           onChange={(e) => {
+            setIsTyping(true);
             onChange(e.target.value);
+            setActiveIndex(0);
             if (!isOpen) setIsOpen(true);
           }}
-          onFocus={() => {
-            if (!disabled && normalizedOptions.length > 0) {
-              setIsOpen(true);
-            }
-          }}
+          onClick={handleOpenDropdown}
+          onFocus={handleOpenDropdown}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
           required={required}
           autoComplete="off"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-autocomplete="list"
+          aria-controls={listboxId}
+          aria-activedescendant={activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined}
           className={`${styles.comboboxInput} ${className}`}
         />
 
@@ -218,7 +314,14 @@ export const Combobox: React.FC<ComboboxProps> = ({
             e.preventDefault();
             e.stopPropagation();
             if (!disabled && normalizedOptions.length > 0) {
-              setIsOpen((prev) => !prev);
+              if (isOpen) {
+                setIsOpen(false);
+                setIsTyping(false);
+                setActiveIndex(-1);
+              } else {
+                handleOpenDropdown();
+                inputRef.current?.focus();
+              }
             }
           }}
           className={`${styles.comboboxChevronBtn} ${isOpen ? styles.chevronOpen : ''}`}
@@ -228,24 +331,38 @@ export const Combobox: React.FC<ComboboxProps> = ({
         </button>
 
         {isOpen && !disabled && (
-          <div className={styles.dropdownMenu}>
+          <div 
+            id={listboxId}
+            role="listbox"
+            ref={listRef}
+            className={styles.dropdownMenu}
+          >
             {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt) => (
-                <div
-                  key={opt.value}
-                  className={`
-                    ${styles.dropdownItem} 
-                    ${opt.value.toLowerCase() === (value || '').toLowerCase() ? styles.dropdownItemActive : ''}
-                  `}
-                  onMouseDown={(e) => {
-                    e.preventDefault(); // Prevent input blur
-                    handleSelectOption(opt.value);
-                  }}
-                >
-                  <span>{opt.label}</span>
-                  {opt.subLabel && <span className={styles.dropdownItemSub}>{opt.subLabel}</span>}
-                </div>
-              ))
+              filteredOptions.map((opt, idx) => {
+                const isSelected = opt.value.toLowerCase() === (value || '').toLowerCase();
+                const isHighlighted = idx === activeIndex;
+                return (
+                  <div
+                    key={`${opt.value}-${idx}`}
+                    id={`${listboxId}-opt-${idx}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`
+                      ${styles.dropdownItem} 
+                      ${isSelected ? styles.dropdownItemActive : ''}
+                      ${isHighlighted ? styles.dropdownItemHighlighted : ''}
+                    `}
+                    onMouseEnter={() => setActiveIndex(idx)}
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // Prevent input blur
+                      handleSelectOption(opt.value);
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                    {opt.subLabel && <span className={styles.dropdownItemSub}>{opt.subLabel}</span>}
+                  </div>
+                );
+              })
             ) : (
               <div className={styles.emptyItem}>{emptyText}</div>
             )}
