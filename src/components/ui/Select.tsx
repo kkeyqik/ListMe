@@ -36,8 +36,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
   className = '',
   wrapperClassName = '',
   children,
+  id,
+  name,
   ...props
 }, ref) => {
+  const generatedId = React.useId();
+  const selectId = id || name || generatedId;
+
   return (
     <div className={`
       ${styles.wrapper} 
@@ -47,7 +52,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
       ${wrapperClassName}
     `}>
       {label && (
-        <label className={styles.label} htmlFor={props.id || props.name}>
+        <label className={styles.label} htmlFor={selectId}>
           <span>{label}</span>
           {subLabel && <span className={styles.subLabel}>{subLabel}</span>}
         </label>
@@ -58,6 +63,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
         
         <select
           ref={ref}
+          id={selectId}
+          name={name}
           disabled={disabled}
           className={`
             ${styles.selectEl} 
@@ -156,7 +163,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
       const optVal = typeof opt === 'string' ? opt : opt.value;
       const optLabel = typeof opt === 'string' ? opt : opt.label;
       const optSub = typeof opt === 'string' ? undefined : opt.subLabel;
-      if (optVal && !seen.has(optVal.toLowerCase())) {
+      if (optVal !== undefined && optVal !== null && !seen.has(optVal.toLowerCase())) {
         seen.add(optVal.toLowerCase());
         list.push({ value: optVal, label: optLabel, subLabel: optSub });
       }
@@ -171,7 +178,8 @@ export const Combobox: React.FC<ComboboxProps> = ({
     }
     const query = value.toLowerCase().trim();
     return normalizedOptions.filter((opt) =>
-      opt.label.toLowerCase().includes(query)
+      opt.label.toLowerCase().includes(query) ||
+      (opt.subLabel ? opt.subLabel.toLowerCase().includes(query) : false)
     );
   }, [normalizedOptions, isTyping, value]);
 
@@ -306,9 +314,9 @@ export const Combobox: React.FC<ComboboxProps> = ({
           aria-expanded={isOpen}
           aria-haspopup="listbox"
           aria-autocomplete="list"
-          aria-controls={listboxId}
+          aria-controls={isOpen ? listboxId : undefined}
           aria-activedescendant={
-            activeIndex >= 0 && activeIndex < filteredOptions.length
+            isOpen && activeIndex >= 0 && activeIndex < filteredOptions.length
               ? `${listboxId}-opt-${activeIndex}`
               : undefined
           }
@@ -364,6 +372,8 @@ export const Combobox: React.FC<ComboboxProps> = ({
                     onMouseEnter={() => setActiveIndex(idx)}
                     onMouseDown={(e) => {
                       e.preventDefault(); // Prevent input blur
+                    }}
+                    onClick={() => {
                       handleSelectOption(opt.value);
                     }}
                   >

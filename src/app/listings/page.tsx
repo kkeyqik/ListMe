@@ -44,39 +44,51 @@ function ListingsSearchContent() {
   }, [searchParams]);
 
   // Construct URL and fetch listings
-  const fetchResults = async () => {
+  const fetchResults = async (signal?: AbortSignal) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (type) params.append('type', type);
       if (city) params.append('city', city);
-      if (searchQuery) params.append('query', searchQuery);
-      if (propertyType !== 'ALL') params.append('property_type', propertyType);
-      if (minPrice) params.append('min_price', minPrice);
-      if (maxPrice) params.append('max_price', maxPrice);
-      if (bhk !== 'ALL') params.append('bhk', bhk);
-      if (furnishing !== 'ALL') params.append('furnishing', furnishing);
-      if (sort) params.append('sort', sort);
-      params.append('page', page.toString());
+      const activeQuery = searchParams.get('query');
+      if (activeQuery) params.append('query', activeQuery);
+      const activePropertyType = searchParams.get('property_type');
+      if (activePropertyType && activePropertyType !== 'ALL') params.append('property_type', activePropertyType);
+      const activeMinPrice = searchParams.get('min_price');
+      if (activeMinPrice) params.append('min_price', activeMinPrice);
+      const activeMaxPrice = searchParams.get('max_price');
+      if (activeMaxPrice) params.append('max_price', activeMaxPrice);
+      const activeBhk = searchParams.get('bhk');
+      if (activeBhk && activeBhk !== 'ALL') params.append('bhk', activeBhk);
+      const activeFurnishing = searchParams.get('furnishing');
+      if (activeFurnishing && activeFurnishing !== 'ALL') params.append('furnishing', activeFurnishing);
+      const activeSort = searchParams.get('sort') || 'newest';
+      if (activeSort) params.append('sort', activeSort);
+      const activePage = searchParams.get('page') || '1';
+      params.append('page', activePage);
       params.append('limit', '12');
 
-      const res = await fetch(`/api/listings?${params.toString()}`);
+      const res = await fetch(`/api/listings?${params.toString()}`, { signal });
       const data = await res.json();
       if (res.ok) {
         setListings(data.listings || []);
         setTotal(data.meta?.total || 0);
         setTotalPages(data.meta?.totalPages || 1);
       }
-    } catch (err) {
-      console.error('Search fetch error:', err);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.error('Search fetch error:', err);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchResults();
-  }, [type, city, searchQuery, propertyType, minPrice, maxPrice, bhk, furnishing, sort, page]);
+    const controller = new AbortController();
+    fetchResults(controller.signal);
+    return () => controller.abort();
+  }, [searchParams]);
 
   // Apply filters by pushing to URL router
   const applyFilters = () => {
@@ -170,6 +182,7 @@ function ListingsSearchContent() {
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
               placeholder="Search keyword..."
               leftIcon={<Search size={16} />}
               fullWidth
@@ -204,12 +217,14 @@ function ListingsSearchContent() {
               <Input
                 value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
                 placeholder="Min"
                 fullWidth
               />
               <Input
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
                 placeholder="Max"
                 fullWidth
               />

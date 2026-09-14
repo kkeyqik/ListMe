@@ -183,16 +183,20 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     let resolvedCity = '';
     let matchedCityTerm = '';
     const recognizedCities = [
+      'navi mumbai', 'delhi ncr', 'greater noida',
       'mumbai', 'pune', 'delhi', 'ghaziabad', 'noida', 'gurgaon', 'gurugram',
       'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'kolkata', 'ahmedabad',
-      'jaipur', 'lucknow', 'faridabad', 'thane', 'navi mumbai', 'chandigarh',
+      'jaipur', 'lucknow', 'faridabad', 'thane', 'chandigarh',
       'indore', 'bhopal', 'kochi', 'coimbatore', 'patna', 'surat', 'nagpur', 'kanpur'
     ];
     for (const city of recognizedCities) {
-      if (queryLower.includes(city)) {
+      const cityRegex = new RegExp(`(^|[^a-z0-9])${city}([^a-z0-9]|$)`, 'i');
+      if (cityRegex.test(queryLower)) {
         matchedCityTerm = city;
         if (city === 'bengaluru') resolvedCity = 'bangalore';
         else if (city === 'gurugram') resolvedCity = 'gurgaon';
+        else if (city === 'delhi ncr') resolvedCity = 'delhi';
+        else if (city === 'greater noida') resolvedCity = 'noida';
         else resolvedCity = city;
         break;
       }
@@ -215,11 +219,12 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     // 3. Extract clean residual text query (stripping parsed city, bhk tokens, and prepositions)
     let residualQuery = searchQuery.trim();
     if (matchedCityTerm) {
-      const cityRegex = new RegExp(`\\b${matchedCityTerm}\\b`, 'gi');
+      const escapedCity = matchedCityTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const cityRegex = new RegExp(`(^|[^a-z0-9])${escapedCity}([^a-z0-9]|$)`, 'gi');
       residualQuery = residualQuery.replace(cityRegex, ' ');
     }
     if (resolvedBhk) {
-      residualQuery = residualQuery.replace(/\b[1-4]\s*bhk\b/gi, ' ');
+      residualQuery = residualQuery.replace(/\b[1-5]\s*bhk\b/gi, ' ');
     }
     residualQuery = residualQuery
       .replace(/\b(for\s+sale|for\s+rent|in|at|near)\b/gi, ' ')

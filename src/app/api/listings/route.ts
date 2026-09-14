@@ -144,26 +144,19 @@ export async function GET(request: NextRequest) {
         .map((t) => t.trim())
         .filter((t) => t.length > 0 && !['in', 'at', 'near', 'and', 'the', 'for', 'of'].includes(t.toLowerCase()));
 
-      if (cleanTerms.length > 1) {
-        where.AND = [
-          ...(where.AND || []),
-          ...cleanTerms.map((term) => ({
-            OR: [
-              { title: { contains: term, mode: 'insensitive' } },
-              { description: { contains: term, mode: 'insensitive' } },
-              { city: { contains: term, mode: 'insensitive' } },
-              { locality: { contains: term, mode: 'insensitive' } },
-            ],
-          })),
-        ];
-      } else {
-        where.OR = [
-          { title: { contains: query.trim(), mode: 'insensitive' } },
-          { description: { contains: query.trim(), mode: 'insensitive' } },
-          { city: { contains: query.trim(), mode: 'insensitive' } },
-          { locality: { contains: query.trim(), mode: 'insensitive' } },
-        ];
-      }
+      const termsToSearch = cleanTerms.length > 0 ? cleanTerms : [query.trim()];
+
+      where.AND = [
+        ...(where.AND || []),
+        ...termsToSearch.map((term) => ({
+          OR: [
+            { title: { contains: term, mode: 'insensitive' } },
+            { description: { contains: term, mode: 'insensitive' } },
+            { city: { contains: term, mode: 'insensitive' } },
+            { locality: { contains: term, mode: 'insensitive' } },
+          ],
+        })),
+      ];
     }
 
     // Log the search activity if filters are used

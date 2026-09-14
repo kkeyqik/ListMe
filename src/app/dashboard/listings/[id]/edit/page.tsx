@@ -618,8 +618,8 @@ export default function EditListing({ params }: EditListingProps) {
         return;
       }
       const cleanPin = (formData.pinCode || '').replace(/\D/g, '');
-      if (cleanPin.length !== 6) {
-        showToast('Invalid PIN Code', 'Please enter a valid 6-digit Indian PIN code', 'warning');
+      if (!/^[1-9]\d{5}$/.test(cleanPin)) {
+        showToast('Invalid PIN Code', 'Please enter a valid 6-digit Indian PIN code (cannot start with 0)', 'warning');
         return;
       }
     }
