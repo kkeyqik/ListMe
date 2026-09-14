@@ -110,7 +110,7 @@ export default function AdminListings() {
     return () => clearTimeout(timer);
   }, [searchQuery, cityFilter]);
 
-  const handleModerate = async (id: string, newStatus: 'ACTIVE' | 'REJECTED', reason?: string) => {
+  const handleModerate = async (id: string, newStatus: 'ACTIVE' | 'REJECTED', reason?: string): Promise<boolean> => {
     setActionId(id);
     try {
       const res = await fetch(`/api/listings/${id}`, {
@@ -128,13 +128,16 @@ export default function AdminListings() {
         setListings((prev) =>
           prev.map((l) => (l.id === id ? { ...l, status: newStatus, rejectionReason: newStatus === 'REJECTED' ? reason : null } : l))
         );
+        return true;
       } else {
         const data = await res.json();
         showToast('Error', data.message || 'Action failed', 'error');
+        return false;
       }
     } catch (err) {
       console.error('Moderation error:', err);
       showToast('Error', 'Something went wrong', 'error');
+      return false;
     } finally {
       setActionId(null);
     }
@@ -146,10 +149,12 @@ export default function AdminListings() {
     const finalReason = selectedReason === 'Other' ? otherReason : selectedReason;
     
     try {
-      await handleModerate(rejectListingId, 'REJECTED', finalReason);
-      setRejectListingId(null);
-      setSelectedReason('Duplicate Listing / Spam');
-      setOtherReason('');
+      const success = await handleModerate(rejectListingId, 'REJECTED', finalReason);
+      if (success) {
+        setRejectListingId(null);
+        setSelectedReason('Duplicate Listing / Spam');
+        setOtherReason('');
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -365,7 +370,7 @@ export default function AdminListings() {
               <option value="RENT">For Rent</option>
             </select>
 
-            <div className={styles.filterRowFull} style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ flex: 1, minWidth: '140px' }}>
               <Input
                 value={cityFilter}
                 onChange={(e) => setCityFilter(e.target.value)}
@@ -463,6 +468,8 @@ export default function AdminListings() {
                               size="sm"
                               style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                               disabled={actionId === listing.id}
+                              aria-label="Approve listing"
+                              title="Approve Listing"
                             >
                               <Check size={14} /> Approve
                             </Button>
@@ -472,16 +479,18 @@ export default function AdminListings() {
                               size="sm"
                               style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
                               disabled={actionId === listing.id}
+                              aria-label="Reject listing"
+                              title="Reject Listing"
                             >
                               <X size={14} /> Reject
                             </Button>
                           </>
                         )}
                         
-                        <Button href={`/property/${listing.id}`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}>
+                        <Button href={`/property/${listing.id}`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }} aria-label="View property" title="View Property">
                           <Eye size={14} />
                         </Button>
-                        <Button href={`/dashboard/listings/${listing.id}/edit`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}>
+                        <Button href={`/dashboard/listings/${listing.id}/edit`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }} aria-label="Edit property" title="Edit Property">
                           <Edit size={14} />
                         </Button>
                         <Button
@@ -489,6 +498,8 @@ export default function AdminListings() {
                           variant="ghost"
                           size="sm"
                           style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', color: 'var(--color-error)' }}
+                          aria-label="Delete property"
+                          title="Delete Property"
                         >
                           <Trash2 size={14} />
                         </Button>
@@ -553,7 +564,10 @@ export default function AdminListings() {
                     <div className={styles.mobilePrimaryActions}>
                       <button
                         type="button"
-                        onClick={() => handleModerate(listing.id, 'ACTIVE')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleModerate(listing.id, 'ACTIVE');
+                        }}
                         className={styles.mobileTouchBtn}
                         style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}
                         disabled={actionId === listing.id}
@@ -562,7 +576,10 @@ export default function AdminListings() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setRejectListingId(listing.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRejectListingId(listing.id);
+                        }}
                         className={styles.mobileTouchBtn}
                         style={{ backgroundColor: 'var(--color-error)', color: '#ffffff' }}
                         disabled={actionId === listing.id}
@@ -576,12 +593,15 @@ export default function AdminListings() {
                     <Button href={`/property/${listing.id}`} variant="outline" size="sm" style={{ minHeight: '44px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
                       <Eye size={16} /> View Property
                     </Button>
-                    <Button href={`/dashboard/listings/${listing.id}/edit`} variant="outline" size="sm" style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Button href={`/dashboard/listings/${listing.id}/edit`} variant="outline" size="sm" style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Edit listing" title="Edit Listing">
                       <Edit size={16} />
                     </Button>
                     <button
                       type="button"
-                      onClick={() => setDeleteListingId(listing.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteListingId(listing.id);
+                      }}
                       className={styles.mobileTouchIconBtn}
                       style={{ color: 'var(--color-error)' }}
                       title="Delete Listing"
@@ -624,13 +644,15 @@ export default function AdminListings() {
                   setPage(1);
                 }}
                 style={{
-                  padding: '0.25rem 0.5rem',
+                  padding: '0.375rem 0.5rem',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--color-border)',
                   fontSize: '0.812rem',
                   background: '#fff',
                   outline: 'none',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  minHeight: '44px',
+                  minWidth: '44px'
                 }}
                 aria-label="Listings per page"
               >
@@ -648,7 +670,7 @@ export default function AdminListings() {
               size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem', minHeight: '44px' }}
             >
               <ChevronLeft size={16} />
               Previous
@@ -670,7 +692,7 @@ export default function AdminListings() {
               size="sm"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem', minHeight: '44px' }}
             >
               Next
               <ChevronRight size={16} />
@@ -708,7 +730,7 @@ export default function AdminListings() {
                 fontFamily: 'var(--font-body)',
                 fontSize: '0.875rem',
                 cursor: 'pointer',
-                minHeight: '40px',
+                minHeight: '44px',
                 outline: 'none'
               }}
             >

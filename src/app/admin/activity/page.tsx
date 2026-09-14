@@ -379,55 +379,61 @@ export default function AdminActivityLog() {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Filter size={16} style={{ color: 'var(--color-text-secondary)' }} />
-            <select
-              value={actionFilter}
-              onChange={(e) => setActionFilter(e.target.value)}
-              className={pageStyles.selectDropdown}
-              style={{ border: '1px solid var(--color-neutral-300)', padding: '0.5rem', borderRadius: 'var(--radius-md)' }}
-            >
-              {activeTab === 'seeker' ? (
-                <>
-                  <option value="ALL">All Actions</option>
-                  <option value="VIEW_PROPERTY">Property Views</option>
-                  <option value="SEARCH">Searches</option>
-                  <option value="EXPRESS_INTEREST">Interest Expressions</option>
-                </>
-              ) : activeTab === 'operations' ? (
-                <>
-                  <option value="ALL">All Entity Types</option>
-                  <option value="LISTING">Listings</option>
-                  <option value="SYSTEM_SETTINGS">Settings</option>
-                  <option value="USER_PROFILE">User Profiles</option>
-                </>
-              ) : activeTab === 'emails' ? (
-                <>
-                  <option value="ALL">All Statuses</option>
-                  <option value="SENT">Sent</option>
-                  <option value="FAILED">Failed</option>
-                  <option value="SIMULATED">Simulated</option>
-                </>
-              ) : (
-                <option value="ALL">All Errors</option>
-              )}
-            </select>
+          <div className={pageStyles.filterControls}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '180px' }}>
+              <Filter size={16} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
+              <select
+                value={actionFilter}
+                onChange={(e) => setActionFilter(e.target.value)}
+                className={pageStyles.selectDropdown}
+                aria-label="Filter by action or status"
+              >
+                {activeTab === 'seeker' ? (
+                  <>
+                    <option value="ALL">All Actions</option>
+                    <option value="VIEW_PROPERTY">Property Views</option>
+                    <option value="SEARCH">Searches</option>
+                    <option value="EXPRESS_INTEREST">Interest Expressions</option>
+                  </>
+                ) : activeTab === 'operations' ? (
+                  <>
+                    <option value="ALL">All Entity Types</option>
+                    <option value="LISTING">Listings</option>
+                    <option value="SYSTEM_SETTINGS">Settings</option>
+                    <option value="USER_PROFILE">User Profiles</option>
+                  </>
+                ) : activeTab === 'emails' ? (
+                  <>
+                    <option value="ALL">All Statuses</option>
+                    <option value="SENT">Sent</option>
+                    <option value="FAILED">Failed</option>
+                    <option value="SIMULATED">Simulated</option>
+                  </>
+                ) : (
+                  <option value="ALL">All Errors</option>
+                )}
+              </select>
+            </div>
 
-            <input 
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              title="Start Date"
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
-            />
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>to</span>
-            <input 
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              title="End Date"
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
-            />
+            <div className={pageStyles.dateFilterGroup}>
+              <input 
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                title="Start Date"
+                aria-label="Start Date"
+                className={pageStyles.dateInput}
+              />
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>to</span>
+              <input 
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                title="End Date"
+                aria-label="End Date"
+                className={pageStyles.dateInput}
+              />
+            </div>
           </div>
         </div>
       </Card>

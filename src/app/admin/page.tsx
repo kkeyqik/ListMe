@@ -82,7 +82,7 @@ export default function AdminHome() {
   }, [user, authLoading]);
 
   // Moderation: Approve or Reject Property
-  const handleModerate = async (id: string, newStatus: 'ACTIVE' | 'REJECTED', reason?: string) => {
+  const handleModerate = async (id: string, newStatus: 'ACTIVE' | 'REJECTED', reason?: string): Promise<boolean> => {
     setActionId(id);
     try {
       const res = await fetch(`/api/listings/${id}`, {
@@ -104,13 +104,16 @@ export default function AdminHome() {
         setPendingListings((prev) => prev.filter((item) => item.id !== id));
         // Refresh general counts
         fetchAdminData();
+        return true;
       } else {
         const data = await res.json();
         showToast('Error', data.message || 'Action failed', 'error');
+        return false;
       }
     } catch (err) {
       console.error('Moderation error:', err);
       showToast('Error', 'Something went wrong. Please check connection.', 'error');
+      return false;
     } finally {
       setActionId(null);
     }
@@ -122,10 +125,12 @@ export default function AdminHome() {
     const finalReason = selectedReason === 'Other' ? otherReason : selectedReason;
     
     try {
-      await handleModerate(rejectListingId, 'REJECTED', finalReason);
-      setRejectListingId(null);
-      setSelectedReason('Duplicate Listing / Spam');
-      setOtherReason('');
+      const success = await handleModerate(rejectListingId, 'REJECTED', finalReason);
+      if (success) {
+        setRejectListingId(null);
+        setSelectedReason('Duplicate Listing / Spam');
+        setOtherReason('');
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -245,6 +250,8 @@ export default function AdminHome() {
                               size="sm"
                               style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                               disabled={actionId === listing.id}
+                              aria-label="Approve listing"
+                              title="Approve Listing"
                             >
                               <Check size={14} />
                             </Button>
@@ -254,6 +261,8 @@ export default function AdminHome() {
                               size="sm"
                               style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
                               disabled={actionId === listing.id}
+                              aria-label="Reject listing"
+                              title="Reject Listing"
                             >
                               <X size={14} />
                             </Button>
@@ -262,6 +271,8 @@ export default function AdminHome() {
                               variant="ghost"
                               size="sm"
                               style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                              aria-label="View property"
+                              title="View Property"
                             >
                               <Eye size={14} />
                             </Button>
@@ -291,7 +302,10 @@ export default function AdminHome() {
                     <div className={styles.mobilePrimaryActions} style={{ marginTop: '0.5rem' }}>
                       <button
                         type="button"
-                        onClick={() => handleModerate(listing.id, 'ACTIVE')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleModerate(listing.id, 'ACTIVE');
+                        }}
                         className={styles.mobileTouchBtn}
                         style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}
                         disabled={actionId === listing.id}
@@ -300,7 +314,10 @@ export default function AdminHome() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setRejectListingId(listing.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRejectListingId(listing.id);
+                        }}
                         className={styles.mobileTouchBtn}
                         style={{ backgroundColor: 'var(--color-error)', color: '#ffffff' }}
                         disabled={actionId === listing.id}
@@ -312,6 +329,8 @@ export default function AdminHome() {
                         variant="outline"
                         size="sm"
                         style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        aria-label="View property details"
+                        title="View Property"
                       >
                         <Eye size={16} />
                       </Button>
@@ -401,7 +420,7 @@ export default function AdminHome() {
                 fontFamily: 'var(--font-body)',
                 fontSize: '0.875rem',
                 cursor: 'pointer',
-                minHeight: '40px',
+                minHeight: '44px',
                 outline: 'none'
               }}
             >

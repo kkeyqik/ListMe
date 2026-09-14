@@ -53,8 +53,10 @@
 .menuButton {
   background: transparent;
   color: var(--color-neutral-800);
-  width: 40px;
-  height: 40px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;

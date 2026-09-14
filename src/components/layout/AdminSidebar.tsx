@@ -33,7 +33,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
 
-  // Handle escape key and prevent body scroll when mobile drawer is open
+  // Handle escape key, resize, and prevent body scroll when mobile drawer is open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -43,12 +43,20 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       }
     };
 
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && onClose) {
+        onClose();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize);
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
       document.body.style.overflow = originalOverflow;
     };
   }, [isOpen, onClose]);
@@ -69,6 +77,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   ].filter(item => item.show);
 
   const handleLogout = () => {
+    if (onClose) onClose();
     signOut();
   };
 
@@ -104,11 +113,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       )}
 
       {/* Sidebar Panel */}
-      <aside className={sidebarClasses}>
+      <aside 
+        className={sidebarClasses}
+        aria-label="Admin Sidebar Navigation"
+        {...(isOpen ? { role: 'dialog', 'aria-modal': true } : {})}
+      >
         {/* Logo and Close Button */}
         <div className={styles.logoContainer}>
           <div className={styles.logoWrapper}>
-            <Link href="/" className="logo text-gradient font-bold text-xl">
+            <Link href="/" onClick={onClose} className="logo text-gradient font-bold text-xl">
               ListMe
             </Link>
             <span className={styles.adminBadge}>Admin</span>

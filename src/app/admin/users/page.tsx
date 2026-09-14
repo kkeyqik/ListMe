@@ -165,7 +165,7 @@ export default function AdminUsers() {
 
   // Check if current user is allowed to delete the target user
   const canDeleteUser = (targetUser: any) => {
-    if (!profile) return false;
+    if (!profile || targetUser.id === profile.id) return false;
     if (profile.role === 'SUPER_ADMIN') {
       return targetUser.role !== 'SUPER_ADMIN'; // Super Admins can delete anyone except other Super Admins
     }
@@ -307,7 +307,7 @@ export default function AdminUsers() {
             <select
               value={verificationFilter}
               onChange={(e) => setVerificationFilter(e.target.value)}
-              className={styles.filterSelect}
+              className={`${styles.filterSelect} ${styles.filterRowFull}`}
               title="Filter by Verification"
             >
               <option value="ALL">All Verification</option>
@@ -408,7 +408,8 @@ export default function AdminUsers() {
                       <select
                         value={userItem.role}
                         onChange={(e) => handleUpdateUser(userItem.id, { role: e.target.value })}
-                        disabled={updatingId === userItem.id || userItem.role === 'SUPER_ADMIN'}
+                        disabled={updatingId === userItem.id || (userItem.role === 'SUPER_ADMIN' && profile?.role !== 'SUPER_ADMIN') || userItem.id === profile?.id}
+                        aria-label="Select role"
                         style={{
                           padding: '0.375rem 0.625rem',
                           borderRadius: 'var(--radius-md)',
@@ -417,7 +418,7 @@ export default function AdminUsers() {
                           fontSize: '0.812rem',
                           fontFamily: 'var(--font-heading)',
                           fontWeight: 600,
-                          cursor: userItem.role === 'SUPER_ADMIN' ? 'not-allowed' : 'pointer',
+                          cursor: (userItem.role === 'SUPER_ADMIN' && profile?.role !== 'SUPER_ADMIN') || userItem.id === profile?.id ? 'not-allowed' : 'pointer',
                           minHeight: '34px',
                           outline: 'none',
                           color: 'var(--color-primary-light)'
@@ -425,14 +426,15 @@ export default function AdminUsers() {
                       >
                         <option value="USER">USER</option>
                         <option value="ADMIN">ADMIN</option>
-                        {userItem.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
+                        {(userItem.role === 'SUPER_ADMIN' || profile?.role === 'SUPER_ADMIN') && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
                       </select>
                     </td>
                     <td className={styles.td}>
                       <select
                         value={userItem.status}
                         onChange={(e) => handleUpdateUser(userItem.id, { status: e.target.value })}
-                        disabled={updatingId === userItem.id}
+                        disabled={updatingId === userItem.id || userItem.id === profile?.id}
+                        aria-label="Select status"
                         style={{
                           padding: '0.375rem 0.625rem',
                           borderRadius: 'var(--radius-md)',
@@ -441,7 +443,7 @@ export default function AdminUsers() {
                           fontSize: '0.812rem',
                           fontFamily: 'var(--font-heading)',
                           fontWeight: 600,
-                          cursor: 'pointer',
+                          cursor: userItem.id === profile?.id ? 'not-allowed' : 'pointer',
                           minHeight: '34px',
                           outline: 'none',
                           color: userItem.status === 'ACTIVE' ? 'var(--color-success)' : userItem.status === 'SUSPENDED' ? 'var(--color-warning)' : 'var(--color-error)'
@@ -469,6 +471,7 @@ export default function AdminUsers() {
                           variant="outline"
                           size="sm"
                           style={{ padding: '0.125rem 0.375rem', minHeight: '26px', fontSize: '0.75rem', border: '1px solid var(--color-border)' }}
+                          aria-label={userItem.phoneVerified ? 'Revoke phone verification' : 'Verify phone number'}
                         >
                           {userItem.phoneVerified ? 'Unverify' : 'Verify'}
                         </Button>
@@ -485,6 +488,7 @@ export default function AdminUsers() {
                           }}
                           style={{ color: 'var(--color-error)', padding: '0.25rem' }}
                           title="Delete User"
+                          aria-label="Delete user"
                         >
                           <Trash2 size={16} />
                         </Button>
@@ -533,7 +537,7 @@ export default function AdminUsers() {
                   <div className={styles.mobileCardField}>
                     <span className={styles.mobileCardFieldLabel}>Phone Number</span>
                     {userItem.phone ? (
-                      <a href={`tel:${userItem.phone}`} className={styles.mobileCardFieldValue} style={{ color: 'var(--color-secondary)', textDecoration: 'underline' }}>
+                      <a href={`tel:${userItem.phone}`} onClick={(e) => e.stopPropagation()} className={styles.mobileCardFieldValue} style={{ color: 'var(--color-secondary)', textDecoration: 'underline' }}>
                         {userItem.phone}
                       </a>
                     ) : (
@@ -543,7 +547,7 @@ export default function AdminUsers() {
                   <div className={styles.mobileCardField}>
                     <span className={styles.mobileCardFieldLabel}>Email Address</span>
                     {userItem.email ? (
-                      <a href={`mailto:${userItem.email}`} className={styles.mobileCardFieldValue} style={{ color: 'var(--color-secondary)', textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                      <a href={`mailto:${userItem.email}`} onClick={(e) => e.stopPropagation()} className={styles.mobileCardFieldValue} style={{ color: 'var(--color-secondary)', textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
                         {userItem.email}
                       </a>
                     ) : (
@@ -567,14 +571,18 @@ export default function AdminUsers() {
                     </label>
                     <select
                       value={userItem.role}
-                      onChange={(e) => handleUpdateUser(userItem.id, { role: e.target.value })}
-                      disabled={updatingId === userItem.id || userItem.role === 'SUPER_ADMIN'}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleUpdateUser(userItem.id, { role: e.target.value });
+                      }}
+                      disabled={updatingId === userItem.id || (userItem.role === 'SUPER_ADMIN' && profile?.role !== 'SUPER_ADMIN') || userItem.id === profile?.id}
                       className={styles.filterSelect}
-                      style={{ cursor: userItem.role === 'SUPER_ADMIN' ? 'not-allowed' : 'pointer' }}
+                      aria-label="Select role"
+                      style={{ cursor: (userItem.role === 'SUPER_ADMIN' && profile?.role !== 'SUPER_ADMIN') || userItem.id === profile?.id ? 'not-allowed' : 'pointer' }}
                     >
                       <option value="USER">USER</option>
                       <option value="ADMIN">ADMIN</option>
-                      {userItem.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
+                      {(userItem.role === 'SUPER_ADMIN' || profile?.role === 'SUPER_ADMIN') && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
                     </select>
                   </div>
                   <div>
@@ -583,9 +591,14 @@ export default function AdminUsers() {
                     </label>
                     <select
                       value={userItem.status}
-                      onChange={(e) => handleUpdateUser(userItem.id, { status: e.target.value })}
-                      disabled={updatingId === userItem.id}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleUpdateUser(userItem.id, { status: e.target.value });
+                      }}
+                      disabled={updatingId === userItem.id || userItem.id === profile?.id}
                       className={styles.filterSelect}
+                      aria-label="Select status"
+                      style={{ cursor: userItem.id === profile?.id ? 'not-allowed' : 'pointer' }}
                     >
                       <option value="ACTIVE">ACTIVE</option>
                       <option value="SUSPENDED">SUSPENDED</option>
@@ -596,11 +609,15 @@ export default function AdminUsers() {
 
                 <div className={styles.mobileCardActions} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Button
-                    onClick={() => handleUpdateUser(userItem.id, { phoneVerified: !userItem.phoneVerified })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUpdateUser(userItem.id, { phoneVerified: !userItem.phoneVerified });
+                    }}
                     disabled={updatingId === userItem.id}
                     variant="outline"
                     size="sm"
-                    style={{ minHeight: '44px', flex: 1 }}
+                    style={{ minHeight: '44px', flex: 1, fontSize: '0.8125rem' }}
+                    aria-label={userItem.phoneVerified ? 'Revoke phone verification' : 'Verify phone number'}
                   >
                     {userItem.phoneVerified ? 'Revoke Phone Verification' : 'Verify Phone Number'}
                   </Button>
@@ -608,7 +625,8 @@ export default function AdminUsers() {
                   {canDeleteUser(userItem) && (
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setUserToDelete(userItem);
                         setDeleteModalOpen(true);
                       }}
@@ -745,7 +763,7 @@ export default function AdminUsers() {
               <Button type="button" variant="outline" onClick={() => setDeleteModalOpen(false)} disabled={deleteLoading}>
                 Cancel
               </Button>
-              <Button type="button" onClick={handleDeleteUser} disabled={deleteLoading} style={{ background: 'var(--color-error)', color: '#fff' }}>
+              <Button type="button" variant="danger" onClick={handleDeleteUser} loading={deleteLoading}>
                 {deleteLoading ? 'Deleting...' : 'Yes, Delete User'}
               </Button>
             </div>
