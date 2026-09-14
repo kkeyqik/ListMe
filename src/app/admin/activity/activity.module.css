@@ -9,6 +9,13 @@
   border-bottom: 2px solid var(--color-border);
   margin-bottom: 1.5rem;
   gap: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabContainer::-webkit-scrollbar {
+  display: none;
 }
 
 .tabButton {
@@ -21,6 +28,9 @@
   transition: all 0.2s ease;
   background: none;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 44px;
 }
 
 .tabButtonActive {
@@ -41,9 +51,24 @@
   margin-bottom: 1rem;
 }
 
+@media (max-width: 767px) {
+  .filterBar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+}
+
 .searchWrapper {
   flex: 1;
   min-width: 250px;
+}
+
+@media (max-width: 767px) {
+  .searchWrapper {
+    min-width: 100%;
+  }
 }
 
 .selectDropdown {
@@ -60,6 +85,7 @@
   background-size: 1.25em auto;
   cursor: pointer;
   min-width: 150px;
+  min-height: 44px;
 }
 
 .selectDropdown:focus {

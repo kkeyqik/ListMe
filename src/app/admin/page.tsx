@@ -216,60 +216,110 @@ export default function AdminHome() {
               <p>All property listings have been verified and approved.</p>
             </Card>
           ) : (
-            <div className={styles.tableContainer}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th className={styles.th}>Property details</th>
-                    <th className={styles.th}>Price</th>
-                    <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingListings.map((listing) => (
-                    <tr key={listing.id} className={styles.tr}>
-                      <td className={styles.td}>
-                        <div className={styles.titleText}>{listing.title}</div>
-                        <div className={styles.subTextInfo}>
-                          {listing.propertyType.replace('_', ' ')} · {listing.locality}, {listing.city}
-                        </div>
-                      </td>
-                      <td className={styles.td}>{formatPrice(listing.askingPrice)}</td>
-                      <td className={styles.td} style={{ textAlign: 'right' }}>
-                        <div className={styles.actionBtnGroup} style={{ justifyContent: 'flex-end' }}>
-                          <Button
-                            onClick={() => handleModerate(listing.id, 'ACTIVE')}
-                            variant="primary"
-                            size="sm"
-                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                            disabled={actionId === listing.id}
-                          >
-                            <Check size={14} />
-                          </Button>
-                          <Button
-                            onClick={() => setRejectListingId(listing.id)}
-                            variant="danger"
-                            size="sm"
-                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
-                            disabled={actionId === listing.id}
-                          >
-                            <X size={14} />
-                          </Button>
-                          <Button
-                            href={`/property/${listing.id}`}
-                            variant="ghost"
-                            size="sm"
-                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
-                          >
-                            <Eye size={14} />
-                          </Button>
-                        </div>
-                      </td>
+            <>
+              {/* Desktop Table View */}
+              <div className={`${styles.tableContainer} ${styles.desktopOnly}`}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th className={styles.th}>Property details</th>
+                      <th className={styles.th}>Price</th>
+                      <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {pendingListings.map((listing) => (
+                      <tr key={listing.id} className={styles.tr}>
+                        <td className={styles.td}>
+                          <div className={styles.titleText}>{listing.title}</div>
+                          <div className={styles.subTextInfo}>
+                            {listing.propertyType.replace('_', ' ')} · {listing.locality}, {listing.city}
+                          </div>
+                        </td>
+                        <td className={styles.td}>{formatPrice(listing.askingPrice)}</td>
+                        <td className={styles.td} style={{ textAlign: 'right' }}>
+                          <div className={styles.actionBtnGroup} style={{ justifyContent: 'flex-end' }}>
+                            <Button
+                              onClick={() => handleModerate(listing.id, 'ACTIVE')}
+                              variant="primary"
+                              size="sm"
+                              style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                              disabled={actionId === listing.id}
+                            >
+                              <Check size={14} />
+                            </Button>
+                            <Button
+                              onClick={() => setRejectListingId(listing.id)}
+                              variant="danger"
+                              size="sm"
+                              style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                              disabled={actionId === listing.id}
+                            >
+                              <X size={14} />
+                            </Button>
+                            <Button
+                              href={`/property/${listing.id}`}
+                              variant="ghost"
+                              size="sm"
+                              style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                            >
+                              <Eye size={14} />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View (Screens < 768px) */}
+              <div className={`${styles.mobileCardsList} ${styles.mobileOnly}`}>
+                {pendingListings.map((listing) => (
+                  <div key={listing.id} className={styles.mobileCard}>
+                    <div className={styles.mobileCardTop}>
+                      <div>
+                        <div className={styles.mobileCardTitle}>{listing.title}</div>
+                        <div className={styles.mobileCardPrice}>{formatPrice(listing.askingPrice)}</div>
+                        <div className={styles.mobileCardMeta}>
+                          <span>{listing.propertyType.replace('_', ' ')} · {listing.locality}, {listing.city}</span>
+                        </div>
+                      </div>
+                      <Badge variant="warning" size="sm">Pending Review</Badge>
+                    </div>
+
+                    <div className={styles.mobilePrimaryActions} style={{ marginTop: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleModerate(listing.id, 'ACTIVE')}
+                        className={styles.mobileTouchBtn}
+                        style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}
+                        disabled={actionId === listing.id}
+                      >
+                        <Check size={16} /> Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRejectListingId(listing.id)}
+                        className={styles.mobileTouchBtn}
+                        style={{ backgroundColor: 'var(--color-error)', color: '#ffffff' }}
+                        disabled={actionId === listing.id}
+                      >
+                        <X size={16} /> Reject
+                      </button>
+                      <Button
+                        href={`/property/${listing.id}`}
+                        variant="outline"
+                        size="sm"
+                        style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Eye size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
 

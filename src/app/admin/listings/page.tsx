@@ -326,13 +326,12 @@ export default function AdminListings() {
               fullWidth
             />
           </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Filter size={18} style={{ color: 'var(--color-text-secondary)' }} />
+          {/* Row 2: Categorical and date filters */}
+          <div className={styles.filterRow}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              className={styles.filterSelect}
               title="Filter by Status"
             >
               <option value="ALL">All Statuses</option>
@@ -345,7 +344,7 @@ export default function AdminListings() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              className={styles.filterSelect}
               title="Filter by Property Type"
             >
               <option value="ALL">All Types</option>
@@ -358,7 +357,7 @@ export default function AdminListings() {
             <select
               value={forFilter}
               onChange={(e) => setForFilter(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              className={styles.filterSelect}
               title="Filter by Listing For"
             >
               <option value="ALL">All Listing For</option>
@@ -366,28 +365,32 @@ export default function AdminListings() {
               <option value="RENT">For Rent</option>
             </select>
 
-            <Input
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              placeholder="Filter by City..."
-              style={{ minWidth: '150px' }}
-            />
+            <div className={styles.filterRowFull} style={{ display: 'flex', gap: '0.5rem' }}>
+              <Input
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                placeholder="Filter by City..."
+                fullWidth
+              />
+            </div>
 
-            <input 
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              title="Listed After"
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
-            />
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>to</span>
-            <input 
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              title="Listed Before"
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
-            />
+            <div className={styles.dateFilterGroup}>
+              <input 
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                title="Listed After"
+                className={styles.dateInput}
+              />
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>to</span>
+              <input 
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                title="Listed Before"
+                className={styles.dateInput}
+              />
+            </div>
           </div>
         </div>
       </Card>
@@ -403,98 +406,194 @@ export default function AdminListings() {
         </div>
       ) : (
         <>
-          <div className={styles.tableContainer}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.th}>Property details</th>
-                <th className={styles.th}>Type</th>
-                <th className={styles.th}>Price</th>
-                <th className={styles.th}>Status</th>
-                <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredListings.map((listing) => (
-                <tr key={listing.id} className={styles.tr}>
-                  <td className={styles.td}>
-                    <div className={styles.titleText}>{listing.title}</div>
-                    <div className={styles.subTextInfo}>
-                      {listing.locality}, {listing.city} · ID: {listing.id.substring(0, 8)}
+          {/* Desktop Table View */}
+          <div className={`${styles.tableContainer} ${styles.desktopOnly}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th className={styles.th}>Property details</th>
+                  <th className={styles.th}>Type</th>
+                  <th className={styles.th}>Price</th>
+                  <th className={styles.th}>Status</th>
+                  <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredListings.map((listing) => (
+                  <tr key={listing.id} className={styles.tr}>
+                    <td className={styles.td}>
+                      <div className={styles.titleText}>{listing.title}</div>
+                      <div className={styles.subTextInfo}>
+                        {listing.locality}, {listing.city} · ID: {listing.id.substring(0, 8)}
+                      </div>
+                    </td>
+                    <td className={styles.td}>
+                      <Badge variant="neutral" size="sm">
+                        {listing.listingFor} · {listing.propertyType.replace('_', ' ')}
+                      </Badge>
+                    </td>
+                    <td className={styles.td}>{formatPrice(listing.askingPrice)}</td>
+                    <td className={styles.td}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                        <Badge 
+                          variant={
+                            listing.status === 'ACTIVE' ? 'success' :
+                            listing.status === 'PENDING_REVIEW' ? 'warning' :
+                            listing.status === 'REJECTED' ? 'error' : 'neutral'
+                          }
+                          size="sm"
+                        >
+                          {listing.status.replace('_', ' ')}
+                        </Badge>
+                        {listing.status === 'REJECTED' && listing.rejectionReason && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', maxWidth: '200px', display: 'block' }}>
+                            Reason: {listing.rejectionReason}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className={styles.td} style={{ textAlign: 'right' }}>
+                      <div className={styles.actionBtnGroup} style={{ justifyContent: 'flex-end' }}>
+                        {/* Moderation approval triggers */}
+                        {listing.status === 'PENDING_REVIEW' && (
+                          <>
+                            <Button
+                              onClick={() => handleModerate(listing.id, 'ACTIVE')}
+                              variant="primary"
+                              size="sm"
+                              style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                              disabled={actionId === listing.id}
+                            >
+                              <Check size={14} /> Approve
+                            </Button>
+                            <Button
+                              onClick={() => setRejectListingId(listing.id)}
+                              variant="danger"
+                              size="sm"
+                              style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                              disabled={actionId === listing.id}
+                            >
+                              <X size={14} /> Reject
+                            </Button>
+                          </>
+                        )}
+                        
+                        <Button href={`/property/${listing.id}`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}>
+                          <Eye size={14} />
+                        </Button>
+                        <Button href={`/dashboard/listings/${listing.id}/edit`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}>
+                          <Edit size={14} />
+                        </Button>
+                        <Button
+                          onClick={() => setDeleteListingId(listing.id)}
+                          variant="ghost"
+                          size="sm"
+                          style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', color: 'var(--color-error)' }}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards View (Screens < 768px) */}
+          <div className={`${styles.mobileCardsList} ${styles.mobileOnly}`}>
+            {filteredListings.map((listing) => (
+              <div key={listing.id} className={styles.mobileCard}>
+                <div className={styles.mobileCardTop}>
+                  <div>
+                    <div className={styles.mobileCardTitle}>{listing.title}</div>
+                    <div className={styles.mobileCardPrice}>{formatPrice(listing.askingPrice)}</div>
+                    <div className={styles.mobileCardMeta}>
+                      <span>{listing.locality}, {listing.city}</span>
+                      <span>·</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>ID: {listing.id.substring(0, 8)}</span>
                     </div>
-                  </td>
-                  <td className={styles.td}>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.375rem' }}>
+                    <Badge 
+                      variant={
+                        listing.status === 'ACTIVE' ? 'success' :
+                        listing.status === 'PENDING_REVIEW' ? 'warning' :
+                        listing.status === 'REJECTED' ? 'error' : 'neutral'
+                      }
+                      size="sm"
+                    >
+                      {listing.status.replace('_', ' ')}
+                    </Badge>
                     <Badge variant="neutral" size="sm">
                       {listing.listingFor} · {listing.propertyType.replace('_', ' ')}
                     </Badge>
-                  </td>
-                  <td className={styles.td}>{formatPrice(listing.askingPrice)}</td>
-                  <td className={styles.td}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
-                      <Badge 
-                        variant={
-                          listing.status === 'ACTIVE' ? 'success' :
-                          listing.status === 'PENDING_REVIEW' ? 'warning' :
-                          listing.status === 'REJECTED' ? 'error' : 'neutral'
-                        }
-                        size="sm"
+                  </div>
+                </div>
+
+                {listing.status === 'REJECTED' && listing.rejectionReason && (
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--color-error)', backgroundColor: 'rgba(239, 68, 68, 0.06)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-error)' }}>
+                    <strong>Rejection Reason:</strong> {listing.rejectionReason}
+                  </div>
+                )}
+
+                <div className={styles.mobileCardDetails}>
+                  <div className={styles.mobileCardField}>
+                    <span className={styles.mobileCardFieldLabel}>Owner</span>
+                    <span className={styles.mobileCardFieldValue}>{listing.owner?.name || 'Unknown Owner'}</span>
+                  </div>
+                  <div className={styles.mobileCardField}>
+                    <span className={styles.mobileCardFieldLabel}>Listed Date</span>
+                    <span className={styles.mobileCardFieldValue}>{new Date(listing.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                <div className={styles.mobileCardActions}>
+                  {listing.status === 'PENDING_REVIEW' && (
+                    <div className={styles.mobilePrimaryActions}>
+                      <button
+                        type="button"
+                        onClick={() => handleModerate(listing.id, 'ACTIVE')}
+                        className={styles.mobileTouchBtn}
+                        style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}
+                        disabled={actionId === listing.id}
                       >
-                        {listing.status.replace('_', ' ')}
-                      </Badge>
-                      {listing.status === 'REJECTED' && listing.rejectionReason && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', maxWidth: '200px', display: 'block' }}>
-                          Reason: {listing.rejectionReason}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className={styles.td} style={{ textAlign: 'right' }}>
-                    <div className={styles.actionBtnGroup} style={{ justifyContent: 'flex-end' }}>
-                      {/* Moderation approval triggers */}
-                      {listing.status === 'PENDING_REVIEW' && (
-                        <>
-                          <Button
-                            onClick={() => handleModerate(listing.id, 'ACTIVE')}
-                            variant="primary"
-                            size="sm"
-                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                            disabled={actionId === listing.id}
-                          >
-                            <Check size={14} /> Approve
-                          </Button>
-                          <Button
-                            onClick={() => setRejectListingId(listing.id)}
-                            variant="danger"
-                            size="sm"
-                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
-                            disabled={actionId === listing.id}
-                          >
-                            <X size={14} /> Reject
-                          </Button>
-                        </>
-                      )}
-                      
-                      <Button href={`/property/${listing.id}`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}>
-                        <Eye size={14} />
-                      </Button>
-                      <Button href={`/dashboard/listings/${listing.id}/edit`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}>
-                        <Edit size={14} />
-                      </Button>
-                      <Button
-                        onClick={() => setDeleteListingId(listing.id)}
-                        variant="ghost"
-                        size="sm"
-                        style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', color: 'var(--color-error)' }}
+                        <Check size={16} /> Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRejectListingId(listing.id)}
+                        className={styles.mobileTouchBtn}
+                        style={{ backgroundColor: 'var(--color-error)', color: '#ffffff' }}
+                        disabled={actionId === listing.id}
                       >
-                        <Trash2 size={14} />
-                      </Button>
+                        <X size={16} /> Reject
+                      </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  )}
+
+                  <div className={styles.mobileSecondaryActions}>
+                    <Button href={`/property/${listing.id}`} variant="outline" size="sm" style={{ minHeight: '44px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                      <Eye size={16} /> View Property
+                    </Button>
+                    <Button href={`/dashboard/listings/${listing.id}/edit`} variant="outline" size="sm" style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Edit size={16} />
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteListingId(listing.id)}
+                      className={styles.mobileTouchIconBtn}
+                      style={{ color: 'var(--color-error)' }}
+                      title="Delete Listing"
+                      aria-label="Delete Listing"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
         {/* Pagination Controls */}
         <div style={{

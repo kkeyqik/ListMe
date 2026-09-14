@@ -279,12 +279,11 @@ export default function AdminUsers() {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Filter size={18} style={{ color: 'var(--color-text-secondary)' }} />
+          <div className={styles.filterRow}>
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              className={styles.filterSelect}
               title="Filter by Role"
             >
               <option value="ALL">All Roles</option>
@@ -296,7 +295,7 @@ export default function AdminUsers() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              className={styles.filterSelect}
               title="Filter by Status"
             >
               <option value="ALL">All Statuses</option>
@@ -308,7 +307,7 @@ export default function AdminUsers() {
             <select
               value={verificationFilter}
               onChange={(e) => setVerificationFilter(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+              className={styles.filterSelect}
               title="Filter by Verification"
             >
               <option value="ALL">All Verification</option>
@@ -316,21 +315,23 @@ export default function AdminUsers() {
               <option value="UNVERIFIED">Unverified</option>
             </select>
 
-            <input 
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              title="Joined After"
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
-            />
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>to</span>
-            <input 
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              title="Joined Before"
-              style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
-            />
+            <div className={styles.dateFilterGroup}>
+              <input 
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                title="Joined After"
+                className={styles.dateInput}
+              />
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>to</span>
+              <input 
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                title="Joined Before"
+                className={styles.dateInput}
+              />
+            </div>
           </div>
         </div>
       </Card>
@@ -345,153 +346,285 @@ export default function AdminUsers() {
           <p>Try modifying your keyword search or role filter.</p>
         </div>
       ) : (
-        <div className={styles.tableContainer} style={{ overflow: 'visible' }}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>
-                  User Details <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
-                </th>
-                <th className={styles.th}>Contact details</th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('role')}>
-                  Role <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
-                </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('status')}>
-                  Status <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
-                </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('properties')}>
-                  Properties <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
-                </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('responses')}>
-                  Responses <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
-                </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('verification')}>
-                  Verification <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
-                </th>
-                <th className={styles.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedUsers.map((userItem) => (
-                <tr key={userItem.id} className={styles.tr}>
-                  <td className={styles.td}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div 
-                        style={{ 
-                          width: '32px', 
-                          height: '32px', 
-                          borderRadius: 'var(--radius-full)', 
-                          background: userItem.role !== 'USER' ? 'var(--color-secondary-fade)' : 'var(--color-primary-fade)',
-                          color: userItem.role !== 'USER' ? 'var(--color-secondary)' : 'var(--color-primary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0
+        <>
+          {/* Desktop Table View */}
+          <div className={`${styles.tableContainer} ${styles.desktopOnly}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>
+                    User Details <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                  </th>
+                  <th className={styles.th}>Contact details</th>
+                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('role')}>
+                    Role <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                  </th>
+                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('status')}>
+                    Status <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                  </th>
+                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('properties')}>
+                    Properties <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                  </th>
+                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('responses')}>
+                    Responses <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                  </th>
+                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('verification')}>
+                    Verification <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                  </th>
+                  <th className={styles.th}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedUsers.map((userItem) => (
+                  <tr key={userItem.id} className={styles.tr}>
+                    <td className={styles.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div 
+                          style={{ 
+                            width: '32px', 
+                            height: '32px', 
+                            borderRadius: 'var(--radius-full)', 
+                            background: userItem.role !== 'USER' ? 'var(--color-secondary-fade)' : 'var(--color-primary-fade)',
+                            color: userItem.role !== 'USER' ? 'var(--color-secondary)' : 'var(--color-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}
+                        >
+                          {userItem.role !== 'USER' ? <Shield size={16} /> : <User size={16} />}
+                        </div>
+                        <div>
+                          <div className={styles.titleText}>{userItem.name || 'Anonymous User'}</div>
+                          <div className={styles.subTextInfo}>Registered: {new Date(userItem.createdAt).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className={styles.td}>
+                      <div style={{ fontWeight: 600 }}>{userItem.phone || 'No phone'}</div>
+                      <div className={styles.subTextInfo}>{userItem.email}</div>
+                    </td>
+                    <td className={styles.td}>
+                      <select
+                        value={userItem.role}
+                        onChange={(e) => handleUpdateUser(userItem.id, { role: e.target.value })}
+                        disabled={updatingId === userItem.id || userItem.role === 'SUPER_ADMIN'}
+                        style={{
+                          padding: '0.375rem 0.625rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--color-border)',
+                          background: '#fff',
+                          fontSize: '0.812rem',
+                          fontFamily: 'var(--font-heading)',
+                          fontWeight: 600,
+                          cursor: userItem.role === 'SUPER_ADMIN' ? 'not-allowed' : 'pointer',
+                          minHeight: '34px',
+                          outline: 'none',
+                          color: 'var(--color-primary-light)'
                         }}
                       >
-                        {userItem.role !== 'USER' ? <Shield size={16} /> : <User size={16} />}
+                        <option value="USER">USER</option>
+                        <option value="ADMIN">ADMIN</option>
+                        {userItem.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
+                      </select>
+                    </td>
+                    <td className={styles.td}>
+                      <select
+                        value={userItem.status}
+                        onChange={(e) => handleUpdateUser(userItem.id, { status: e.target.value })}
+                        disabled={updatingId === userItem.id}
+                        style={{
+                          padding: '0.375rem 0.625rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--color-border)',
+                          background: '#fff',
+                          fontSize: '0.812rem',
+                          fontFamily: 'var(--font-heading)',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          minHeight: '34px',
+                          outline: 'none',
+                          color: userItem.status === 'ACTIVE' ? 'var(--color-success)' : userItem.status === 'SUSPENDED' ? 'var(--color-warning)' : 'var(--color-error)'
+                        }}
+                      >
+                        <option value="ACTIVE" style={{ color: 'var(--color-success)' }}>ACTIVE</option>
+                        <option value="SUSPENDED" style={{ color: 'var(--color-warning)' }}>SUSPENDED</option>
+                        <option value="BANNED" style={{ color: 'var(--color-error)' }}>BANNED</option>
+                      </select>
+                    </td>
+                    <td className={styles.td} style={{ fontWeight: 600 }}>
+                      {userItem._count?.listings || 0} listings
+                    </td>
+                    <td className={styles.td} style={{ fontWeight: 600 }}>
+                      {userItem._count?.interests || 0} responses
+                    </td>
+                    <td className={styles.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <Badge variant={userItem.phoneVerified ? 'success' : 'warning'} size="sm">
+                          {userItem.phoneVerified ? 'Verified' : 'Unverified'}
+                        </Badge>
+                        <Button
+                          onClick={() => handleUpdateUser(userItem.id, { phoneVerified: !userItem.phoneVerified })}
+                          disabled={updatingId === userItem.id}
+                          variant="outline"
+                          size="sm"
+                          style={{ padding: '0.125rem 0.375rem', minHeight: '26px', fontSize: '0.75rem', border: '1px solid var(--color-border)' }}
+                        >
+                          {userItem.phoneVerified ? 'Unverify' : 'Verify'}
+                        </Button>
                       </div>
-                      <div>
-                        <div className={styles.titleText}>{userItem.name || 'Anonymous User'}</div>
-                        <div className={styles.subTextInfo}>Registered: {new Date(userItem.createdAt).toLocaleDateString()}</div>
+                    </td>
+                    <td className={styles.td}>
+                      {canDeleteUser(userItem) && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            setUserToDelete(userItem);
+                            setDeleteModalOpen(true);
+                          }}
+                          style={{ color: 'var(--color-error)', padding: '0.25rem' }}
+                          title="Delete User"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards View (Screens < 768px) */}
+          <div className={`${styles.mobileCardsList} ${styles.mobileOnly}`}>
+            {sortedUsers.map((userItem) => (
+              <div key={userItem.id} className={styles.mobileCard}>
+                <div className={styles.mobileCardTop}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div 
+                      style={{ 
+                        width: '40px', 
+                        height: '40px', 
+                        borderRadius: 'var(--radius-full)', 
+                        background: userItem.role !== 'USER' ? 'var(--color-secondary-fade)' : 'var(--color-primary-fade)',
+                        color: userItem.role !== 'USER' ? 'var(--color-secondary)' : 'var(--color-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
+                    >
+                      {userItem.role !== 'USER' ? <Shield size={18} /> : <User size={18} />}
+                    </div>
+                    <div>
+                      <div className={styles.mobileCardTitle}>{userItem.name || 'Anonymous User'}</div>
+                      <div className={styles.mobileCardMeta}>
+                        <span>Registered: {new Date(userItem.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
-                  </td>
-                  <td className={styles.td}>
-                    <div style={{ fontWeight: 600 }}>{userItem.phone || 'No phone'}</div>
-                    <div className={styles.subTextInfo}>{userItem.email}</div>
-                  </td>
-                  <td className={styles.td}>
+                  </div>
+                  <Badge variant={userItem.phoneVerified ? 'success' : 'warning'} size="sm">
+                    {userItem.phoneVerified ? 'Verified' : 'Unverified'}
+                  </Badge>
+                </div>
+
+                <div className={styles.mobileCardDetails}>
+                  <div className={styles.mobileCardField}>
+                    <span className={styles.mobileCardFieldLabel}>Phone Number</span>
+                    {userItem.phone ? (
+                      <a href={`tel:${userItem.phone}`} className={styles.mobileCardFieldValue} style={{ color: 'var(--color-secondary)', textDecoration: 'underline' }}>
+                        {userItem.phone}
+                      </a>
+                    ) : (
+                      <span className={styles.mobileCardFieldValue} style={{ color: 'var(--color-text-muted)' }}>No phone</span>
+                    )}
+                  </div>
+                  <div className={styles.mobileCardField}>
+                    <span className={styles.mobileCardFieldLabel}>Email Address</span>
+                    {userItem.email ? (
+                      <a href={`mailto:${userItem.email}`} className={styles.mobileCardFieldValue} style={{ color: 'var(--color-secondary)', textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                        {userItem.email}
+                      </a>
+                    ) : (
+                      <span className={styles.mobileCardFieldValue} style={{ color: 'var(--color-text-muted)' }}>No email</span>
+                    )}
+                  </div>
+                  <div className={styles.mobileCardField}>
+                    <span className={styles.mobileCardFieldLabel}>Properties</span>
+                    <span className={styles.mobileCardFieldValue}>{userItem._count?.listings || 0} listed</span>
+                  </div>
+                  <div className={styles.mobileCardField}>
+                    <span className={styles.mobileCardFieldLabel}>Responses</span>
+                    <span className={styles.mobileCardFieldValue}>{userItem._count?.interests || 0} leads</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem', padding: '0.25rem 0' }}>
+                  <div>
+                    <label style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                      Role
+                    </label>
                     <select
                       value={userItem.role}
                       onChange={(e) => handleUpdateUser(userItem.id, { role: e.target.value })}
                       disabled={updatingId === userItem.id || userItem.role === 'SUPER_ADMIN'}
-                      style={{
-                        padding: '0.375rem 0.625rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-border)',
-                        background: '#fff',
-                        fontSize: '0.812rem',
-                        fontFamily: 'var(--font-heading)',
-                        fontWeight: 600,
-                        cursor: userItem.role === 'SUPER_ADMIN' ? 'not-allowed' : 'pointer',
-                        minHeight: '34px',
-                        outline: 'none',
-                        color: 'var(--color-primary-light)'
-                      }}
+                      className={styles.filterSelect}
+                      style={{ cursor: userItem.role === 'SUPER_ADMIN' ? 'not-allowed' : 'pointer' }}
                     >
                       <option value="USER">USER</option>
                       <option value="ADMIN">ADMIN</option>
                       {userItem.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
                     </select>
-                  </td>
-                  <td className={styles.td}>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                      Status
+                    </label>
                     <select
                       value={userItem.status}
                       onChange={(e) => handleUpdateUser(userItem.id, { status: e.target.value })}
                       disabled={updatingId === userItem.id}
-                      style={{
-                        padding: '0.375rem 0.625rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-border)',
-                        background: '#fff',
-                        fontSize: '0.812rem',
-                        fontFamily: 'var(--font-heading)',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        minHeight: '34px',
-                        outline: 'none',
-                        color: userItem.status === 'ACTIVE' ? 'var(--color-success)' : userItem.status === 'SUSPENDED' ? 'var(--color-warning)' : 'var(--color-error)'
-                      }}
+                      className={styles.filterSelect}
                     >
-                      <option value="ACTIVE" style={{ color: 'var(--color-success)' }}>ACTIVE</option>
-                      <option value="SUSPENDED" style={{ color: 'var(--color-warning)' }}>SUSPENDED</option>
-                      <option value="BANNED" style={{ color: 'var(--color-error)' }}>BANNED</option>
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="SUSPENDED">SUSPENDED</option>
+                      <option value="BANNED">BANNED</option>
                     </select>
-                  </td>
-                  <td className={styles.td} style={{ fontWeight: 600 }}>
-                    {userItem._count?.listings || 0} listings
-                  </td>
-                  <td className={styles.td} style={{ fontWeight: 600 }}>
-                    {userItem._count?.interests || 0} responses
-                  </td>
-                  <td className={styles.td}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <Badge variant={userItem.phoneVerified ? 'success' : 'warning'} size="sm">
-                        {userItem.phoneVerified ? 'Verified' : 'Unverified'}
-                      </Badge>
-                      <Button
-                        onClick={() => handleUpdateUser(userItem.id, { phoneVerified: !userItem.phoneVerified })}
-                        disabled={updatingId === userItem.id}
-                        variant="outline"
-                        size="sm"
-                        style={{ padding: '0.125rem 0.375rem', minHeight: '26px', fontSize: '0.75rem', border: '1px solid var(--color-border)' }}
-                      >
-                        {userItem.phoneVerified ? 'Unverify' : 'Verify'}
-                      </Button>
-                    </div>
-                  </td>
-                  <td className={styles.td}>
-                    {canDeleteUser(userItem) && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => {
-                          setUserToDelete(userItem);
-                          setDeleteModalOpen(true);
-                        }}
-                        style={{ color: 'var(--color-error)', padding: '0.25rem' }}
-                        title="Delete User"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </div>
+
+                <div className={styles.mobileCardActions} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Button
+                    onClick={() => handleUpdateUser(userItem.id, { phoneVerified: !userItem.phoneVerified })}
+                    disabled={updatingId === userItem.id}
+                    variant="outline"
+                    size="sm"
+                    style={{ minHeight: '44px', flex: 1 }}
+                  >
+                    {userItem.phoneVerified ? 'Revoke Phone Verification' : 'Verify Phone Number'}
+                  </Button>
+
+                  {canDeleteUser(userItem) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserToDelete(userItem);
+                        setDeleteModalOpen(true);
+                      }}
+                      className={styles.mobileTouchIconBtn}
+                      style={{ color: 'var(--color-error)' }}
+                      title="Delete User"
+                      aria-label="Delete User"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
       
       {/* Add User Modal */}
