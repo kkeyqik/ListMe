@@ -128,16 +128,16 @@ export default function AdminPincodes() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('pinCode')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '22%' }} onClick={() => handleSort('pinCode')}>
                   Pincode <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('activeListings')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '26%' }} onClick={() => handleSort('activeListings')}>
                   Active Listings <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('avgAskingPrice')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '26%' }} onClick={() => handleSort('avgAskingPrice')}>
                   Average Asking Price <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('totalInterests')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '26%' }} onClick={() => handleSort('totalInterests')}>
                   Seeker Interests <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
               </tr>

@@ -187,21 +187,14 @@ export default function AdminInterests() {
 
       {/* Filter toolbar */}
       <Card padding="md" style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Filter by Status:</span>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-neutral-300)',
-              background: '#fff',
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 600,
-              cursor: 'pointer',
-              minHeight: '44px'
-            }}
+            className={styles.filterSelect}
+            title="Filter by Status"
+            aria-label="Filter by Status"
           >
             <option value="ALL">All Statuses</option>
             <option value="NEW">New Matches</option>
@@ -210,6 +203,18 @@ export default function AdminInterests() {
             <option value="SOLD">Sold (Closed Deals)</option>
             <option value="DEACTIVATED">Deactivated</option>
           </select>
+
+          {statusFilter !== 'ALL' && (
+            <button
+              type="button"
+              className={styles.clearFilterBtn}
+              onClick={() => setStatusFilter('ALL')}
+              title="Reset status filter"
+              aria-label="Reset status filter"
+            >
+              Reset Filter
+            </button>
+          )}
         </div>
       </Card>
 
@@ -227,11 +232,11 @@ export default function AdminInterests() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th}>Seeker</th>
-                <th className={styles.th}>Property (Listing)</th>
-                <th className={styles.th}>Status</th>
-                <th className={styles.th}>Commission Collected</th>
-                <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
+                <th className={styles.th} style={{ width: '24%' }}>Seeker</th>
+                <th className={styles.th} style={{ width: '32%' }}>Property (Listing)</th>
+                <th className={styles.th} style={{ width: '16%' }}>Status</th>
+                <th className={styles.th} style={{ width: '16%' }}>Commission Collected</th>
+                <th className={styles.th} style={{ width: '12%', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>

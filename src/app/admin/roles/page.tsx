@@ -251,6 +251,7 @@ export default function RoleManager() {
               <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', zIndex: 1 }} size={18} />
               <Input 
                 placeholder="Search admins by name, email or phone..." 
+                aria-label="Search admins by name, email or phone"
                 style={{ paddingLeft: '2.5rem' }}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -264,6 +265,7 @@ export default function RoleManager() {
                 onChange={(e) => setRoleFilter(e.target.value)}
                 className={styles.filterSelect}
                 title="Filter by Role"
+                aria-label="Filter by Role"
               >
                 <option value="ALL">All Roles</option>
                 <option value="ADMIN">Administrators</option>
@@ -275,12 +277,29 @@ export default function RoleManager() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className={styles.filterSelect}
                 title="Filter by Status"
+                aria-label="Filter by Status"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="ACTIVE">Active</option>
                 <option value="SUSPENDED">Suspended</option>
                 <option value="BANNED">Banned</option>
               </select>
+
+              {(roleFilter !== 'ALL' || statusFilter !== 'ALL' || searchQuery) && (
+                <button
+                  type="button"
+                  className={styles.clearFilterBtn}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setRoleFilter('ALL');
+                    setStatusFilter('ALL');
+                  }}
+                  title="Reset all search queries and filters"
+                  aria-label="Reset all search queries and filters"
+                >
+                  Reset Filters
+                </button>
+              )}
             </div>
           </div>
         </Card>
@@ -360,14 +379,16 @@ export default function RoleManager() {
                         </div>
                       )}
                     </td>
-                    <td className={styles.td}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <td className={styles.td} style={{ textAlign: 'right' }}>
+                      <div className={styles.actionBtnGroup} style={{ justifyContent: 'flex-end' }}>
                         <Button 
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleEditClick(admin)}
                           disabled={admin.id === profile?.id}
-                          style={{ padding: '0.25rem' }}
+                          style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                          title="Edit Admin"
+                          aria-label={`Edit ${admin.name || 'Admin'}`}
                         >
                           <Edit2 size={16} />
                         </Button>
@@ -380,8 +401,9 @@ export default function RoleManager() {
                               setAdminToDelete(admin);
                               setDeleteModalOpen(true);
                             }}
-                            style={{ color: 'var(--color-error)', padding: '0.25rem' }}
+                            style={{ color: 'var(--color-error)', padding: '0.25rem 0.5rem', minHeight: 'auto' }}
                             title="Delete Admin"
+                            aria-label={`Delete ${admin.name || 'Admin'}`}
                           >
                             <Trash2 size={16} />
                           </Button>

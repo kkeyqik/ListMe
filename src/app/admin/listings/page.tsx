@@ -329,6 +329,7 @@ export default function AdminListings() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search listings by title, ID, or location..."
+                aria-label="Search listings by title, ID, or location"
                 leftIcon={<Search size={18} />}
                 fullWidth
               />
@@ -338,6 +339,7 @@ export default function AdminListings() {
                 type="button"
                 className={styles.clearFilterBtn}
                 onClick={() => {
+                  setPage(1);
                   setSearchQuery('');
                   setStatusFilter('ALL');
                   setTypeFilter('ALL');
@@ -347,6 +349,7 @@ export default function AdminListings() {
                   setEndDate('');
                 }}
                 title="Reset all search queries and filters"
+                aria-label="Reset all search queries and filters"
               >
                 Reset Filters
               </button>
@@ -360,6 +363,7 @@ export default function AdminListings() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className={styles.filterSelect}
               title="Filter by Status"
+              aria-label="Filter by Status"
             >
               <option value="ALL">All Statuses</option>
               <option value="ACTIVE">Active</option>
@@ -373,6 +377,7 @@ export default function AdminListings() {
               onChange={(e) => setTypeFilter(e.target.value)}
               className={styles.filterSelect}
               title="Filter by Property Type"
+              aria-label="Filter by Property Type"
             >
               <option value="ALL">All Types</option>
               <option value="APARTMENT">Apartment</option>
@@ -386,17 +391,19 @@ export default function AdminListings() {
               onChange={(e) => setForFilter(e.target.value)}
               className={styles.filterSelect}
               title="Filter by Listing For"
+              aria-label="Filter by Listing For"
             >
               <option value="ALL">All Listing For</option>
               <option value="SALE">For Sale</option>
               <option value="RENT">For Rent</option>
             </select>
 
-            <div style={{ flex: 1, minWidth: '140px' }}>
+            <div style={{ flex: 1, minWidth: '140px' }} className={styles.cityFilterInput}>
               <Input
                 value={cityFilter}
                 onChange={(e) => setCityFilter(e.target.value)}
                 placeholder="Filter by City..."
+                aria-label="Filter by City"
                 fullWidth
               />
             </div>

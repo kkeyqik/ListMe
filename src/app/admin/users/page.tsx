@@ -276,6 +276,7 @@ export default function AdminUsers() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search users by name, email, or phone number..."
+                aria-label="Search users by name, email, or phone number"
                 leftIcon={<Search size={18} />}
                 fullWidth
               />
@@ -293,6 +294,7 @@ export default function AdminUsers() {
                   setEndDate('');
                 }}
                 title="Reset all search queries and filters"
+                aria-label="Reset all search queries and filters"
               >
                 Reset Filters
               </button>
@@ -305,6 +307,7 @@ export default function AdminUsers() {
               onChange={(e) => setRoleFilter(e.target.value)}
               className={styles.filterSelect}
               title="Filter by Role"
+              aria-label="Filter by Role"
             >
               <option value="ALL">All Roles</option>
               <option value="USER">Regular Users</option>
@@ -317,6 +320,7 @@ export default function AdminUsers() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className={styles.filterSelect}
               title="Filter by Status"
+              aria-label="Filter by Status"
             >
               <option value="ALL">All Statuses</option>
               <option value="ACTIVE">Active</option>
@@ -327,8 +331,9 @@ export default function AdminUsers() {
             <select
               value={verificationFilter}
               onChange={(e) => setVerificationFilter(e.target.value)}
-              className={styles.filterSelect}
+              className={`${styles.filterSelect} ${styles.filterRowFull}`}
               title="Filter by Verification"
+              aria-label="Filter by Verification"
             >
               <option value="ALL">All Verification</option>
               <option value="VERIFIED">Verified</option>
@@ -497,22 +502,24 @@ export default function AdminUsers() {
                         </Button>
                       </div>
                     </td>
-                    <td className={styles.td}>
-                      {canDeleteUser(userItem) && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => {
-                            setUserToDelete(userItem);
-                            setDeleteModalOpen(true);
-                          }}
-                          style={{ color: 'var(--color-error)', padding: '0.25rem' }}
-                          title="Delete User"
-                          aria-label="Delete user"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      )}
+                    <td className={styles.td} style={{ textAlign: 'right' }}>
+                      <div className={styles.actionBtnGroup} style={{ justifyContent: 'flex-end' }}>
+                        {canDeleteUser(userItem) && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => {
+                              setUserToDelete(userItem);
+                              setDeleteModalOpen(true);
+                            }}
+                            style={{ color: 'var(--color-error)', padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                            title="Delete User"
+                            aria-label="Delete user"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

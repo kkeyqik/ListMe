@@ -117,6 +117,8 @@
 /* Table styling */
 .tableContainer {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 250px);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background-color: var(--color-card);
@@ -219,6 +221,12 @@
   color: var(--color-neutral-900);
 }
 
+.clearFilterBtn:focus-visible {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px var(--color-secondary-fade);
+}
+
 /* Responsive visibility utilities */
 .desktopOnly {
   display: block;
@@ -270,6 +278,7 @@
 
 .filterSelect:focus {
   border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px var(--color-secondary-fade);
 }
 
 .dateFilterGroup {
@@ -293,14 +302,45 @@
   height: 40px;
   min-height: 40px;
   color: var(--color-neutral-800);
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dateInput:focus {
   border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px var(--color-secondary-fade);
+}
+
+.cityFilterInput input {
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0.45rem 0.75rem !important;
+  font-size: 0.875rem !important;
 }
 
 @media (max-width: 767px) {
+  .tableContainer {
+    max-height: none;
+  }
+
+  .mobileCardsList.mobileOnly,
+  .mobileCardsList {
+    display: flex !important;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .clearFilterBtn {
+    height: 44px;
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .cityFilterInput input {
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
   .filterRow {
     display: grid;
     grid-template-columns: 1fr 1fr;
