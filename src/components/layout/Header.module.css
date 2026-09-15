@@ -259,12 +259,16 @@
   display: none;
   background: transparent;
   color: var(--color-neutral-800);
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
   transition: background-color var(--transition-fast);
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .mobileMenuButton:hover {
@@ -273,7 +277,7 @@
 
 @media (max-width: 1023px) {
   .mobileMenuButton {
-    display: none;
+    display: flex;
   }
 }
 
@@ -378,6 +382,38 @@
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+@media (max-width: 1023px) {
+  .headerWrapper:not(.homeHeaderWrapper) {
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    padding: env(safe-area-inset-top, 0px) 0 0 0;
+  }
+
+  .headerWrapper:not(.homeHeaderWrapper) .header {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    padding: 0.75rem 1.25rem;
+  }
+
+  .logo {
+    font-size: 1.625rem;
+  }
+
+  .logoIcon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .homeHeader {
+    padding: 1rem 1.25rem 0 1.25rem;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════

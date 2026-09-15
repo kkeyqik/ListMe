@@ -21,13 +21,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
   }
 
   const isActive = (path: string) => {
+    if (!pathname) return false;
     if (path === '/' && pathname === '/') return true;
-    if (path !== '/' && pathname.startsWith(path)) return true;
+    if (path === '/listings' && (pathname.startsWith('/listings') || pathname.startsWith('/property/'))) return true;
+    if (path === '/post-property' && (pathname.startsWith('/post-property') || pathname === '/dashboard/listings/new')) return true;
+    if (path === '/dashboard/interests' && pathname.startsWith('/dashboard') && pathname !== '/dashboard/listings/new') return true;
     return false;
   };
 
   return (
-    <nav className={styles.bottomNav}>
+    <nav className={styles.bottomNav} aria-label="Mobile Bottom Navigation">
       <Link href="/" className={`${styles.navItem} ${isActive('/') ? styles.active : ''}`}>
         <Home className={styles.icon} />
         <span className={styles.label}>Home</span>
@@ -38,7 +41,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
         <span className={styles.label}>Search</span>
       </Link>
       
-      <Link href="/post-property" className={`${styles.navItem} ${styles.centerItem}`}>
+      <Link href="/post-property" className={`${styles.navItem} ${styles.centerItem} ${isActive('/post-property') ? styles.active : ''}`}>
         <PlusCircle className={styles.icon} style={{ fill: 'var(--color-primary)', color: 'white' }} />
         <span className={styles.label}>Sell/Rent</span>
         <span className={styles.freeBadge}>FREE</span>
@@ -49,7 +52,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
         <span className={styles.label}>Activity</span>
       </Link>
       
-      <button onClick={openMenu} className={`${styles.navItem} ${isMenuOpen ? styles.active : ''}`}>
+      <button 
+        type="button"
+        onClick={openMenu} 
+        className={`${styles.navItem} ${isMenuOpen ? styles.active : ''}`}
+        aria-label="Open mobile category menu"
+      >
         <Menu className={styles.icon} />
         <span className={styles.label}>Menu</span>
       </button>

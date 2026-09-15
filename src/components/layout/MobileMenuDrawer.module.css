@@ -9,7 +9,10 @@
 
 .drawerContent {
   width: 100%;
-  height: 90vh; /* Not full height to show it's a drawer */
+  height: 90vh; /* Fallback for older browsers */
+  height: 90dvh; /* Dynamic viewport height tracks address bar */
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background-color: #ffffff;
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
