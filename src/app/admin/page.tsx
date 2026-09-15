@@ -227,9 +227,9 @@ export default function AdminHome() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th className={styles.th}>Property details</th>
-                      <th className={styles.th}>Price</th>
-                      <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
+                      <th className={styles.th} style={{ width: '52%' }}>Property details</th>
+                      <th className={styles.th} style={{ width: '24%' }}>Price</th>
+                      <th className={styles.th} style={{ width: '24%', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>

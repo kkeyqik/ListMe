@@ -267,16 +267,36 @@ export default function AdminUsers() {
       </div>
 
       {/* Toolbar filters */}
-      <Card padding="md" style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ flex: '1', minWidth: '260px' }}>
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search users by name, email, or phone number..."
-              leftIcon={<Search size={18} />}
-              fullWidth
-            />
+      <Card padding="md" style={{ marginBottom: '1.5rem' }}>
+        <div className={styles.filterContainer}>
+          {/* Top row: Search input + Clear filters */}
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1', minWidth: '260px' }}>
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search users by name, email, or phone number..."
+                leftIcon={<Search size={18} />}
+                fullWidth
+              />
+            </div>
+            {(roleFilter !== 'ALL' || statusFilter !== 'ALL' || verificationFilter !== 'ALL' || startDate || endDate || searchQuery) && (
+              <button
+                type="button"
+                className={styles.clearFilterBtn}
+                onClick={() => {
+                  setSearchQuery('');
+                  setRoleFilter('ALL');
+                  setStatusFilter('ALL');
+                  setVerificationFilter('ALL');
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                title="Reset all search queries and filters"
+              >
+                Reset Filters
+              </button>
+            )}
           </div>
 
           <div className={styles.filterRow}>
@@ -307,7 +327,7 @@ export default function AdminUsers() {
             <select
               value={verificationFilter}
               onChange={(e) => setVerificationFilter(e.target.value)}
-              className={`${styles.filterSelect} ${styles.filterRowFull}`}
+              className={styles.filterSelect}
               title="Filter by Verification"
             >
               <option value="ALL">All Verification</option>
@@ -352,26 +372,26 @@ export default function AdminUsers() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>
+                  <th className={styles.th} style={{ cursor: 'pointer', width: '22%' }} onClick={() => handleSort('name')}>
                     User Details <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                   </th>
-                  <th className={styles.th}>Contact details</th>
-                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('role')}>
+                  <th className={styles.th} style={{ width: '18%' }}>Contact details</th>
+                  <th className={styles.th} style={{ cursor: 'pointer', width: '11%' }} onClick={() => handleSort('role')}>
                     Role <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                   </th>
-                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('status')}>
+                  <th className={styles.th} style={{ cursor: 'pointer', width: '12%' }} onClick={() => handleSort('status')}>
                     Status <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                   </th>
-                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('properties')}>
+                  <th className={styles.th} style={{ cursor: 'pointer', width: '9%' }} onClick={() => handleSort('properties')}>
                     Properties <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                   </th>
-                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('responses')}>
+                  <th className={styles.th} style={{ cursor: 'pointer', width: '9%' }} onClick={() => handleSort('responses')}>
                     Responses <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                   </th>
-                  <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('verification')}>
+                  <th className={styles.th} style={{ cursor: 'pointer', width: '12%' }} onClick={() => handleSort('verification')}>
                     Verification <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                   </th>
-                  <th className={styles.th}>Actions</th>
+                  <th className={styles.th} style={{ width: '7%', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>

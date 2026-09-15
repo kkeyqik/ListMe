@@ -23,6 +23,9 @@
   flex: 1;
   padding: 2rem;
   width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 @media (max-width: 767px) {

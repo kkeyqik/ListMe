@@ -262,7 +262,8 @@ export default function RoleManager() {
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+                className={styles.filterSelect}
+                title="Filter by Role"
               >
                 <option value="ALL">All Roles</option>
                 <option value="ADMIN">Administrators</option>
@@ -272,7 +273,8 @@ export default function RoleManager() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-neutral-300)', background: '#fff', outline: 'none' }}
+                className={styles.filterSelect}
+                title="Filter by Status"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="ACTIVE">Active</option>
@@ -287,21 +289,21 @@ export default function RoleManager() {
       {loading ? (
         <Card padding="md">Loading roles...</Card>
       ) : (
-        <div className={styles.tableContainer} style={{ overflow: 'visible' }}>
+        <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '30%' }} onClick={() => handleSort('name')}>
                   Admin Name <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('role')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '18%' }} onClick={() => handleSort('role')}>
                   Role <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('status')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '14%' }} onClick={() => handleSort('status')}>
                   Status <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th}>Module Permissions</th>
-                <th className={styles.th}>Actions</th>
+                <th className={styles.th} style={{ width: '26%' }}>Module Permissions</th>
+                <th className={styles.th} style={{ width: '12%', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>

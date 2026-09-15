@@ -320,17 +320,39 @@ export default function AdminListings() {
       </div>
 
       {/* Toolbar */}
-      <Card padding="md" style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ flex: '1', minWidth: '260px' }}>
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search listings by title, ID, or location..."
-              leftIcon={<Search size={18} />}
-              fullWidth
-            />
+      <Card padding="md" style={{ marginBottom: '1.5rem' }}>
+        <div className={styles.filterContainer}>
+          {/* Top row: Search input + Clear filters */}
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1', minWidth: '260px' }}>
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search listings by title, ID, or location..."
+                leftIcon={<Search size={18} />}
+                fullWidth
+              />
+            </div>
+            {(statusFilter !== 'ALL' || typeFilter !== 'ALL' || forFilter !== 'ALL' || cityFilter || startDate || endDate || searchQuery) && (
+              <button
+                type="button"
+                className={styles.clearFilterBtn}
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('ALL');
+                  setTypeFilter('ALL');
+                  setForFilter('ALL');
+                  setCityFilter('');
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                title="Reset all search queries and filters"
+              >
+                Reset Filters
+              </button>
+            )}
           </div>
+
           {/* Row 2: Categorical and date filters */}
           <div className={styles.filterRow}>
             <select
@@ -416,11 +438,11 @@ export default function AdminListings() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.th}>Property details</th>
-                  <th className={styles.th}>Type</th>
-                  <th className={styles.th}>Price</th>
-                  <th className={styles.th}>Status</th>
-                  <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
+                  <th className={styles.th} style={{ width: '38%' }}>Property details</th>
+                  <th className={styles.th} style={{ width: '16%' }}>Type</th>
+                  <th className={styles.th} style={{ width: '16%' }}>Price</th>
+                  <th className={styles.th} style={{ width: '14%' }}>Status</th>
+                  <th className={styles.th} style={{ width: '16%', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
