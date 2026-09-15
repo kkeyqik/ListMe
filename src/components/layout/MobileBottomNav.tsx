@@ -31,23 +31,39 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
 
   return (
     <nav className={styles.bottomNav} aria-label="Mobile Bottom Navigation">
-      <Link href="/" className={`${styles.navItem} ${isActive('/') ? styles.active : ''}`}>
+      <Link 
+        href="/" 
+        className={`${styles.navItem} ${isActive('/') ? styles.active : ''}`}
+        aria-current={isActive('/') ? 'page' : undefined}
+      >
         <Home className={styles.icon} />
         <span className={styles.label}>Home</span>
       </Link>
       
-      <Link href="/listings" className={`${styles.navItem} ${isActive('/listings') ? styles.active : ''}`}>
+      <Link 
+        href="/listings" 
+        className={`${styles.navItem} ${isActive('/listings') ? styles.active : ''}`}
+        aria-current={isActive('/listings') ? 'page' : undefined}
+      >
         <Search className={styles.icon} />
         <span className={styles.label}>Search</span>
       </Link>
       
-      <Link href="/post-property" className={`${styles.navItem} ${styles.centerItem} ${isActive('/post-property') ? styles.active : ''}`}>
+      <Link 
+        href="/post-property" 
+        className={`${styles.navItem} ${styles.centerItem} ${isActive('/post-property') ? styles.active : ''}`}
+        aria-current={isActive('/post-property') ? 'page' : undefined}
+      >
         <PlusCircle className={styles.icon} style={{ fill: 'var(--color-primary)', color: 'white' }} />
         <span className={styles.label}>Sell/Rent</span>
         <span className={styles.freeBadge}>FREE</span>
       </Link>
       
-      <Link href="/dashboard/interests" className={`${styles.navItem} ${isActive('/dashboard/interests') ? styles.active : ''}`}>
+      <Link 
+        href="/dashboard/interests" 
+        className={`${styles.navItem} ${isActive('/dashboard/interests') ? styles.active : ''}`}
+        aria-current={isActive('/dashboard/interests') ? 'page' : undefined}
+      >
         <Heart className={styles.icon} />
         <span className={styles.label}>Activity</span>
       </Link>
@@ -57,6 +73,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
         onClick={openMenu} 
         className={`${styles.navItem} ${isMenuOpen ? styles.active : ''}`}
         aria-label="Open mobile category menu"
+        aria-expanded={isMenuOpen}
+        aria-haspopup="dialog"
       >
         <Menu className={styles.icon} />
         <span className={styles.label}>Menu</span>

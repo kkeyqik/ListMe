@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Outfit, JetBrains_Mono } from "next/font/google";
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorMonitor } from '@/components/ErrorMonitor';
@@ -48,11 +48,12 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
 };
 
-export const viewport = {
+export const viewport: Viewport = {
   themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: 'cover',
 };
 
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";

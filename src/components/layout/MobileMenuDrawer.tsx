@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './MobileMenuDrawer.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
@@ -183,6 +183,33 @@ export const MobileMenuDrawer: React.FC = () => {
   const { settings } = useSettings();
   const { showToast } = useToast();
 
+  // Lock body scroll when drawer is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMenuOpen]);
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeMenu();
+      }
+    };
+    if (isMenuOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMenuOpen, closeMenu]);
+
   if (!isMenuOpen) return null;
 
   const currentOptions = SUB_OPTIONS[activeTab as keyof typeof SUB_OPTIONS] || [];
@@ -208,23 +235,39 @@ export const MobileMenuDrawer: React.FC = () => {
 
   return (
     <div className={styles.drawerOverlay} onClick={closeMenu}>
-      <div className={styles.drawerContent} onClick={(e) => e.stopPropagation()}>
+      <div 
+        className={styles.drawerContent} 
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobile-menu-drawer-title"
+      >
         <div className={styles.header}>
-          <h2>All Categories</h2>
-          <button className={styles.closeButton} onClick={closeMenu}>×</button>
+          <h2 id="mobile-menu-drawer-title">All Categories</h2>
+          <button 
+            type="button"
+            className={styles.closeButton} 
+            onClick={closeMenu}
+            aria-label="Close categories menu"
+          >
+            ×
+          </button>
         </div>
         
         <div className={styles.body}>
-          <div className={styles.sidebar}>
+          <div className={styles.sidebar} role="tablist" aria-label="Category tabs">
             {CATEGORIES.map(cat => (
-              <div 
+              <button 
+                type="button"
                 key={cat.id} 
+                role="tab"
+                aria-selected={activeTab === cat.id}
                 className={`${styles.tabItem} ${activeTab === cat.id ? styles.activeTab : ''}`}
                 onClick={() => setActiveTab(cat.id)}
               >
                 <div className={styles.tabIcon}>{cat.icon}</div>
                 <span>{cat.label}</span>
-              </div>
+              </button>
             ))}
           </div>
           
@@ -235,11 +278,11 @@ export const MobileMenuDrawer: React.FC = () => {
                   <h3 className={styles.sectionTitle}>{section.title}</h3>
                   <div className={styles.gridContainer}>
                     {section.items.map((item, i) => (
-                      <div 
+                      <button 
+                        type="button"
                         key={i} 
                         className={`${styles.optionCard} ${item.fullWidth ? styles.fullWidthCard : ''}`}
                         onClick={() => handleOptionClick(item)}
-                        style={{ cursor: 'pointer' }}
                       >
                         <div 
                           className={styles.optionIconCircle} 
@@ -248,7 +291,7 @@ export const MobileMenuDrawer: React.FC = () => {
                           {item.icon}
                         </div>
                         <span>{item.label}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -261,10 +304,16 @@ export const MobileMenuDrawer: React.FC = () => {
             
             <div className={styles.helpFooter}>
               <span>👍 Help us improve ListMe</span>
-              <button className={styles.rateBtn} onClick={() => {
-                closeMenu();
-                router.push('/contact');
-              }}>Rate now</button>
+              <button 
+                type="button"
+                className={styles.rateBtn} 
+                onClick={() => {
+                  closeMenu();
+                  router.push('/contact');
+                }}
+              >
+                Rate now
+              </button>
             </div>
           </div>
         </div>

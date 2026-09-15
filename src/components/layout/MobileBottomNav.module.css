@@ -26,6 +26,8 @@
     align-items: center;
     height: calc(64px + env(safe-area-inset-bottom, 0px));
     min-height: calc(64px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(64px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
   }
 }
 
@@ -35,21 +37,30 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  flex: 1;
+  flex: 1 0 0;
   text-decoration: none;
   color: var(--color-neutral-500);
   background: transparent;
   border: none;
   cursor: pointer;
   height: 64px;
+  min-height: 64px;
+  max-height: 64px;
   position: relative;
   transition: color 0.2s ease;
   min-width: 44px;
   touch-action: manipulation;
+  box-sizing: border-box;
 }
 
 .navItem:hover {
   color: var(--color-neutral-700);
+}
+
+.navItem:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-md);
 }
 
 .active {
@@ -60,6 +71,7 @@
   width: 24px;
   height: 24px;
   flex-shrink: 0;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
 
 .label {
@@ -68,10 +80,29 @@
   font-family: var(--font-body);
   line-height: 1.1;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .centerItem {
+  color: var(--color-neutral-500);
+}
+
+.centerItem:hover {
+  color: var(--color-neutral-700);
+}
+
+.centerItem.active {
   color: var(--color-primary);
+}
+
+.centerItem.active .label {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.centerItem.active .icon {
+  transform: scale(1.08);
+  filter: drop-shadow(0 2px 6px rgba(10, 17, 40, 0.2));
 }
 
 .freeBadge {
