@@ -120,10 +120,11 @@ function getEmbedUrl(rawUrl: string): { type: 'iframe' | 'video' | 'link' | 'inv
   }
 
   // 6. Direct video format (.mp4, .webm, .ogg, .mov, .mkv) or Supabase video storage
+  const supabaseVideoPattern = /supabase\.co\/storage\/v1\/object\/public\/(listing-videos|videos)\//i;
   if (
     /\.(mp4|webm|ogg|mov|mkv)($|\?)/i.test(trimmed) ||
     trimmed.includes('/listing-videos/') ||
-    trimmed.includes('/videos/')
+    supabaseVideoPattern.test(trimmed)
   ) {
     return {
       type: 'video',

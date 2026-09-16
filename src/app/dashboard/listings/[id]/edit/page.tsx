@@ -459,7 +459,31 @@ export default function EditListing({ params }: EditListingProps) {
     setSelectedVideo(null);
   };
 
-  const removeExistingVideo = () => {
+  // S14: Revoke object URL on component unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (selectedVideo?.previewUrl) {
+        URL.revokeObjectURL(selectedVideo.previewUrl);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const removeExistingVideo = async () => {
+    // S8: Delete the Storage binary when removing an existing Supabase-hosted video
+    if (initialVideoUrl && initialVideoUrl.includes('/listing-videos/')) {
+      try {
+        const supabase = createClient();
+        // Extract the storage path from the public URL
+        const match = initialVideoUrl.match(/\/listing-videos\/(.+)/);
+        if (match && match[1]) {
+          await supabase.storage.from(LISTING_VIDEOS_BUCKET).remove([match[1]]);
+        }
+      } catch (err) {
+        console.warn('Could not delete video from storage:', err);
+        // Non-blocking: DB row will still be removed
+      }
+    }
     setDeleteExistingVideo(true);
     setFormData((prev: any) => ({ ...prev, videoUrl: '' }));
   };
@@ -1463,7 +1487,11 @@ export default function EditListing({ params }: EditListingProps) {
                 <div className={styles.videoModeToggle}>
                   <button
                     type="button"
-                    onClick={() => setVideoMode('upload')}
+                    onClick={() => {
+                      setVideoMode('upload');
+                      // S7: Clear link-mode state when switching to upload
+                      setFormData((prev: any) => ({ ...prev, videoUrl: '' }));
+                    }}
                     className={`${styles.videoModeBtn} ${videoMode === 'upload' ? styles.videoModeBtnActive : ''}`}
                   >
                     <Upload size={14} />
@@ -1471,7 +1499,11 @@ export default function EditListing({ params }: EditListingProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setVideoMode('link')}
+                    onClick={() => {
+                      setVideoMode('link');
+                      // S7: Clear upload-mode state when switching to link
+                      removeSelectedVideo();
+                    }}
                     className={`${styles.videoModeBtn} ${videoMode === 'link' ? styles.videoModeBtnActive : ''}`}
                   >
                     <Video size={14} />
@@ -1481,7 +1513,8 @@ export default function EditListing({ params }: EditListingProps) {
               </div>
 
               {/* Show existing video card if present and not deleted/replaced */}
-              {initialVideoUrl && !deleteExistingVideo && !selectedVideo && !formData.videoUrl ? (
+              {/* S13: Show for both upload and link modes (not only when videoUrl is empty) */}
+              {initialVideoUrl && !deleteExistingVideo && !selectedVideo && videoMode !== 'link' ? (
                 <div className={styles.fileList} style={{ marginBottom: '8px' }}>
                   <div className={styles.fileItem} style={{ background: '#f8fafc', border: '1px solid var(--color-neutral-200)' }}>
                     <div className={styles.fileInfo}>
@@ -1523,15 +1556,17 @@ export default function EditListing({ params }: EditListingProps) {
                       )}
                     </div>
                   </div>
-                  {/* Video preview player if direct video format */}
+                  {/* S6: Only render <video> if URL is a safe https:// Supabase storage URL */}
                   {/\.(mp4|webm|mov|mkv)($|\?)/i.test(initialVideoUrl) || initialVideoUrl.includes('/listing-videos/') ? (
-                    <div className={styles.videoPreviewBox}>
-                      <video
-                        src={initialVideoUrl}
-                        controls
-                        className={styles.videoPreviewPlayer}
-                      />
-                    </div>
+                    /^https:\/\//i.test(initialVideoUrl) ? (
+                      <div className={styles.videoPreviewBox}>
+                        <video
+                          src={initialVideoUrl}
+                          controls
+                          className={styles.videoPreviewPlayer}
+                        />
+                      </div>
+                    ) : null
                   ) : null}
                 </div>
               ) : videoMode === 'upload' ? (
@@ -1540,7 +1575,7 @@ export default function EditListing({ params }: EditListingProps) {
                     <div className={styles.dropzone}>
                       <input
                         type="file"
-                        accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg,video/*"
+                        accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg"
                         onChange={handleVideoSelect}
                         className={styles.fileInput}
                         id="video-upload-edit"

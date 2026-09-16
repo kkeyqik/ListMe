@@ -53,15 +53,15 @@ export const validateDocument = (file: File): { valid: boolean; error?: string }
 };
 
 /**
- * Validates a video file before upload
+ * Validates a video file before upload.
+ * Only accepts exact MIME types in ALLOWED_VIDEO_TYPES — no wildcards or filename fallbacks.
  */
 export const validateVideo = (file: File): { valid: boolean; error?: string } => {
-  const isVideo =
-    ALLOWED_VIDEO_TYPES.includes(file.type) ||
-    file.type.startsWith('video/') ||
-    /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name);
-  if (!isVideo) {
-    return { valid: false, error: 'Only MP4, WebM, MOV, and standard video formats are allowed.' };
+  if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+    return {
+      valid: false,
+      error: 'Only MP4, WebM, MOV (QuickTime), MKV, and OGG video files are allowed.',
+    };
   }
   if (file.size > MAX_VIDEO_SIZE) {
     return { valid: false, error: 'Video file size cannot exceed 50MB.' };
@@ -70,10 +70,12 @@ export const validateVideo = (file: File): { valid: boolean; error?: string } =>
 };
 
 /**
- * Generates a clean, unique file name for storage
+ * Generates a clean, unique file name for storage.
+ * Falls back to "bin" if the original file has no recognisable extension.
  */
 export const generateFileName = (originalName: string): string => {
-  const extension = originalName.split('.').pop();
+  const parts = originalName.split('.');
+  const extension = parts.length > 1 ? parts.pop()! : 'bin';
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 9);
   return `${timestamp}-${randomString}.${extension}`;

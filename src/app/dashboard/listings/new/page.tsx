@@ -459,6 +459,16 @@ export default function NewListing() {
     setSelectedVideo(null);
   };
 
+  // S14: Revoke object URL on component unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (selectedVideo?.previewUrl) {
+        URL.revokeObjectURL(selectedVideo.previewUrl);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const uploadListingMedia = async (listingId: string, videoUrlToSave = '') => {
     const supabase = createClient();
 
@@ -1444,7 +1454,11 @@ export default function NewListing() {
                 <div className={styles.videoModeToggle}>
                   <button
                     type="button"
-                    onClick={() => setVideoMode('upload')}
+                    onClick={() => {
+                      setVideoMode('upload');
+                      // S7: Clear link-mode state when switching to upload
+                      setFormData((prev: any) => ({ ...prev, videoUrl: '' }));
+                    }}
                     className={`${styles.videoModeBtn} ${videoMode === 'upload' ? styles.videoModeBtnActive : ''}`}
                   >
                     <Upload size={14} />
@@ -1452,7 +1466,11 @@ export default function NewListing() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setVideoMode('link')}
+                    onClick={() => {
+                      setVideoMode('link');
+                      // S7: Clear upload-mode state when switching to link
+                      removeVideo();
+                    }}
                     className={`${styles.videoModeBtn} ${videoMode === 'link' ? styles.videoModeBtnActive : ''}`}
                   >
                     <Video size={14} />
@@ -1467,7 +1485,7 @@ export default function NewListing() {
                     <div className={styles.dropzone}>
                       <input
                         type="file"
-                        accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg,video/*"
+                        accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg"
                         onChange={handleVideoSelect}
                         className={styles.fileInput}
                         id="video-upload-new"

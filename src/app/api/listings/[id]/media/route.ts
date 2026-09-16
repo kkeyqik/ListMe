@@ -145,10 +145,8 @@ export async function POST(
       documents: createdDocuments,
       videos: createdVideos,
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { message: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
