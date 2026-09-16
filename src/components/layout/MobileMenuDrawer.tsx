@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './MobileMenuDrawer.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
@@ -252,13 +252,18 @@ export const MobileMenuDrawer: React.FC = () => {
         closeMenu();
       }
     };
-    if (isMenuOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMenuOpen, closeMenu]);
+
+  // Scroll content area to top whenever active category tab changes so Login Card is always visible
+  const contentAreaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (contentAreaRef.current) {
+      contentAreaRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
 
   if (!isMenuOpen) return null;
 
@@ -321,8 +326,8 @@ export const MobileMenuDrawer: React.FC = () => {
             ))}
           </div>
           
-          <div className={styles.contentArea}>
-            {/* Login / Personalize Experience Card */}
+          <div className={styles.contentArea} ref={contentAreaRef}>
+            {/* Login / Personalize Experience Card — Displayed across all 7 categories */}
             <div className={styles.loginCard}>
               <div className={styles.loginCardHeader}>
                 <div className={styles.loginAvatarCircle}>
