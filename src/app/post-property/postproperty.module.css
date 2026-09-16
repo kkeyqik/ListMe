@@ -393,11 +393,7 @@
     left: 0;
     right: 0;
     width: 100%;
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(9, 30, 66, 0.08);
-    box-shadow: 0 -4px 20px rgba(9, 30, 66, 0.12);
+    background: transparent;
     padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom, 0px)) 1.25rem;
     z-index: 99;
     transform: translateY(115%);
