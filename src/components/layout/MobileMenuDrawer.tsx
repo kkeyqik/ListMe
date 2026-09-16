@@ -6,16 +6,65 @@ import styles from './MobileMenuDrawer.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useToast } from '@/components/ui';
-import { Plus, MessageCircle, Crown, ArrowUp, HardHat, Building, Home, BedDouble, PlusSquare, Info, Store, Map, Factory, TrendingUp, BarChart2, Calculator, Maximize, FileText, BookOpen, Globe, MapPin, MessageSquare, PhoneCall, Heart, Eye, User, Headset, Headphones, HelpCircle, Bell, Key } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { 
+  Plus, 
+  MessageCircle, 
+  Crown, 
+  ArrowUp, 
+  HardHat, 
+  Building, 
+  Building2,
+  Home, 
+  BedDouble, 
+  PlusSquare, 
+  Info, 
+  Store, 
+  Map, 
+  Factory, 
+  TrendingUp, 
+  BarChart2, 
+  Calculator, 
+  Maximize, 
+  FileText, 
+  BookOpen, 
+  Globe, 
+  MapPin, 
+  MessageSquare, 
+  PhoneCall, 
+  Heart, 
+  Eye, 
+  User, 
+  Headset, 
+  Headphones, 
+  HelpCircle, 
+  Bell, 
+  Key,
+  History,
+  LogOut
+} from 'lucide-react';
 
 const CATEGORIES = [
-  { id: 'sell_rent', label: 'Sell/Rent', icon: <PlusSquare size={20} /> },
+  { 
+    id: 'sell_rent', 
+    label: 'Sell/Rent', 
+    icon: (
+      <div className={styles.sellRentBadgeIcon}>
+        <span className={styles.sellRentPlus}>+</span>
+        <span className={styles.sellRentFree}>FREE</span>
+      </div>
+    ) 
+  },
   { id: 'buy_residential', label: 'Buy Residential', icon: <Home size={20} /> },
   { id: 'rent_pg', label: 'Rent / PG', icon: <Key size={20} /> },
   { id: 'buy_commercial', label: 'Buy Commercial', icon: <Store size={20} /> },
-  { id: 'lease_commercial', label: 'Lease Commercial', icon: <Store size={20} /> },
-  { id: 'price_insights', label: 'Price & Insights', icon: <TrendingUp size={20} /> },
-  { id: 'activity_support', label: 'Activity & Support', icon: <Info size={20} /> },
+  { id: 'lease_commercial', label: 'Lease Commercial', icon: <Building2 size={20} /> },
+  { 
+    id: 'price_insights', 
+    label: 'Price & Insights', 
+    icon: <span className={styles.rupeeIcon}>₹</span> 
+  },
+  { id: 'activity_support', label: 'Activity & Support', icon: <History size={20} /> },
 ];
 
 type SubOptionItem = {
@@ -40,16 +89,16 @@ const SUB_OPTIONS: SubOptionsType = {
     {
       title: 'Property posting options',
       items: [
-        { label: 'Post Property', icon: <Plus size={16} color="white" />, bg: '#3182ce', iconBg: '#3182ce', href: '/post-property' },
-        { label: 'Post via WhatsApp', icon: <MessageCircle size={16} color="white" />, bg: '#48bb78', iconBg: '#48bb78', action: 'whatsapp' }
+        { label: 'Post Property', icon: <Plus size={18} color="white" strokeWidth={2.5} />, bg: '#0078db', iconBg: '#0078db', href: '/post-property' },
+        { label: 'Post via WhatsApp', icon: <MessageCircle size={18} color="white" />, bg: '#25d366', iconBg: '#25d366', action: 'whatsapp' }
       ]
     },
     {
       title: 'Stand out with higher visibility',
       items: [
-        { label: 'Owner Plans', icon: <Crown size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', href: '/post-property#pricing' },
-        { label: 'Dealer Plans', icon: <ArrowUp size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent', href: '/post-property#pricing' },
-        { label: 'Builder Plans', icon: <HardHat size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/post-property#pricing' }
+        { label: 'Owner Plans', icon: <Crown size={22} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', href: '/post-property#pricing' },
+        { label: 'Dealer Plans', icon: <ArrowUp size={22} color="#22c55e" strokeWidth={2.5} />, bg: 'transparent', iconBg: 'transparent', href: '/post-property#pricing' },
+        { label: 'Builder Plans', icon: <HardHat size={22} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/post-property#pricing' }
       ]
     }
   ],
@@ -182,6 +231,7 @@ export const MobileMenuDrawer: React.FC = () => {
   const router = useRouter();
   const { settings } = useSettings();
   const { showToast } = useToast();
+  const { user, profile, signOut } = useAuth();
 
   // Lock body scroll when drawer is open
   useEffect(() => {
@@ -272,6 +322,68 @@ export const MobileMenuDrawer: React.FC = () => {
           </div>
           
           <div className={styles.contentArea}>
+            {/* Login / Personalize Experience Card */}
+            <div className={styles.loginCard}>
+              <div className={styles.loginCardHeader}>
+                <div className={styles.loginAvatarCircle}>
+                  {profile?.avatarUrl ? (
+                    <img src={profile.avatarUrl} alt={profile.name || 'User'} className={styles.loginAvatarImg} />
+                  ) : (
+                    <User size={22} color={user ? '#0078db' : '#64748b'} />
+                  )}
+                </div>
+                <div className={styles.loginTextWrap}>
+                  <span className={styles.loginTitle}>
+                    {user ? `Hello, ${profile?.name || user?.email?.split('@')[0] || 'User'}` : 'Hello'}
+                  </span>
+                  <span className={styles.loginSubtitle}>
+                    {user ? (profile?.phone || user?.email || 'Logged in') : 'Login to personalize your experience.'}
+                  </span>
+                </div>
+              </div>
+
+              {user ? (
+                <div className={styles.loggedInActions}>
+                  <button
+                    type="button"
+                    className={styles.loginBtn}
+                    onClick={() => {
+                      closeMenu();
+                      const target = profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN' 
+                        ? '/admin' 
+                        : '/dashboard';
+                      router.push(target);
+                    }}
+                  >
+                    {profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN' ? 'Admin Portal' : 'My Dashboard'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.logoutBtn}
+                    onClick={async () => {
+                      await signOut();
+                      showToast('Logged Out', 'You have been signed out successfully.', 'info');
+                    }}
+                    title="Sign Out"
+                    aria-label="Sign Out"
+                  >
+                    <LogOut size={16} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.loginBtn}
+                  onClick={() => {
+                    closeMenu();
+                    router.push('/login');
+                  }}
+                >
+                  Login/Register
+                </button>
+              )}
+            </div>
+
             {currentOptions.length > 0 ? (
               currentOptions.map((section, idx) => (
                 <div key={idx} className={styles.sectionBlock}>
