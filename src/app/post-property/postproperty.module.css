@@ -960,12 +960,7 @@
 
 @media (max-width: 768px) {
   .statsBanner {
-    padding: 5rem 0;
-  }
-  .statsCard {
-    grid-template-columns: 1fr;
-    gap: 2.5rem;
-    padding: 2.5rem;
+    display: none !important;
   }
 }
 
@@ -1144,6 +1139,12 @@
   .testimonialsGrid {
     grid-template-columns: 1fr;
     gap: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .testimonialsSection {
+    display: none !important;
   }
 }
 
@@ -1437,4 +1438,328 @@
 
 .readCard:hover .readLink {
   color: var(--color-secondary-dark);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE 'WHY TRUST US' VISIBILITY STATS SECTION
+   ═══════════════════════════════════════════════════════════ */
+.mobileTrustSection {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobileTrustSection {
+    display: block !important;
+    position: relative;
+    background-color: #ffffff;
+    padding-bottom: 2rem;
+    overflow-x: hidden;
+  }
+
+  .mobileTrustBackdrop {
+    height: 180px;
+    width: 100%;
+    background-image: url('/images/why_trust_us_bg.jpg');
+    background-size: cover;
+    background-position: center 25%;
+    position: relative;
+  }
+
+  .mobileTrustBackdrop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(13, 89, 156, 0.22) 0%, rgba(0, 0, 0, 0.12) 100%);
+    pointer-events: none;
+  }
+
+  .mobileTrustCardWrapper {
+    padding: 0 1rem;
+    margin-top: -95px; /* Overlaps building backdrop per mockup */
+    position: relative;
+    z-index: 2;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .mobileTrustCard {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    box-shadow: 0 8px 30px rgba(9, 30, 66, 0.09);
+    padding: 1.75rem 1.25rem 1.625rem 1.25rem;
+  }
+
+  .mobileTrustTag {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6b778c;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.625rem;
+    display: block;
+  }
+
+  .mobileTrustTitle {
+    font-family: var(--font-heading);
+    font-size: clamp(1.25rem, 4.5vw, 1.4375rem);
+    font-weight: 800;
+    color: #091e42;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.625rem 0;
+  }
+
+  .mobileTrustSubtitle {
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    color: #5e6c84;
+    line-height: 1.45;
+    margin: 0 0 1.75rem 0;
+  }
+
+  .mobileTrustMetrics {
+    display: flex;
+    flex-direction: column;
+    gap: 1.375rem;
+  }
+
+  .mobileTrustMetricItem {
+    display: flex;
+    align-items: center;
+    gap: 1.125rem;
+  }
+
+  .mobileTrustMetricIcon {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .mobileTrustMetricContent {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .mobileTrustMetricNumber {
+    font-family: var(--font-heading);
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #091e42;
+    line-height: 1.2;
+  }
+
+  .mobileTrustMetricLabel {
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    color: #5e6c84;
+    line-height: 1.3;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE TESTIMONIALS CAROUSEL ('What our users have to say...')
+   ═══════════════════════════════════════════════════════════ */
+.mobileTestimonialsSection {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobileTestimonialsSection {
+    display: block !important;
+    background-color: #fcf9f2; /* Warm subtle beige tint matching screenshot */
+    padding: 2.25rem 0 2.5rem 0;
+    overflow-x: hidden;
+  }
+
+  .mobileTestimonialsHeader {
+    padding: 0 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .mobileTestimonialsTitle {
+    font-family: var(--font-heading);
+    font-size: clamp(1.25rem, 4.5vw, 1.4375rem);
+    font-weight: 800;
+    color: #091e42;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .mobileTestimonialsTrack {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 0.25rem 1.25rem 1rem 1.25rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .mobileTestimonialsTrack::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobileTestimonialCard {
+    flex: 0 0 82%;
+    min-width: 275px;
+    max-width: 320px;
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid rgba(9, 30, 66, 0.08);
+    box-shadow: 0 4px 14px rgba(9, 30, 66, 0.04);
+    padding: 1.25rem 1.125rem;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .mobileTestimonialCard:active {
+    transform: scale(0.99);
+  }
+
+  .mobileTestimonialAuthor {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .mobileAuthorAvatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.9375rem;
+    flex-shrink: 0;
+  }
+
+  .avatarSky {
+    background-color: #bae6fd;
+    color: #0284c7;
+  }
+
+  .avatarAmber {
+    background-color: #fed7aa;
+    color: #c2410c;
+  }
+
+  .avatarGreen {
+    background-color: #bbf7d0;
+    color: #15803d;
+  }
+
+  .avatarPurple {
+    background-color: #e9d5ff;
+    color: #9333ea;
+  }
+
+  .mobileAuthorDetails {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobileAuthorName {
+    font-family: var(--font-heading);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #091e42;
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  .mobileAuthorRole {
+    font-family: var(--font-body);
+    font-size: 0.785rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+  }
+
+  .mobileTestimonialText {
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    color: #334155;
+    line-height: 1.5;
+    margin: 0 0 0.625rem 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mobileTestimonialTextExpanded {
+    display: block !important;
+    overflow: visible !important;
+    -webkit-line-clamp: unset !important;
+  }
+
+  .mobileReadMoreBtn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #0078db;
+    cursor: pointer;
+    text-align: left;
+    display: inline-block;
+    touch-action: manipulation;
+  }
+
+  .mobileReadMoreBtn:hover,
+  .mobileReadMoreBtn:active {
+    color: #0c66e4;
+    text-decoration: underline;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FLOATING SCROLL-TO-TOP BUTTON
+   ═══════════════════════════════════════════════════════════ */
+.scrollTopBtn {
+  position: fixed;
+  right: 1.25rem;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #d4ebf9;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
+  z-index: 98;
+  touch-action: manipulation;
+  transition: transform 0.15s ease, opacity 0.2s ease, background-color 0.15s ease;
+  animation: fadeIn 0.2s ease;
+}
+
+.scrollTopBtn:hover {
+  background-color: #bee3f8;
+}
+
+.scrollTopBtn:active {
+  transform: scale(0.92);
+}
+
+@media (min-width: 769px) {
+  .scrollTopBtn {
+    display: none !important;
+  }
 }

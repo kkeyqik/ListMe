@@ -111,6 +111,45 @@ const TESTIMONIALS = [
   }
 ];
 
+const MOBILE_USER_TESTIMONIALS = [
+  {
+    id: 'mob-test-1',
+    author: 'Anuj Velankar',
+    role: 'Owner, Gurgaon',
+    avatarInitials: 'AV',
+    avatarVariant: 'avatarSky',
+    shortText: 'Great efforts and regular follow-up to get leads for my rental apartment. Because of your enthusiasm and ...',
+    fullText: 'Great efforts and regular follow-up to get leads for my rental apartment. Because of your enthusiasm and direct seeker connections, I found a verified family tenant within a week with zero brokerage!',
+  },
+  {
+    id: 'mob-test-2',
+    author: 'Manish Roy',
+    role: 'Owner, Bangalore',
+    avatarInitials: 'MR',
+    avatarVariant: 'avatarAmber',
+    shortText: 'I found reliable buyers for my flat in Whitefield. The platform team provided prompt assistance to all my queries...',
+    fullText: 'I found reliable buyers for my flat in Whitefield. The platform team provided prompt assistance to all my queries. The OTP verification ensures only genuine buyers contact you. Best experience!',
+  },
+  {
+    id: 'mob-test-3',
+    author: 'Pooja Sharma',
+    role: 'Owner, Mumbai',
+    avatarInitials: 'PS',
+    avatarVariant: 'avatarGreen',
+    shortText: 'Seamless listing process and got 15+ verified buyer enquiries in the first week itself. Highly recommended for direct owners!',
+    fullText: 'Seamless listing process and got 15+ verified buyer enquiries in the first week itself. Highly recommended for direct owners wanting to save hefty brokerage fees and connect directly.',
+  },
+  {
+    id: 'mob-test-4',
+    author: 'Rajesh Kumar',
+    role: 'Owner, Pune',
+    avatarInitials: 'RK',
+    avatarVariant: 'avatarPurple',
+    shortText: 'Listing my commercial property was hassle-free. Got screened tenant leads directly on WhatsApp with zero middlemen involved.',
+    fullText: 'Listing my commercial property was hassle-free. Got screened tenant leads directly on WhatsApp with zero middlemen involved. Fast closure without paying a single rupee commission.',
+  },
+];
+
 const FAQS = [
   {
     question: "Is listing my property really free on ListMe.com?",
@@ -515,6 +554,33 @@ const ConnectorCurveLeft = () => (
   </svg>
 );
 
+const TrustHouseIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="23.5" y="8" width="3.5" height="8" rx="0.75" fill="#0078db" />
+    <path d="M18 5L5 17H9V29.5C9 30.33 9.67 31 10.5 31H25.5C26.33 31 27 30.33 27 29.5V17H31L18 5Z" fill="#0078db" />
+    <path d="M15 31V21C15 19.34 16.34 18 18 18C19.66 18 21 19.34 21 21V31H15Z" fill="#ffffff" />
+    <path d="M18 7L8 16.5H11L18 10L25 16.5H28L18 7Z" fill="#60a5fa" opacity="0.9" />
+  </svg>
+);
+
+const TrustSearchIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="15.5" cy="15.5" r="11" fill="#e7f5ff" stroke="#0078db" strokeWidth="2.5" />
+    <path d="M15.5 10L10.5 14.5H12.5V19.5H18.5V14.5H20.5L15.5 10Z" fill="#0078db" />
+    <rect x="14.5" y="16" width="2" height="3.5" fill="#e7f5ff" />
+    <path d="M24 24L30.5 30.5" stroke="#0078db" strokeWidth="3" strokeLinecap="round" />
+  </svg>
+);
+
+const TrustUserIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="14" cy="10" r="5" fill="#0078db" />
+    <path d="M6 26C6 21.58 9.58 18 14 18C16.3 18 18.36 18.97 19.8 20.52C19.29 21.49 19 22.59 19 23.75V26H6Z" fill="#0078db" />
+    <rect x="19.5" y="19.5" width="12" height="11" rx="2" fill="#e7f5ff" stroke="#0078db" strokeWidth="1.5" />
+    <path d="M25.5 21L22 24H23.5V28H27.5V24H29L25.5 21Z" fill="#0078db" />
+  </svg>
+);
+
 export default function PostPropertyPage() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -583,7 +649,16 @@ export default function PostPropertyPage() {
   const mobileFormRef = useRef<HTMLFormElement | null>(null);
   const inlineCtaRef = useRef<HTMLButtonElement | null>(null);
   const [showStickyCta, setShowStickyCta] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [expandedTestimonials, setExpandedTestimonials] = useState<Record<string, boolean>>({});
+
+  const toggleTestimonial = (id: string) => {
+    setExpandedTestimonials((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -591,6 +666,7 @@ export default function PostPropertyPage() {
     const handleScroll = () => {
       if (window.innerWidth > 768) {
         setShowStickyCta(false);
+        setShowScrollTop(false);
         return;
       }
       const inlineBtn = inlineCtaRef.current;
@@ -601,6 +677,7 @@ export default function PostPropertyPage() {
       } else {
         setShowStickyCta(window.scrollY > 450);
       }
+      setShowScrollTop(window.scrollY > 350);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -1405,6 +1482,98 @@ export default function PostPropertyPage() {
           </div>
         </section>
 
+        {/* MOBILE 'WHY TRUST US' VISIBILITY STATS SECTION */}
+        <section className={styles.mobileTrustSection} aria-label="Why trust ListMe">
+          <div className={styles.mobileTrustBackdrop} />
+          <div className={styles.mobileTrustCardWrapper}>
+            <div className={styles.mobileTrustCard}>
+              <span className={styles.mobileTrustTag}>WHY TRUST US</span>
+              <h2 className={styles.mobileTrustTitle}>
+                Get maximum visibility with 7 million unique visitors monthly
+              </h2>
+              <p className={styles.mobileTrustSubtitle}>
+                ListMe gives your property the best reach with best advertisement
+              </p>
+
+              <div className={styles.mobileTrustMetrics}>
+                {/* Metric 1: Listings */}
+                <div className={styles.mobileTrustMetricItem}>
+                  <div className={styles.mobileTrustMetricIcon}>
+                    <TrustHouseIcon />
+                  </div>
+                  <div className={styles.mobileTrustMetricContent}>
+                    <span className={styles.mobileTrustMetricNumber}>Over 1 million</span>
+                    <span className={styles.mobileTrustMetricLabel}>Property listings</span>
+                  </div>
+                </div>
+
+                {/* Metric 2: Searches */}
+                <div className={styles.mobileTrustMetricItem}>
+                  <div className={styles.mobileTrustMetricIcon}>
+                    <TrustSearchIcon />
+                  </div>
+                  <div className={styles.mobileTrustMetricContent}>
+                    <span className={styles.mobileTrustMetricNumber}>Over 5.5 million</span>
+                    <span className={styles.mobileTrustMetricLabel}>Monthly searches</span>
+                  </div>
+                </div>
+
+                {/* Metric 3: Owners */}
+                <div className={styles.mobileTrustMetricItem}>
+                  <div className={styles.mobileTrustMetricIcon}>
+                    <TrustUserIcon />
+                  </div>
+                  <div className={styles.mobileTrustMetricContent}>
+                    <span className={styles.mobileTrustMetricNumber}>Over 200K</span>
+                    <span className={styles.mobileTrustMetricLabel}>Owners advertising monthly</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* MOBILE TESTIMONIALS CAROUSEL ('What our users have to say...') */}
+        <section className={styles.mobileTestimonialsSection} aria-label="What our users have to say">
+          <div className={styles.mobileTestimonialsHeader}>
+            <h2 className={styles.mobileTestimonialsTitle}>What our users have to say...</h2>
+          </div>
+
+          <div className={styles.mobileTestimonialsTrack} role="region" aria-label="User testimonials">
+            {MOBILE_USER_TESTIMONIALS.map((t) => {
+              const isExpanded = !!expandedTestimonials[t.id];
+              return (
+                <div key={t.id} className={styles.mobileTestimonialCard}>
+                  <div>
+                    <div className={styles.mobileTestimonialAuthor}>
+                      <div className={`${styles.mobileAuthorAvatar} ${styles[t.avatarVariant]}`}>
+                        {t.avatarInitials}
+                      </div>
+                      <div className={styles.mobileAuthorDetails}>
+                        <h3 className={styles.mobileAuthorName}>{t.author}</h3>
+                        <span className={styles.mobileAuthorRole}>{t.role}</span>
+                      </div>
+                    </div>
+
+                    <p className={`${styles.mobileTestimonialText} ${isExpanded ? styles.mobileTestimonialTextExpanded : ''}`}>
+                      {isExpanded ? t.fullText : t.shortText}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleTestimonial(t.id)}
+                    className={styles.mobileReadMoreBtn}
+                    aria-expanded={isExpanded}
+                  >
+                    {isExpanded ? 'Read less' : 'Read more'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
         {/* DESKTOP 3 SIMPLE STEPS SECTION */}
         <section className={`${styles.stepsSection} ${styles.desktopSteps} section-padding`}>
           <div className="container">
@@ -1827,6 +1996,20 @@ export default function PostPropertyPage() {
           Start now, it’s FREE
         </button>
       </div>
+
+      {/* FLOATING SCROLL-TO-TOP BUTTON (mobile only, appears after scrolling down) */}
+      {showScrollTop && (
+        <button
+          type="button"
+          className={styles.scrollTopBtn}
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="Scroll back to top"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <path d="M9 14V4M9 4L5 8M9 4L13 8" stroke="#0078db" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      )}
 
       <Footer />
       <AuthModal
