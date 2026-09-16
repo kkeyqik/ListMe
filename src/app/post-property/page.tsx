@@ -979,19 +979,22 @@ export default function PostPropertyPage() {
                 aria-selected={mobileCategory === 'residential'}
                 className={`${styles.mobileCategoryTab} ${mobileCategory === 'residential' ? styles.mobileCategoryActive : ''}`}
                 onClick={() => handleMobileCategoryChange('residential')}
+                style={mobileTopTab === 'pg' ? { cursor: 'default' } : undefined}
               >
                 Residential
               </button>
-              <button
-                type="button"
-                role="tab"
-                id="category-tab-commercial"
-                aria-selected={mobileCategory === 'commercial'}
-                className={`${styles.mobileCategoryTab} ${mobileCategory === 'commercial' ? styles.mobileCategoryActive : ''}`}
-                onClick={() => handleMobileCategoryChange('commercial')}
-              >
-                Commercial
-              </button>
+              {mobileTopTab !== 'pg' && (
+                <button
+                  type="button"
+                  role="tab"
+                  id="category-tab-commercial"
+                  aria-selected={mobileCategory === 'commercial'}
+                  className={`${styles.mobileCategoryTab} ${mobileCategory === 'commercial' ? styles.mobileCategoryActive : ''}`}
+                  onClick={() => handleMobileCategoryChange('commercial')}
+                >
+                  Commercial
+                </button>
+              )}
             </div>
 
             {/* Sub-category Pills */}
