@@ -163,7 +163,8 @@ const ARTICLES = [
   }
 ];
 
-const RESIDENTIAL_PILLS = [
+// Residential Sell Pills (img1: 8 options)
+const RESIDENTIAL_SELL_PILLS = [
   { id: 'flat-apartment', label: 'Flat/Apartment', type: 'APARTMENT' },
   { id: 'house-villa', label: 'Independent House / Villa', type: 'HOUSE' },
   { id: 'builder-floor', label: 'Builder Floor', type: 'APARTMENT' },
@@ -172,6 +173,32 @@ const RESIDENTIAL_PILLS = [
   { id: 'serviced-apartment', label: 'Serviced Apartment', type: 'APARTMENT' },
   { id: 'farmhouse', label: 'Farmhouse', type: 'HOUSE' },
   { id: 'other-res', label: 'Other', type: 'APARTMENT' },
+];
+
+// Residential Rent / Lease Pills (img2: 7 options, no Plot/Land)
+const RESIDENTIAL_RENT_PILLS = [
+  { id: 'flat-apartment', label: 'Flat/Apartment', type: 'APARTMENT' },
+  { id: 'house-villa', label: 'Independent House / Villa', type: 'HOUSE' },
+  { id: 'builder-floor', label: 'Builder Floor', type: 'APARTMENT' },
+  { id: 'studio-apartment', label: '1 RK/ Studio Apartment', type: 'APARTMENT' },
+  { id: 'serviced-apartment', label: 'Serviced Apartment', type: 'APARTMENT' },
+  { id: 'farmhouse', label: 'Farmhouse', type: 'HOUSE' },
+  { id: 'other-res', label: 'Other', type: 'APARTMENT' },
+];
+
+// PG Property Pills (img3: 5 options only)
+const PG_PROPERTY_PILLS = [
+  { id: 'flat-apartment', label: 'Flat/Apartment', type: 'APARTMENT' },
+  { id: 'house-villa', label: 'Independent House / Villa', type: 'HOUSE' },
+  { id: 'builder-floor', label: 'Builder Floor', type: 'APARTMENT' },
+  { id: 'studio-apartment', label: '1 RK/ Studio Apartment', type: 'APARTMENT' },
+  { id: 'serviced-apartment', label: 'Serviced Apartment', type: 'APARTMENT' },
+];
+
+// PG Room Type Pills (img3: 2 options)
+const PG_ROOM_TYPES = [
+  { id: 'sharing', label: 'Sharing' },
+  { id: 'private', label: 'Private' },
 ];
 
 const COMMERCIAL_PILLS = [
@@ -183,14 +210,6 @@ const COMMERCIAL_PILLS = [
   { id: 'warehouse', label: 'Warehouse / Godown', type: 'OFFICE' },
   { id: 'industrial-bldg', label: 'Industrial Building', type: 'OFFICE' },
   { id: 'other-comm', label: 'Other', type: 'OFFICE' },
-];
-
-const PG_PILLS = [
-  { id: 'paying-guest', label: 'Paying Guest (PG)', type: 'PG' },
-  { id: 'co-living', label: 'Co-living Space', type: 'PG' },
-  { id: 'hostel', label: 'Hostel', type: 'PG' },
-  { id: 'room-rent', label: 'Room for Rent', type: 'PG' },
-  { id: 'other-pg', label: 'Other', type: 'PG' },
 ];
 
 const HouseIllustration = ({ activeTab }: { activeTab: 'sell' | 'rent' | 'pg' }) => {
@@ -426,6 +445,7 @@ export default function PostPropertyPage() {
   const [mobileTopTab, setMobileTopTab] = useState<'sell' | 'rent' | 'pg'>('sell');
   const [mobileCategory, setMobileCategory] = useState<'residential' | 'commercial'>('residential');
   const [selectedPillId, setSelectedPillId] = useState<string>('flat-apartment');
+  const [selectedRoomType, setSelectedRoomType] = useState<'sharing' | 'private'>('sharing');
   const [mobileContact, setMobileContact] = useState<string>('');
 
   // Prefill contact if user is authenticated
@@ -439,23 +459,44 @@ export default function PostPropertyPage() {
     }
   }, [profile, user]);
 
+  const getActiveMobilePills = () => {
+    if (mobileTopTab === 'pg') return PG_PROPERTY_PILLS;
+    if (mobileCategory === 'residential') {
+      return mobileTopTab === 'sell' ? RESIDENTIAL_SELL_PILLS : RESIDENTIAL_RENT_PILLS;
+    }
+    return COMMERCIAL_PILLS;
+  };
+
+  const getContactHeading = () => {
+    if (mobileTopTab === 'pg') {
+      return 'Your contact details for the tenants to reach you';
+    }
+    return 'Your contact details for the buyer to reach you';
+  };
+
   const handleMobileTopTabChange = (tab: 'sell' | 'rent' | 'pg') => {
     setMobileTopTab(tab);
     if (tab === 'sell') {
       setListingFor('sell');
-      const defaultId = mobileCategory === 'residential' ? 'flat-apartment' : 'ready-office';
-      const defaultType = mobileCategory === 'residential' ? 'APARTMENT' : 'OFFICE';
-      setSelectedPillId(defaultId);
-      setPropertyType(defaultType);
+      const pills = mobileCategory === 'residential' ? RESIDENTIAL_SELL_PILLS : COMMERCIAL_PILLS;
+      if (!pills.some((p) => p.id === selectedPillId)) {
+        setSelectedPillId(pills[0].id);
+        setPropertyType(pills[0].type);
+      }
     } else if (tab === 'rent') {
       setListingFor('rent');
-      const defaultId = mobileCategory === 'residential' ? 'flat-apartment' : 'ready-office';
-      const defaultType = mobileCategory === 'residential' ? 'APARTMENT' : 'OFFICE';
-      setSelectedPillId(defaultId);
-      setPropertyType(defaultType);
+      const pills = mobileCategory === 'residential' ? RESIDENTIAL_RENT_PILLS : COMMERCIAL_PILLS;
+      if (!pills.some((p) => p.id === selectedPillId)) {
+        setSelectedPillId(pills[0].id);
+        setPropertyType(pills[0].type);
+      }
     } else if (tab === 'pg') {
       setListingFor('rent');
-      setSelectedPillId('paying-guest');
+      setCategory('residential');
+      setMobileCategory('residential');
+      if (!PG_PROPERTY_PILLS.some((p) => p.id === selectedPillId)) {
+        setSelectedPillId(PG_PROPERTY_PILLS[0].id);
+      }
       setPropertyType('PG');
     }
   };
@@ -464,8 +505,9 @@ export default function PostPropertyPage() {
     setMobileCategory(cat);
     setCategory(cat);
     if (cat === 'residential') {
-      setSelectedPillId('flat-apartment');
-      setPropertyType('APARTMENT');
+      const pills = mobileTopTab === 'sell' ? RESIDENTIAL_SELL_PILLS : RESIDENTIAL_RENT_PILLS;
+      setSelectedPillId(pills[0].id);
+      setPropertyType(pills[0].type);
     } else {
       setSelectedPillId('ready-office');
       setPropertyType('OFFICE');
@@ -477,13 +519,8 @@ export default function PostPropertyPage() {
     const activePills = getActiveMobilePills();
     const chosenPill = activePills.find((p) => p.id === pillId);
     if (chosenPill) {
-      setPropertyType(chosenPill.type);
+      setPropertyType(mobileTopTab === 'pg' ? 'PG' : chosenPill.type);
     }
-  };
-
-  const getActiveMobilePills = () => {
-    if (mobileTopTab === 'pg') return PG_PILLS;
-    return mobileCategory === 'residential' ? RESIDENTIAL_PILLS : COMMERCIAL_PILLS;
   };
 
   const handleMobileSubmit = (e: React.FormEvent) => {
@@ -516,12 +553,20 @@ export default function PostPropertyPage() {
     const activePills = getActiveMobilePills();
     const chosenPill = activePills.find((p) => p.id === selectedPillId) || activePills[0];
     const targetType = mobileTopTab === 'sell' ? 'sell' : 'rent';
-    const targetPropertyType = chosenPill.type;
+    const targetPropertyType = mobileTopTab === 'pg' ? 'PG' : chosenPill.type;
 
     setPropertyType(targetPropertyType);
     setListingFor(targetType);
 
-    const targetUrl = `/dashboard/listings/new?type=${targetType}&propertyType=${targetPropertyType}`;
+    let targetUrl = `/dashboard/listings/new?type=${targetType}&propertyType=${targetPropertyType}`;
+    if (mobileTopTab === 'pg') {
+      targetUrl += `&isPg=true&roomType=${selectedRoomType}`;
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('onboarding_room_type', selectedRoomType);
+        window.sessionStorage.setItem('onboarding_is_pg', 'true');
+        window.sessionStorage.setItem('onboarding_pg_subproperty', chosenPill.label);
+      }
+    }
 
     if (!user) {
       setAuthModalOpen(true);
@@ -567,9 +612,19 @@ export default function PostPropertyPage() {
   const handleAuthSuccess = () => {
     const activePills = getActiveMobilePills();
     const chosenPill = activePills.find((p) => p.id === selectedPillId);
-    const activePropType = chosenPill ? chosenPill.type : propertyType;
+    const activePropType = mobileTopTab === 'pg' ? 'PG' : (chosenPill ? chosenPill.type : propertyType);
     const activeType = mobileTopTab === 'sell' ? 'sell' : listingFor;
-    const targetUrl = `/dashboard/listings/new?type=${activeType}&propertyType=${activePropType}`;
+    let targetUrl = `/dashboard/listings/new?type=${activeType}&propertyType=${activePropType}`;
+    if (mobileTopTab === 'pg') {
+      targetUrl += `&isPg=true&roomType=${selectedRoomType}`;
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('onboarding_room_type', selectedRoomType);
+        window.sessionStorage.setItem('onboarding_is_pg', 'true');
+        if (chosenPill) {
+          window.sessionStorage.setItem('onboarding_pg_subproperty', chosenPill.label);
+        }
+      }
+    }
     router.push(targetUrl);
   };
 
@@ -822,7 +877,7 @@ export default function PostPropertyPage() {
                   aria-selected={true} 
                   className={`${styles.mobileCategoryTab} ${styles.mobileCategoryActive}`}
                 >
-                  Paying Guest / Co-Living
+                  Residential
                 </div>
               </div>
             )}
@@ -843,10 +898,37 @@ export default function PostPropertyPage() {
               ))}
             </div>
 
+            {/* Room Type Section (PG only - matches screenshot #3) */}
+            {mobileTopTab === 'pg' && (
+              <div className={styles.mobileRoomTypeSection}>
+                <h3 className={styles.mobileSectionHeading}>
+                  Room Type
+                </h3>
+                <div 
+                  className={styles.mobilePillsWrapper} 
+                  role="radiogroup" 
+                  aria-label="Room Type"
+                >
+                  {PG_ROOM_TYPES.map((room) => (
+                    <button
+                      key={room.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selectedRoomType === room.id}
+                      className={`${styles.mobilePill} ${selectedRoomType === room.id ? styles.mobilePillActive : ''}`}
+                      onClick={() => setSelectedRoomType(room.id as 'sharing' | 'private')}
+                    >
+                      {room.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Contact Details Section */}
             <div className={styles.mobileContactSection}>
               <h3 id="mobile-contact-heading" className={styles.mobileContactHeading}>
-                Your contact details for the {mobileTopTab === 'sell' ? 'buyer' : 'tenant'} to reach you
+                {getContactHeading()}
               </h3>
 
               <div className={styles.mobileInputWrapper}>
@@ -1292,7 +1374,7 @@ export default function PostPropertyPage() {
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
         initialPhone={phone || (mobileContact.replace(/\D/g, '').length >= 10 ? mobileContact.replace(/\D/g, '').slice(-10) : '')}
-        redirectPath={`/dashboard/listings/new?type=${mobileTopTab === 'sell' ? 'sell' : listingFor}&propertyType=${propertyType}`}
+        redirectPath={`/dashboard/listings/new?type=${mobileTopTab === 'sell' ? 'sell' : listingFor}&propertyType=${propertyType}${mobileTopTab === 'pg' ? `&isPg=true&roomType=${selectedRoomType}` : ''}`}
       />
       <PhoneVerificationModal
         isOpen={verificationModalOpen}

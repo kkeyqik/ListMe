@@ -277,6 +277,21 @@
     font-weight: 600 !important;
   }
 
+  /* Room Type Section (PG only - matches screenshot #3) */
+  .mobileRoomTypeSection {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobileSectionHeading {
+    font-family: var(--font-heading);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #091e42;
+    margin: 0.25rem 0 0.875rem 0;
+    letter-spacing: -0.01em;
+  }
+
   /* Contact Details Section */
   .mobileContactSection {
     display: flex;
