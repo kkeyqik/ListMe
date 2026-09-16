@@ -280,10 +280,27 @@ const BenefitTicker = () => {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const slides = slidesRef.current.filter(Boolean) as HTMLDivElement[];
+    const slides = (
+      slidesRef.current.filter(Boolean).length === TICKER_ITEMS.length
+        ? slidesRef.current.filter(Boolean)
+        : Array.from(containerRef.current.children)
+    ) as HTMLDivElement[];
+
     if (slides.length <= 1) return;
 
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     const ctx = gsap.context(() => {
+      if (prefersReducedMotion) {
+        gsap.set(slides[0], { yPercent: 0, opacity: 1, autoAlpha: 1 });
+        slides.slice(1).forEach((slide) => {
+          gsap.set(slide, { display: 'none' });
+        });
+        return;
+      }
+
       // Set initial positions: first slide visible, all others placed below
       gsap.set(slides[0], { yPercent: 0, opacity: 1, autoAlpha: 1 });
       slides.slice(1).forEach((slide) => {
@@ -317,6 +334,7 @@ const BenefitTicker = () => {
             autoAlpha: 1,
             duration: 0.45,
             ease: 'power2.inOut',
+            immediateRender: false,
           },
           '<'
         );
@@ -327,7 +345,13 @@ const BenefitTicker = () => {
   }, []);
 
   return (
-    <div ref={containerRef} className={styles.tickerContainer} aria-live="polite">
+    <div
+      ref={containerRef}
+      className={styles.tickerContainer}
+      aria-live="off"
+      role="region"
+      aria-label="Key benefits"
+    >
       {TICKER_ITEMS.map((item, idx) => (
         <div
           key={idx}

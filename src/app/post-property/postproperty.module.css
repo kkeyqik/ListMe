@@ -89,11 +89,13 @@
     left: 0;
     right: 0;
     bottom: 0;
+    height: 24px;
+    line-height: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.375rem;
-    font-size: 0.8125rem;
+    font-size: clamp(0.75rem, 3.4vw, 0.8125rem);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.95);
     white-space: nowrap;
@@ -102,9 +104,8 @@
   }
 
   .tickerText {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
+    display: inline-block;
+    vertical-align: middle;
   }
 
   .yellowHighlight {
@@ -116,6 +117,8 @@
   .mobileCheckIcon {
     color: #FFE066;
     flex-shrink: 0;
+    width: 16px;
+    height: 16px;
   }
 
   /* 3 Top Tabs: Sell | Rent / Lease | PG */
