@@ -27,13 +27,17 @@ export async function GET(request: NextRequest) {
     const furnishing = searchParams.get('furnishing');
     const query = searchParams.get('query');
     
-    // Sort
+    // Sort & Date parameters
     const sort = searchParams.get('sort') || 'newest';
+    const startDate = searchParams.get('startDate') || searchParams.get('start_date');
+    const endDate = searchParams.get('endDate') || searchParams.get('end_date');
 
     // Build Prisma query condition block
     const where: any = {};
 
     const ownerOnly = searchParams.get('owner') === 'true';
+    const adminOnly = searchParams.get('admin') === 'true';
+
     if (ownerOnly) {
       const userId = await getAuthenticatedUserId();
     if (!userId) {
@@ -47,7 +51,6 @@ export async function GET(request: NextRequest) {
         where.status = statusFilter.toUpperCase() as ListingStatus;
       }
     } else {
-      const adminOnly = searchParams.get('admin') === 'true';
       if (adminOnly) {
         const userId = await getAuthenticatedUserId();
     if (!userId) {
@@ -69,6 +72,16 @@ export async function GET(request: NextRequest) {
       } else {
         // By default, public search only shows ACTIVE listings
         where.status = ListingStatus.ACTIVE;
+      }
+    }
+
+    // Filter by listing_for parameter (sale | rent)
+    const listingForParam = searchParams.get('listing_for') || searchParams.get('listingFor');
+    if (listingForParam && listingForParam !== 'ALL') {
+      if (listingForParam.toLowerCase() === 'sale') {
+        where.listingFor = ListingFor.SALE;
+      } else if (listingForParam.toLowerCase() === 'rent') {
+        where.listingFor = ListingFor.RENT;
       }
     }
 
@@ -100,7 +113,7 @@ export async function GET(request: NextRequest) {
       if (city.toLowerCase() === 'delhi' || city.toLowerCase() === 'delhi ncr') {
         where.city = { contains: 'Delhi', mode: 'insensitive' };
       } else {
-        where.city = { equals: city, mode: 'insensitive' };
+        where.city = { contains: city.trim(), mode: 'insensitive' };
       }
     }
     if (locality) {
@@ -108,6 +121,27 @@ export async function GET(request: NextRequest) {
     }
     if (pinCode) {
       where.pinCode = pinCode;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      const dateFilter: any = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        if (!isNaN(start.getTime())) {
+          dateFilter.gte = start;
+        }
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        if (!isNaN(end.getTime())) {
+          end.setHours(23, 59, 59, 999);
+          dateFilter.lte = end;
+        }
+      }
+      if (Object.keys(dateFilter).length > 0) {
+        where.createdAt = dateFilter;
+      }
     }
 
     // Pricing filters
@@ -192,13 +226,16 @@ export async function GET(request: NextRequest) {
 
     // Sort order definition
     let orderBy: any = { createdAt: 'desc' }; // default
-    if (sort === 'newest') {
+    const sortNorm = (sort || '').toLowerCase();
+    if (sortNorm === 'newest' || sortNorm === 'latest') {
       orderBy = { createdAt: 'desc' };
-    } else if (sort === 'price_asc') {
+    } else if (sortNorm === 'oldest') {
+      orderBy = { createdAt: 'asc' };
+    } else if (sortNorm === 'price_asc') {
       orderBy = { askingPrice: 'asc' };
-    } else if (sort === 'price_desc') {
+    } else if (sortNorm === 'price_desc') {
       orderBy = { askingPrice: 'desc' };
-    } else if (sort === 'area_desc') {
+    } else if (sortNorm === 'area_desc') {
       orderBy = { carpetArea: 'desc' };
     }
 
@@ -212,8 +249,9 @@ export async function GET(request: NextRequest) {
         include: {
           images: {
             orderBy: { displayOrder: 'asc' },
-            take: 1, // Only return the primary image for lists
+            take: adminOnly ? 20 : 1, // Full image count for admin cards, primary for public
           },
+          ...(adminOnly ? { owner: { select: { id: true, name: true, email: true, phone: true } } } : {}),
         },
       }),
       prisma.listing.count({ where }),

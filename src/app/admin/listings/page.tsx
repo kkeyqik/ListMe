@@ -141,6 +141,7 @@ export default function AdminListings() {
         }
       }
       if (forFilter !== 'ALL') {
+        params.append('listing_for', forFilter.toLowerCase());
         params.append('type', forFilter.toLowerCase());
       }
       if (cityFilter.trim()) {
@@ -149,6 +150,19 @@ export default function AdminListings() {
       if (searchQuery.trim()) {
         params.append('query', searchQuery.trim());
       }
+      if (startDate) {
+        params.append('startDate', startDate);
+      }
+      if (endDate) {
+        params.append('endDate', endDate);
+      }
+
+      // Map sortBy to API sort parameter
+      let sortParam = 'newest';
+      if (sortBy === 'OLDEST') sortParam = 'oldest';
+      else if (sortBy === 'PRICE_ASC') sortParam = 'price_asc';
+      else if (sortBy === 'PRICE_DESC') sortParam = 'price_desc';
+      params.append('sort', sortParam);
         
       const res = await fetch(`/api/listings?${params.toString()}`);
       const data = await res.json();
@@ -167,17 +181,40 @@ export default function AdminListings() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, statusFilter, typeFilter, forFilter, cityFilter, searchQuery, showToast]);
+  }, [page, pageSize, statusFilter, typeFilter, forFilter, cityFilter, searchQuery, sortBy, startDate, endDate, showToast]);
 
+  // Initial and pagination fetch
   useEffect(() => {
     fetchListings(page, pageSize);
-  }, [page, pageSize, statusFilter, typeFilter, forFilter]);
+  }, [page, pageSize]);
+
+  // Refetch when filters or sort change (reset page to 1)
+  const isFilterMounted = React.useRef(false);
+  useEffect(() => {
+    if (!isFilterMounted.current) {
+      isFilterMounted.current = true;
+      return;
+    }
+    if (page === 1) {
+      fetchListings(1, pageSize);
+    } else {
+      setPage(1);
+    }
+  }, [statusFilter, typeFilter, forFilter, sortBy, startDate, endDate]);
 
   // Refetch when search query or city changes with debounce
+  const isSearchMounted = React.useRef(false);
   useEffect(() => {
+    if (!isSearchMounted.current) {
+      isSearchMounted.current = true;
+      return;
+    }
     const timer = setTimeout(() => {
-      setPage(1);
-      fetchListings(1, pageSize);
+      if (page === 1) {
+        fetchListings(1, pageSize);
+      } else {
+        setPage(1);
+      }
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery, cityFilter]);
@@ -244,6 +281,7 @@ export default function AdminListings() {
       if (res.ok) {
         showToast('Success', 'Listing deleted successfully from system', 'success');
         setListings((prev) => prev.filter((l) => l.id !== deleteListingId));
+        setTotalCount((prev) => Math.max(0, prev - 1));
         setDeleteListingId(null);
       } else {
         const data = await res.json();
@@ -268,28 +306,39 @@ export default function AdminListings() {
 
   // Filter listings by text search
   const filteredListings = listings.filter((l) => {
-    const matchesSearch = 
-      l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.locality.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchLower = searchQuery.toLowerCase().trim();
+    const matchesSearch = !searchLower ||
+      (l.title || '').toLowerCase().includes(searchLower) ||
+      (l.id || '').toLowerCase().includes(searchLower) ||
+      (l.city || '').toLowerCase().includes(searchLower) ||
+      (l.locality || '').toLowerCase().includes(searchLower);
     
     const matchesStatus = statusFilter === 'ALL' || l.status === statusFilter;
-    const matchesType = typeFilter === 'ALL' || l.propertyType === typeFilter;
+    const matchesType =
+      typeFilter === 'ALL' ||
+      l.propertyType === typeFilter ||
+      (typeFilter === 'COMMERCIAL' && ['OFFICE', 'SHOP', 'WAREHOUSE', 'COMMERCIAL_LAND'].includes(l.propertyType));
     const matchesFor = forFilter === 'ALL' || l.listingFor === forFilter;
     const matchesCity = cityFilter === '' || (l.city || '').toLowerCase().includes(cityFilter.toLowerCase());
 
     let matchesDate = true;
     if (startDate || endDate) {
       const lDate = new Date(l.createdAt);
-      if (startDate) {
-        const sDate = new Date(startDate);
-        sDate.setHours(0,0,0,0);
-        if (lDate < sDate) matchesDate = false;
-      }
-      if (endDate) {
-        const eDate = new Date(endDate);
-        eDate.setHours(23,59,59,999);
-        if (lDate > eDate) matchesDate = false;
+      if (!isNaN(lDate.getTime())) {
+        if (startDate) {
+          const sDate = new Date(startDate);
+          if (!isNaN(sDate.getTime())) {
+            sDate.setHours(0, 0, 0, 0);
+            if (lDate < sDate) matchesDate = false;
+          }
+        }
+        if (endDate) {
+          const eDate = new Date(endDate);
+          if (!isNaN(eDate.getTime())) {
+            eDate.setHours(23, 59, 59, 999);
+            if (lDate > eDate) matchesDate = false;
+          }
+        }
       }
     }
 
@@ -328,6 +377,7 @@ export default function AdminListings() {
         }
       }
       if (forFilter !== 'ALL') {
+        params.append('listing_for', forFilter.toLowerCase());
         params.append('type', forFilter.toLowerCase());
       }
       if (cityFilter.trim()) {
@@ -335,6 +385,12 @@ export default function AdminListings() {
       }
       if (searchQuery.trim()) {
         params.append('query', searchQuery.trim());
+      }
+      if (startDate) {
+        params.append('startDate', startDate);
+      }
+      if (endDate) {
+        params.append('endDate', endDate);
       }
 
       const res = await fetch(`/api/listings?${params.toString()}`);
@@ -415,8 +471,33 @@ export default function AdminListings() {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search listings by title, ID, or location..."
             className={styles.mobileSearchInput}
+            style={searchQuery ? { paddingRight: '2.25rem' } : undefined}
             aria-label="Search listings by title, ID, or location"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '0.625rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                padding: '4px',
+                cursor: 'pointer',
+                color: '#94a3b8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                touchAction: 'manipulation'
+              }}
+              aria-label="Clear search input"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         {/* Filter Pill Row 1 */}
@@ -494,7 +575,7 @@ export default function AdminListings() {
               type="button"
               onClick={() => setShowDateModal(true)}
               className={`${styles.pillSelect} ${styles.pillSelectWithIcon} ${(startDate || endDate) ? styles.dateRangeActivePill : ''}`}
-              style={{ textAlign: 'left', display: 'flex', alignItems: 'center' }}
+              style={{ textAlign: 'left', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
               aria-label="Select Date Range"
             >
               {startDate || endDate ? `${startDate ? startDate.slice(5) : 'Start'} - ${endDate ? endDate.slice(5) : 'End'}` : 'Date Range'}
@@ -592,6 +673,8 @@ export default function AdminListings() {
               <option value="ALL">All Types</option>
               <option value="APARTMENT">Apartment</option>
               <option value="HOUSE">House</option>
+              <option value="VILLA">Villa</option>
+              <option value="BUILDER_FLOOR">Builder Floor</option>
               <option value="PLOT">Plot/Land</option>
               <option value="COMMERCIAL">Commercial</option>
             </select>
@@ -664,7 +747,7 @@ export default function AdminListings() {
                 </tr>
               </thead>
               <tbody>
-                {filteredListings.map((listing) => (
+                {sortedListings.map((listing) => (
                   <tr key={listing.id} className={styles.tr}>
                     <td className={styles.td}>
                       <div className={styles.titleText}>{listing.title}</div>
@@ -823,6 +906,7 @@ export default function AdminListings() {
                                   type="button"
                                   className={styles.cardDropdownItem}
                                   style={{ color: '#10b981' }}
+                                  disabled={actionId === listing.id}
                                   onClick={() => {
                                     setActiveDropdownId(null);
                                     handleModerate(listing.id, 'ACTIVE');
@@ -834,6 +918,7 @@ export default function AdminListings() {
                                   type="button"
                                   className={styles.cardDropdownItem}
                                   style={{ color: '#ef4444' }}
+                                  disabled={actionId === listing.id}
                                   onClick={() => {
                                     setActiveDropdownId(null);
                                     setRejectListingId(listing.id);
@@ -944,13 +1029,8 @@ export default function AdminListings() {
             })}
           </div>
 
-        {/* Pagination Controls */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
+        {/* Desktop Pagination Controls */}
+        <div className={styles.desktopOnly} style={{
           marginTop: '1.5rem',
           padding: '1rem 1.25rem',
           backgroundColor: '#fff',
@@ -958,75 +1038,108 @@ export default function AdminListings() {
           border: '1px solid var(--color-border)',
           boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
-            <span>
-              Showing <strong>{totalCount > 0 ? (page - 1) * pageSize + 1 : 0}</strong> to <strong>{Math.min(page * pageSize, totalCount)}</strong> of <strong>{totalCount}</strong> listings
-            </span>
-            <span style={{ color: 'var(--color-neutral-300)' }}>|</span>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
+              <span>
+                Showing <strong>{totalCount > 0 ? (page - 1) * pageSize + 1 : 0}</strong> to <strong>{Math.min(page * pageSize, totalCount)}</strong> of <strong>{totalCount}</strong> listings
+              </span>
+              <span style={{ color: 'var(--color-neutral-300)' }}>|</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    const newSize = Number(e.target.value);
+                    setPageSize(newSize);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '0.375rem 0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '0.812rem',
+                    background: '#fff',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    minHeight: '40px',
+                    minWidth: '40px'
+                  }}
+                  aria-label="Listings per page"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>Per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  const newSize = Number(e.target.value);
-                  setPageSize(newSize);
-                  setPage(1);
-                }}
-                style={{
-                  padding: '0.375rem 0.5rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  fontSize: '0.812rem',
-                  background: '#fff',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  minHeight: '44px',
-                  minWidth: '44px'
-                }}
-                aria-label="Listings per page"
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1 || loading}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem', minHeight: '40px' }}
               >
-                <option value={10}>10</option>
-                <option value={15}>15</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
+                <ChevronLeft size={16} />
+                Previous
+              </Button>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 0.5rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'var(--color-neutral-700)'
+              }}>
+                Page {page} of {Math.max(1, totalPages)}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages || loading}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem', minHeight: '40px' }}
+              >
+                Next
+                <ChevronRight size={16} />
+              </Button>
             </div>
           </div>
+        </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || loading}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem', minHeight: '44px' }}
-            >
-              <ChevronLeft size={16} />
-              Previous
-            </Button>
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0 0.5rem',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: 'var(--color-neutral-700)'
-            }}>
-              Page {page} of {Math.max(1, totalPages)}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || loading}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.375rem 0.75rem', fontSize: '0.812rem', minHeight: '44px' }}
-            >
-              Next
-              <ChevronRight size={16} />
-            </Button>
-          </div>
+        {/* Mobile Pagination Controls */}
+        <div className={`${styles.mobilePaginationWrapper} ${styles.mobileOnly}`}>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1 || loading}
+            className={styles.mobilePageBtn}
+            aria-label="Previous page"
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+          <span className={styles.mobilePageIndicator}>
+            Page {page} of {Math.max(1, totalPages)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || loading}
+            className={styles.mobilePageBtn}
+            aria-label="Next page"
+          >
+            Next <ChevronRight size={16} />
+          </button>
         </div>
       </>
       )}
