@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu } from 'lucide-react';
+import { Menu, Home } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { DashboardSidebar } from '@/components/layout';
 import styles from './layout.module.css';
@@ -34,13 +34,16 @@ export default function DashboardLayout({
       <div className={styles.mainContent}>
         {/* Mobile Top Bar */}
         <div className={styles.mobileTopBar}>
-          <Link href="/" className={`${styles.logo} text-gradient`}>
-            ListMe
+          <Link href="/" className={styles.logo} aria-label="ListMe Home">
+            <Home className={styles.logoIcon} size={24} />
+            <span className={styles.logoText}>ListMe</span>
           </Link>
           <button
             onClick={() => setSidebarOpen(true)}
             className={styles.menuButton}
             aria-label="Open navigation menu"
+            aria-expanded={sidebarOpen}
+            aria-controls="dashboard-sidebar"
           >
             <Menu size={24} />
           </button>

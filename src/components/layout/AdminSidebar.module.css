@@ -41,10 +41,20 @@
 }
 
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font-family: var(--font-heading);
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.logoIcon {
+  color: var(--color-primary);
+  stroke-width: 2.2px;
+  flex-shrink: 0;
 }
 
 .adminBadge {
@@ -61,17 +71,25 @@
   display: none;
   background: transparent;
   color: var(--color-neutral-600);
+  min-width: 44px;
+  min-height: 44px;
   width: 44px;
   height: 44px;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: background-color var(--transition-fast);
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .closeButton:hover {
   background-color: var(--color-neutral-100);
+}
+
+.closeButton:active {
+  background-color: var(--color-neutral-200);
+  transform: scale(0.96);
 }
 
 @media (max-width: 1023px) {

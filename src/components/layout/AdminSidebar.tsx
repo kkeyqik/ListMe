@@ -16,7 +16,8 @@ import {
   FileText,
   User,
   Shield,
-  Search
+  Search,
+  Home
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import styles from './AdminSidebar.module.css';
@@ -114,6 +115,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
       {/* Sidebar Panel */}
       <aside 
+        id="admin-sidebar"
         className={sidebarClasses}
         aria-label="Admin Sidebar Navigation"
         {...(isOpen ? { role: 'dialog', 'aria-modal': true } : {})}
@@ -121,8 +123,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Logo and Close Button */}
         <div className={styles.logoContainer}>
           <div className={styles.logoWrapper}>
-            <Link href="/" onClick={onClose} className="logo text-gradient font-bold text-xl">
-              ListMe
+            <Link href="/" onClick={onClose} className={styles.logo} aria-label="ListMe Home">
+              <Home size={22} className={styles.logoIcon} />
+              <span className="text-gradient font-bold">ListMe</span>
             </Link>
             <span className={styles.adminBadge}>Admin</span>
           </div>

@@ -15,6 +15,10 @@
 @media (max-width: 1023px) {
   .sidebar {
     transform: translateX(-100%);
+    width: 280px;
+    max-width: 85vw;
+    z-index: var(--z-modal);
+    box-shadow: var(--shadow-xl);
   }
   
   .sidebarOpen {
@@ -31,25 +35,45 @@
 }
 
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font-family: var(--font-heading);
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.logoIcon {
+  color: var(--color-primary);
+  stroke-width: 2.2px;
+  flex-shrink: 0;
 }
 
 .closeButton {
   display: none;
   background: transparent;
   color: var(--color-neutral-600);
-  width: 32px;
-  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .closeButton:hover {
   background-color: var(--color-neutral-100);
+}
+
+.closeButton:active {
+  background-color: var(--color-neutral-200);
+  transform: scale(0.96);
 }
 
 @media (max-width: 1023px) {
@@ -196,18 +220,10 @@
 /* Backdrop for Mobile */
 .mobileBackdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(23, 23, 23, 0.4);
-  backdrop-filter: blur(2px);
-  z-index: calc(var(--z-sticky) - 1);
-  display: none;
-}
-
-@media (max-width: 1023px) {
-  .mobileBackdropOpen {
-    display: block;
-  }
+  inset: 0;
+  background-color: rgba(10, 17, 40, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-modal-backdrop);
+  display: block;
 }

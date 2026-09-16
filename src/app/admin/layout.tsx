@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu } from 'lucide-react';
+import { Menu, Home } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AdminSidebar } from '@/components/layout';
 import styles from '../dashboard/layout.module.css';
@@ -41,17 +41,20 @@ export default function AdminLayout({
       <div className={styles.mainContent}>
         {/* Mobile Top Bar */}
         <div className={styles.mobileTopBar}>
-          <Link href="/" className={`${styles.logo} text-gradient`}>
-            ListMe Admin
+          <Link href="/" className={styles.logo} aria-label="ListMe Home">
+            <Home className={styles.logoIcon} size={24} />
+            <span className={styles.logoText}>ListMe</span>
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--color-primary)', color: '#fff', fontWeight: 600 }}>
+          <div className={styles.adminControls}>
+            <span className={styles.adminBadge}>
               ADMIN
             </span>
             <button
               onClick={() => setSidebarOpen(true)}
               className={styles.menuButton}
               aria-label="Open navigation menu"
+              aria-expanded={sidebarOpen}
+              aria-controls="admin-sidebar"
             >
               <Menu size={24} />
             </button>

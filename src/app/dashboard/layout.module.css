@@ -39,7 +39,7 @@
   display: none;
   background-color: var(--color-card);
   border-bottom: 1px solid var(--color-border);
-  padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem;
+  padding: calc(0.75rem + env(safe-area-inset-top, 0px)) calc(1rem + env(safe-area-inset-right, 0px)) 0.75rem calc(1rem + env(safe-area-inset-left, 0px));
   align-items: center;
   justify-content: space-between;
   position: sticky;
@@ -64,18 +64,65 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
-  transition: background-color var(--transition-fast);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .menuButton:hover {
   background-color: var(--color-neutral-100);
 }
 
+.menuButton:active {
+  background-color: var(--color-neutral-200);
+  transform: scale(0.96);
+}
+
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: #081120;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.logoIcon {
+  color: var(--color-primary);
+  stroke-width: 2.2px;
+  flex-shrink: 0;
+}
+
+.logoText {
   font-family: var(--font-heading);
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  color: #081120;
+  line-height: 1;
+}
+
+.adminControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.adminBadge {
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+  user-select: none;
 }
 
 /* Loading Skeleton */

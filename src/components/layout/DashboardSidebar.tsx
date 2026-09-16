@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -12,7 +12,8 @@ import {
   Bell, 
   LogOut,
   X,
-  Shield
+  Shield,
+  Home
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import styles from './DashboardSidebar.module.css';
@@ -28,6 +29,34 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
+
+  // Handle escape key, resize, and prevent body scroll when mobile drawer is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && onClose) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, onClose]);
 
   const navItems = [
     { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={18} className={styles.icon} /> },
@@ -73,13 +102,25 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   return (
     <>
       {/* Mobile Backdrop */}
-      <div className={backdropClasses} onClick={onClose} />
+      {isOpen && (
+        <div 
+          className={backdropClasses} 
+          onClick={onClose} 
+          aria-hidden="true" 
+        />
+      )}
 
       {/* Sidebar Panel */}
-      <aside className={sidebarClasses}>
+      <aside 
+        id="dashboard-sidebar"
+        className={sidebarClasses}
+        aria-label="User Dashboard Navigation"
+        {...(isOpen ? { role: 'dialog', 'aria-modal': true } : {})}
+      >
         <div className={styles.logoContainer}>
-          <Link href="/" className="logo text-gradient font-bold text-xl">
-            ListMe
+          <Link href="/" onClick={onClose} className={styles.logo} aria-label="ListMe Home">
+            <Home size={22} className={styles.logoIcon} />
+            <span className="text-gradient font-bold">ListMe</span>
           </Link>
           <button 
             onClick={onClose} 
