@@ -22,6 +22,7 @@ import {
 import { Button } from '../ui';
 import styles from './Header.module.css';
 import { useAuth } from '@/context/AuthContext';
+import { useMobileMenu } from '@/context/MobileMenuContext';
 import dynamic from 'next/dynamic';
 
 const AuthModal = dynamic(() => import('../auth/AuthModal').then((mod) => mod.AuthModal), {
@@ -30,6 +31,7 @@ const AuthModal = dynamic(() => import('../auth/AuthModal').then((mod) => mod.Au
 
 export const Header: React.FC = () => {
   const { user, profile, signOut } = useAuth();
+  const { isMenuOpen, openMenu } = useMobileMenu();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [postPropDrawerOpen, setPostPropDrawerOpen] = useState(false);
@@ -109,8 +111,9 @@ export const Header: React.FC = () => {
             <button
               type="button"
               className={styles.ppMobileMenuBtn}
-              onClick={() => setPostPropDrawerOpen(true)}
-              aria-label="Open navigation menu"
+              onClick={openMenu}
+              aria-label="Open category navigation menu"
+              aria-expanded={isMenuOpen}
             >
               <Menu size={24} />
             </button>
