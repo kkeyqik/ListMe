@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Generate cryptographically secure 6-digit OTP
     const isMockEnabled = process.env.ENABLE_MOCK_AUTH === 'true' || process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true';
-    const otp = isMockEnabled ? '123456' : crypto.randomInt(100000, 999999).toString();
+    const otp = isMockEnabled ? '123456' : crypto.randomInt(100000, 1000000).toString();
     const tokenHash = crypto.createHash('sha256').update(otp).digest('hex');
 
     // Invalidate previous active tokens for this user and channel
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         We received a request to reset the password for your ListMe account. Use the 6-digit verification code below to proceed:
       </p>
       <div style="background: #F8FAFC; border: 2px dashed #CBD5E1; border-radius: 12px; padding: 18px; text-align: center; margin: 0 0 24px;">
-        <span style="font-family: monospace; font-size: 32px; font-weight: 700; color: #0078db; letter-spacing: 8px; display: inline-block;">${otp}</span>
+        <span style="font-family: monospace; font-size: 32px; font-weight: 700; color: #0A1128; letter-spacing: 8px; display: inline-block;">${otp}</span>
       </div>
       <p style="color: #64748B; font-size: 12px; line-height: 1.5; margin: 0 0 16px;">
         ⏱️ This code will expire in <strong>10 minutes</strong>. Never share this code with anyone. ListMe staff will never ask for your verification code.
@@ -165,14 +165,16 @@ export async function POST(request: NextRequest) {
 
       await sendEmail({
         to: target,
-        subject: `Your ListMe Password Reset Code: ${otp}`,
+        subject: 'Your ListMe Password Reset Code',
         text: `Hi ${profile.name || 'User'},\n\nYour 6-digit verification code to reset your ListMe password is: ${otp}\n\nThis code is valid for 10 minutes. If you did not request this, please ignore this email.\n\n- The ListMe Team`,
         html: emailHtml,
         metadata: { type: 'PASSWORD_RESET_OTP', channel: 'email', userId: profile.id },
       });
     } else {
-      // SMS channel
-      console.log(`[Password Reset SMS OTP] Generated for ${target}: ${otp}`);
+      // SMS channel — never log plain text OTPs in production
+      if (process.env.NODE_ENV !== 'production' || isMockEnabled) {
+        console.log(`[Password Reset SMS OTP] Generated for ${target}: ${otp}`);
+      }
     }
 
     // Log user activity

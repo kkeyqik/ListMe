@@ -146,6 +146,7 @@ function ForgotPasswordContent() {
         }
         setSentTarget(data.target || accountInfo?.maskedPhone || '');
         setSelectedChannel(channel);
+        setOtp('');
         setStep('otp');
         setTimer(30);
       } else {
@@ -162,6 +163,7 @@ function ForgotPasswordContent() {
         }
         setSentTarget(data.target || '');
         setSelectedChannel(channel);
+        setOtp('');
         setStep('otp');
         setTimer(30);
       }
@@ -178,10 +180,12 @@ function ForgotPasswordContent() {
     if (!activeOtp || activeOtp.length !== 6) return;
     setLoading(true);
     try {
+      let firebaseIdToken: string | undefined = undefined;
       // If Firebase SMS, verify via Firebase confirmation first
       if (selectedChannel === 'sms' && firebaseConfirmation) {
         try {
-          await firebaseConfirmation.confirm(activeOtp);
+          const userCredential = await firebaseConfirmation.confirm(activeOtp);
+          firebaseIdToken = await userCredential.user.getIdToken();
         } catch (fbErr: any) {
           showToast('Invalid Code', 'Incorrect OTP. Please try again.', 'error');
           setLoading(false);
@@ -192,7 +196,12 @@ function ForgotPasswordContent() {
       const res = await fetch('/api/auth/forgot-password/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: identifier.trim(), channel: selectedChannel, otp: activeOtp }),
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          channel: selectedChannel,
+          otp: activeOtp,
+          firebaseIdToken,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -242,7 +251,9 @@ function ForgotPasswordContent() {
         if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
           window.location.href = '/admin';
         } else {
-          window.location.href = '/dashboard';
+          const redirectParam = searchParams.get('redirect');
+          const dest = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/dashboard';
+          window.location.href = dest;
         }
       }, 2500);
     } catch {
@@ -332,11 +343,13 @@ function ForgotPasswordContent() {
                 </p>
               </div>
 
-              <div className={fpStyles.channelGrid}>
+              <div className={fpStyles.channelGrid} role="radiogroup" aria-label="Verification method">
                 {/* SMS Card */}
                 {accountInfo.hasPhone && (
                   <button
                     type="button"
+                    role="radio"
+                    aria-checked={selectedChannel === 'sms'}
                     className={`${fpStyles.channelCard} ${selectedChannel === 'sms' ? fpStyles.channelCardSelected : ''}`}
                     onClick={() => setSelectedChannel('sms')}
                     disabled={loading}
@@ -356,6 +369,8 @@ function ForgotPasswordContent() {
                 {accountInfo.hasEmail && (
                   <button
                     type="button"
+                    role="radio"
+                    aria-checked={selectedChannel === 'email'}
                     className={`${fpStyles.channelCard} ${selectedChannel === 'email' ? fpStyles.channelCardSelected : ''}`}
                     onClick={() => setSelectedChannel('email')}
                     disabled={loading}
@@ -387,7 +402,7 @@ function ForgotPasswordContent() {
               <button
                 type="button"
                 onClick={() => setStep('identifier')}
-                style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.9rem', textAlign: 'center' }}
+                style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.9rem', textAlign: 'center', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ← Use a different email or number
               </button>
@@ -405,37 +420,39 @@ function ForgotPasswordContent() {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
-                <OtpInput value={otp} onChange={handleOtpChange} numInputs={6} disabled={loading} autoFocus />
-              </div>
+              <form onSubmit={(e) => { e.preventDefault(); handleVerifyOtp(); }} style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
+                  <OtpInput value={otp} onChange={handleOtpChange} numInputs={6} disabled={loading} autoFocus />
+                </div>
 
-              {loading && (
-                <p style={{ textAlign: 'center', color: 'var(--color-neutral-500)', fontSize: '0.875rem' }}>Verifying...</p>
-              )}
-
-              <div style={{ textAlign: 'center', fontSize: '0.9rem' }}>
-                {timer > 0 ? (
-                  <span style={{ color: 'var(--color-neutral-500)' }}>Resend in {timer}s</span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleSendOtp()}
-                    disabled={loading}
-                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    Resend Code
-                  </button>
+                {loading && (
+                  <p style={{ textAlign: 'center', color: 'var(--color-neutral-500)', fontSize: '0.875rem' }}>Verifying...</p>
                 )}
-              </div>
 
-              {/* Switch channel */}
-              {accountInfo && (
+                <div style={{ textAlign: 'center', fontSize: '0.9rem', marginTop: '12px' }}>
+                  {timer > 0 ? (
+                    <span style={{ color: 'var(--color-neutral-500)', display: 'inline-flex', alignItems: 'center', minHeight: '44px' }}>Resend in {timer}s</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleSendOtp()}
+                      disabled={loading}
+                      style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600, minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px' }}
+                    >
+                      Resend Code
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {/* Switch channel — only shown if both email and phone are present on account */}
+              {accountInfo && accountInfo.hasEmail && accountInfo.hasPhone && (
                 <div style={{ textAlign: 'center' }}>
                   <button
                     type="button"
                     onClick={() => handleSendOtp(selectedChannel === 'sms' ? 'email' : 'sms')}
-                    disabled={loading || (selectedChannel === 'sms' ? !accountInfo.hasEmail : !accountInfo.hasPhone)}
-                    style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.85rem' }}
+                    disabled={loading}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.85rem', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     Send via {selectedChannel === 'sms' ? 'Email' : 'SMS'} instead
                   </button>
@@ -445,7 +462,7 @@ function ForgotPasswordContent() {
               <button
                 type="button"
                 onClick={() => setStep('channel')}
-                style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.9rem', textAlign: 'center' }}
+                style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.9rem', textAlign: 'center', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ← Back
               </button>
@@ -475,9 +492,10 @@ function ForgotPasswordContent() {
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    style={{ position: 'absolute', right: 12, top: 36, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 4 }}
+                    aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                    style={{ position: 'absolute', right: 4, top: 26, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 0 }}
                   >
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
 
@@ -495,9 +513,10 @@ function ForgotPasswordContent() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{ position: 'absolute', right: 12, top: 36, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 4 }}
+                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    style={{ position: 'absolute', right: 4, top: 26, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 0 }}
                   >
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
 

@@ -45,7 +45,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId } = tokenPayload;
+    const { userId, tokenId } = tokenPayload;
+
+    // Single-use token verification: ensure token is active and not already consumed
+    if (tokenId) {
+      const tokenRecord = await prisma.passwordResetToken.findUnique({
+        where: { id: tokenId },
+      });
+      if (!tokenRecord || tokenRecord.userId !== userId) {
+        return NextResponse.json(
+          { message: 'This password reset session is invalid or has already been used.' },
+          { status: 401 }
+        );
+      }
+    }
 
     // Fetch user profile
     const profile = await prisma.profile.findUnique({
@@ -64,13 +77,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!profile.email) {
-      return NextResponse.json(
-        { message: 'Cannot reset password for an account without an email address.' },
-        { status: 400 }
-      );
-    }
-
     // Update password via Supabase Admin client
     const adminClient = createAdminClient();
     const { error: supabaseError } = await adminClient.auth.admin.updateUserById(userId, {
@@ -84,6 +90,11 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Invalidate all password reset tokens for this user upon successful reset (prevents replay)
+    await prisma.passwordResetToken.deleteMany({
+      where: { userId },
+    });
 
     // Auto-login: Issue a session cookie so user is immediately authenticated
     const sessionToken = createSessionToken(profile.id, profile.role);

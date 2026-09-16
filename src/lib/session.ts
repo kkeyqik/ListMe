@@ -62,11 +62,13 @@ export function verifySessionToken(
   const [userId, role, expiryStr, signature] = parts;
   const payload = `${userId}:${role}:${expiryStr}`;
 
-  // Constant-time comparison to prevent timing attacks.
+  // Constant-time comparison to prevent timing attacks and avoid uncaught RangeError on mismatched buffer lengths.
   const expected = sign(payload);
+  const sigBuf = Buffer.from(signature, 'utf8');
+  const expBuf = Buffer.from(expected, 'utf8');
   if (
-    signature.length !== expected.length ||
-    !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+    sigBuf.length !== expBuf.length ||
+    !crypto.timingSafeEqual(sigBuf, expBuf)
   ) {
     return null;
   }
@@ -103,29 +105,49 @@ const RESET_TOKEN_DURATION = 900;
 /**
  * Create a signed, short-lived token granting permission to reset password.
  * Issued ONLY after OTP has been verified.
+ * Optionally binds to a specific DB PasswordResetToken ID for single-use enforcement.
  */
-export function createPasswordResetSessionToken(userId: string): string {
+export function createPasswordResetSessionToken(userId: string, tokenId?: string): string {
   const expiry = Math.floor(Date.now() / 1000) + RESET_TOKEN_DURATION;
-  const payload = `RESET:${userId}:${expiry}`;
+  const payload = tokenId ? `RESET:${userId}:${tokenId}:${expiry}` : `RESET:${userId}:${expiry}`;
   const signature = sign(payload);
   return `${payload}:${signature}`;
 }
 
 /**
  * Verify a password reset token.
- * Returns the userId if valid and unexpired, null otherwise.
+ * Returns the userId and optional tokenId if valid and unexpired, null otherwise.
  */
-export function verifyPasswordResetSessionToken(token: string): { userId: string } | null {
+export function verifyPasswordResetSessionToken(
+  token: string
+): { userId: string; tokenId?: string } | null {
   const parts = token.split(':');
-  if (parts.length !== 4 || parts[0] !== 'RESET') return null;
+  if (parts[0] !== 'RESET') return null;
 
-  const [, userId, expiryStr, signature] = parts;
-  const payload = `RESET:${userId}:${expiryStr}`;
+  let userId = '';
+  let tokenId: string | undefined = undefined;
+  let expiryStr = '';
+  let signature = '';
+  let payload = '';
+
+  if (parts.length === 5) {
+    // Format: RESET:userId:tokenId:expiry:signature
+    [, userId, tokenId, expiryStr, signature] = parts;
+    payload = `RESET:${userId}:${tokenId}:${expiryStr}`;
+  } else if (parts.length === 4) {
+    // Format: RESET:userId:expiry:signature (legacy fallback)
+    [, userId, expiryStr, signature] = parts;
+    payload = `RESET:${userId}:${expiryStr}`;
+  } else {
+    return null;
+  }
 
   const expected = sign(payload);
+  const sigBuf = Buffer.from(signature, 'utf8');
+  const expBuf = Buffer.from(expected, 'utf8');
   if (
-    signature.length !== expected.length ||
-    !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+    sigBuf.length !== expBuf.length ||
+    !crypto.timingSafeEqual(sigBuf, expBuf)
   ) {
     return null;
   }
@@ -135,5 +157,5 @@ export function verifyPasswordResetSessionToken(token: string): { userId: string
     return null;
   }
 
-  return { userId };
+  return { userId, tokenId };
 }

@@ -790,7 +790,7 @@ function LoginContent() {
                 <p style={{ marginTop: '0.5rem' }}>
                   <Link
                     href={`/forgot-password${identifier ? `?prefill=${encodeURIComponent(identifier)}` : ''}`}
-                    style={{ color: 'var(--color-neutral-500)', fontSize: '0.875rem', textDecoration: 'none' }}
+                    style={{ color: 'var(--color-neutral-500)', fontSize: '0.875rem', textDecoration: 'none', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     Forgot password?
                   </Link>
@@ -847,7 +847,7 @@ function LoginContent() {
                 </Button>
                 
                 <div style={{ marginTop: 12, textAlign: 'center' }}>
-                  <button type="button" onClick={() => setLoginMethod(loginMethod === 'password' ? 'otp' : 'password')} style={{ background: 'none', border: 'none', color: 'var(--color-primary-500)', cursor: 'pointer', fontWeight: 500 }}>
+                  <button type="button" onClick={() => setLoginMethod(loginMethod === 'password' ? 'otp' : 'password')} style={{ background: 'none', border: 'none', color: 'var(--color-primary-500)', cursor: 'pointer', fontWeight: 500, minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                     Login with {loginMethod === 'password' ? 'OTP' : 'Password'} instead
                   </button>
                 </div>
@@ -856,7 +856,7 @@ function LoginContent() {
                   <div style={{ textAlign: 'center' }}>
                     <Link
                       href={`/forgot-password?prefill=${encodeURIComponent(identifierType === 'email' ? email : phone)}`}
-                      style={{ color: 'var(--color-neutral-500)', fontSize: '0.875rem', textDecoration: 'none' }}
+                      style={{ color: 'var(--color-neutral-500)', fontSize: '0.875rem', textDecoration: 'none', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       Forgot password?
                     </Link>

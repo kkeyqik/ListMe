@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { createPasswordResetSessionToken } from '@/lib/session';
+import { validateEmail } from '@/lib/validation';
 import { logUserActivity } from '@/lib/activity-logger';
 
 export async function POST(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { identifier, channel, otp } = await request.json();
+    const { identifier, channel, otp, firebaseIdToken } = await request.json();
 
     if (!identifier || !channel || !otp) {
       return NextResponse.json({ message: 'identifier, channel, and otp are required' }, { status: 400 });
@@ -28,38 +29,62 @@ export async function POST(request: NextRequest) {
     }
 
     const channelUpper = channel.toUpperCase();
-
-    // Find active tokens for this channel/identifier
     const now = new Date();
-    const activeTokens = await prisma.passwordResetToken.findMany({
-      where: {
-        channel: channelUpper,
-        usedAt: null,
-        expiresAt: { gt: now },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const trimmed = identifier.trim();
 
-    if (activeTokens.length === 0) {
-      return NextResponse.json(
-        { message: 'OTP has expired or does not exist. Please request a new code.' },
-        { status: 400 }
-      );
+    // 1. Resolve profile by identifier (phone or email)
+    let profile = null;
+    const emailValidation = validateEmail(trimmed);
+    if (emailValidation.valid) {
+      profile = await prisma.profile.findFirst({
+        where: { email: { equals: trimmed, mode: 'insensitive' } },
+        select: { id: true, email: true, phone: true },
+      });
+    } else {
+      const cleanDigits = trimmed.replace(/\D/g, '').slice(-10);
+      if (cleanDigits.length === 10) {
+        profile = await prisma.profile.findFirst({
+          where: {
+            OR: [
+              { phone: cleanDigits },
+              { phone: `+91${cleanDigits}` },
+              { phone: `91${cleanDigits}` },
+            ],
+          },
+          select: { id: true, email: true, phone: true },
+        });
+      }
     }
 
-    // Find the token that matches the target identifier
-    const trimmed = identifier.trim();
-    const cleanDigits = trimmed.replace(/\D/g, '').slice(-10);
+    // 2. Find active, unexpired token for this user and channel
+    let matchingToken = null;
+    if (profile) {
+      matchingToken = await prisma.passwordResetToken.findFirst({
+        where: {
+          userId: profile.id,
+          channel: channelUpper,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
 
-    const matchingToken = activeTokens.find((token) => {
-      if (channelUpper === 'EMAIL') {
-        return token.target.toLowerCase() === trimmed.toLowerCase();
-      } else {
-        // SMS - match by last 10 digits
-        const tokenDigits = token.target.replace(/\D/g, '').slice(-10);
-        return tokenDigits === cleanDigits;
-      }
-    });
+    // Fallback: direct target match if profile lookup was inconclusive
+    if (!matchingToken) {
+      const cleanDigits = trimmed.replace(/\D/g, '').slice(-10);
+      matchingToken = await prisma.passwordResetToken.findFirst({
+        where: {
+          channel: channelUpper,
+          usedAt: null,
+          expiresAt: { gt: now },
+          OR: channelUpper === 'EMAIL'
+            ? [{ target: { equals: trimmed, mode: 'insensitive' } }]
+            : [{ target: { contains: cleanDigits } }],
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
 
     if (!matchingToken) {
       return NextResponse.json(
@@ -77,10 +102,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify OTP hash
-    const inputHash = crypto.createHash('sha256').update(otp).digest('hex');
+    // Verify OTP — via Firebase token (for SMS) or SHA-256 hash comparison
+    let isVerified = false;
 
-    if (inputHash !== matchingToken.tokenHash) {
+    if (firebaseIdToken && channelUpper === 'SMS') {
+      const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+      if (apiKey) {
+        try {
+          const googleRes = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken: firebaseIdToken }),
+            }
+          );
+          if (googleRes.ok) {
+            const googleData = await googleRes.json();
+            const verifiedPhone = googleData.users?.[0]?.phoneNumber?.replace(/\D/g, '').slice(-10);
+            const tokenPhone = matchingToken.target.replace(/\D/g, '').slice(-10);
+            if (verifiedPhone && tokenPhone && verifiedPhone === tokenPhone) {
+              isVerified = true;
+            }
+          }
+        } catch (fbErr) {
+          console.warn('[verify-otp] Firebase token verification error:', fbErr);
+        }
+      }
+    }
+
+    if (!isVerified) {
+      const inputHash = crypto.createHash('sha256').update(otp).digest('hex');
+      const inputBuf = Buffer.from(inputHash, 'hex');
+      const tokenBuf = Buffer.from(matchingToken.tokenHash, 'hex');
+      if (inputBuf.length === tokenBuf.length && crypto.timingSafeEqual(inputBuf, tokenBuf)) {
+        isVerified = true;
+      }
+    }
+
+    if (!isVerified) {
       // Increment attempts
       await prisma.passwordResetToken.update({
         where: { id: matchingToken.id },
@@ -99,8 +159,8 @@ export async function POST(request: NextRequest) {
       data: { usedAt: now },
     });
 
-    // Issue a signed 15-minute reset token
-    const resetToken = createPasswordResetSessionToken(matchingToken.userId);
+    // Issue a signed 15-minute reset token tied to this token id
+    const resetToken = createPasswordResetSessionToken(matchingToken.userId, matchingToken.id);
 
     // Log activity
     try {

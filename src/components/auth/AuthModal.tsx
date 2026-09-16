@@ -147,6 +147,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setSignupEmail('');
       setSignupPassword('');
       setSignupPhone('');
+      setFpIdentifier('');
+      setFpAccountInfo(null);
+      setFpSelectedChannel('sms');
+      setFpOtp('');
+      setFpResetToken('');
+      setFpNewPassword('');
+      setFpConfirmPassword('');
+      setFpShowNewPassword(false);
+      setFpShowConfirmPassword(false);
+      setFpSentTarget('');
     }
   }, [isOpen, initialPhone]);
 
@@ -672,9 +682,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!activeOtp || activeOtp.length !== 6) return;
     setLoading(true);
     try {
+      let firebaseIdToken: string | undefined = undefined;
       if (fpSelectedChannel === 'sms' && confirmationResult) {
         try {
-          await confirmationResult.confirm(activeOtp);
+          const userCredential = await confirmationResult.confirm(activeOtp);
+          firebaseIdToken = await userCredential.user.getIdToken();
         } catch (fbErr: any) {
           showToast('Invalid Code', 'Incorrect OTP. Please try again.', 'error');
           setLoading(false);
@@ -685,7 +697,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await fetch('/api/auth/forgot-password/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: fpIdentifier.trim(), channel: fpSelectedChannel, otp: activeOtp }),
+        body: JSON.stringify({
+          identifier: fpIdentifier.trim(),
+          channel: fpSelectedChannel,
+          otp: activeOtp,
+          firebaseIdToken,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -751,7 +768,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return createPortal(
     <div className={styles.backdrop} onClick={handleBackdropClick}>
-      <div ref={modalRef} className={styles.modal} role="dialog" aria-modal="true" aria-label="Login">
+      <div ref={modalRef} className={styles.modal} role="dialog" aria-modal="true" aria-label={view.startsWith('fp-') ? 'Reset Password' : 'Login'}>
         {/* Invisible Recaptcha container for Firebase Web SDK */}
         <div id="recaptcha-container-auth" style={{ display: 'none' }} />
 
@@ -1232,7 +1249,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <p className={styles.subtitle}>Enter your registered email or mobile number to reset your password.</p>
             </div>
 
-            <button type="button" onClick={() => setView('identifier')} style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', marginBottom: '16px', fontSize: '14px' }}>
+            <button type="button" onClick={() => setView('identifier')} style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', marginBottom: '16px', fontSize: '14px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
               ← Back to Login
             </button>
 
@@ -1264,11 +1281,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </p>
             </div>
 
-            <div className={styles.channelGrid}>
+            <div className={styles.channelGrid} role="radiogroup" aria-label="Verification method">
               {/* SMS Card */}
               {fpAccountInfo.hasPhone && (
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={fpSelectedChannel === 'sms'}
                   className={`${styles.channelCard} ${fpSelectedChannel === 'sms' ? styles.channelCardSelected : ''}`}
                   onClick={() => setFpSelectedChannel('sms')}
                   disabled={loading}
@@ -1288,6 +1307,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {fpAccountInfo.hasEmail && (
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={fpSelectedChannel === 'email'}
                   className={`${styles.channelCard} ${fpSelectedChannel === 'email' ? styles.channelCardSelected : ''}`}
                   onClick={() => setFpSelectedChannel('email')}
                   disabled={loading}
@@ -1319,7 +1340,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               onClick={() => setView('fp-identifier')}
-              style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '14px', textAlign: 'center' }}
+              style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '14px', textAlign: 'center', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             >
               ← Use a different email or number
             </button>
@@ -1337,45 +1358,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </p>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
-              <OtpInput
-                value={fpOtp}
-                onChange={(val) => {
-                  setFpOtp(val);
-                  if (val.length === 6) handleFpVerifyOtp(val);
-                }}
-                numInputs={6}
-                disabled={loading}
-                autoFocus
-              />
-            </div>
-
-            {loading && (
-              <p style={{ textAlign: 'center', color: 'var(--color-neutral-500)', fontSize: '0.875rem' }}>Verifying code...</p>
-            )}
-
-            <div style={{ textAlign: 'center', fontSize: '0.875rem' }}>
-              {timer > 0 ? (
-                <span style={{ color: 'var(--color-neutral-500)' }}>Resend code in {timer}s</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleFpSendOtp()}
+            <form onSubmit={(e) => { e.preventDefault(); handleFpVerifyOtp(); }} style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
+                <OtpInput
+                  value={fpOtp}
+                  onChange={(val) => {
+                    setFpOtp(val);
+                    if (val.length === 6) handleFpVerifyOtp(val);
+                  }}
+                  numInputs={6}
                   disabled={loading}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Resend Code
-                </button>
-              )}
-            </div>
+                  autoFocus
+                />
+              </div>
 
-            {fpAccountInfo && (
+              {loading && (
+                <p style={{ textAlign: 'center', color: 'var(--color-neutral-500)', fontSize: '0.875rem' }}>Verifying code...</p>
+              )}
+
+              <div style={{ textAlign: 'center', fontSize: '0.875rem', marginTop: '12px' }}>
+                {timer > 0 ? (
+                  <span style={{ color: 'var(--color-neutral-500)', minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>Resend code in {timer}s</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleFpSendOtp()}
+                    disabled={loading}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600, minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px' }}
+                  >
+                    Resend Code
+                  </button>
+                )}
+              </div>
+            </form>
+
+            {/* Switch channel — only shown if account has both channels */}
+            {fpAccountInfo && fpAccountInfo.hasEmail && fpAccountInfo.hasPhone && (
               <div style={{ textAlign: 'center' }}>
                 <button
                   type="button"
                   onClick={() => handleFpSendOtp(fpSelectedChannel === 'sms' ? 'email' : 'sms')}
-                  disabled={loading || (fpSelectedChannel === 'sms' ? !fpAccountInfo.hasEmail : !fpAccountInfo.hasPhone)}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.825rem' }}
+                  disabled={loading}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.825rem', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   Send via {fpSelectedChannel === 'sms' ? 'Email' : 'SMS'} instead
                 </button>
@@ -1385,7 +1409,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               onClick={() => setView('fp-channel')}
-              style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '14px', textAlign: 'center' }}
+              style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '14px', textAlign: 'center', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             >
               ← Back
             </button>
@@ -1415,9 +1439,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setFpShowNewPassword(!fpShowNewPassword)}
-                  style={{ position: 'absolute', right: 12, top: 36, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 4 }}
+                  aria-label={fpShowNewPassword ? 'Hide new password' : 'Show new password'}
+                  style={{ position: 'absolute', right: 4, top: 26, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 0 }}
                 >
-                  {fpShowNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {fpShowNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
 
@@ -1435,9 +1460,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setFpShowConfirmPassword(!fpShowConfirmPassword)}
-                  style={{ position: 'absolute', right: 12, top: 36, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 4 }}
+                  aria-label={fpShowConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                  style={{ position: 'absolute', right: 4, top: 26, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 0 }}
                 >
-                  {fpShowConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {fpShowConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
 

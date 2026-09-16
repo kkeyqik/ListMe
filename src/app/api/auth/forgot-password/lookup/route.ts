@@ -76,6 +76,13 @@ export async function POST(request: NextRequest) {
     const hasEmail = Boolean(profile.email);
     const hasPhone = Boolean(profile.phone);
 
+    if (!hasEmail && !hasPhone) {
+      return NextResponse.json({
+        exists: false,
+        message: 'No verified contact method found on this account. Please contact support.',
+      });
+    }
+
     return NextResponse.json({
       exists: true,
       name: profile.name,
