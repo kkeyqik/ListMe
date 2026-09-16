@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { 
   Building, 
   Search, 
@@ -12,7 +13,13 @@ import {
   Trash2, 
   Download,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  MapPin,
+  Calendar,
+  MoreVertical,
+  Image as ImageIcon,
+  FileText
 } from 'lucide-react';
 import { useToast, Button, Input, Card, Badge, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
@@ -38,6 +45,24 @@ export default function AdminListings() {
   const [totalPages, setTotalPages] = useState(1);
   const [exporting, setExporting] = useState(false);
   
+  // Sort and mobile UI states
+  const [sortBy, setSortBy] = useState<'LATEST' | 'OLDEST' | 'PRICE_ASC' | 'PRICE_DESC'>('LATEST');
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [citiesList, setCitiesList] = useState<string[]>([
+    'Delhi',
+    'Noida',
+    'Gurgaon',
+    'Mumbai',
+    'Bengaluru',
+    'Pune',
+    'Hyderabad',
+    'Chennai',
+    'Kolkata',
+    'Jaipur',
+    'Ahmedabad'
+  ]);
+  
   // Moderate action states
   const [actionId, setActionId] = useState<string | null>(null);
   
@@ -50,6 +75,53 @@ export default function AdminListings() {
   // Delete listing state
   const [deleteListingId, setDeleteListingId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Load cities from API
+  useEffect(() => {
+    async function loadCities() {
+      try {
+        const res = await fetch('/api/cities');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.cities && Array.isArray(data.cities) && data.cities.length > 0) {
+            const names = data.cities.map((c: any) => c.name).filter(Boolean);
+            setCitiesList((prev) => Array.from(new Set([...prev, ...names])));
+          }
+        }
+      } catch (err) {
+        // keep fallback
+      }
+    }
+    loadCities();
+  }, []);
+
+  // Close active card dropdown on click outside
+  useEffect(() => {
+    const handleWindowClick = () => {
+      setActiveDropdownId(null);
+    };
+    if (activeDropdownId) {
+      window.addEventListener('click', handleWindowClick);
+      return () => window.removeEventListener('click', handleWindowClick);
+    }
+  }, [activeDropdownId]);
+
+  const getFormattedTitle = (listing: any) => {
+    if (listing.bedrooms && (listing.propertyType === 'APARTMENT' || listing.propertyType === 'BUILDER_FLOOR' || listing.propertyType === 'HOUSE' || listing.propertyType === 'VILLA')) {
+      const typeLabel = 
+        listing.propertyType === 'APARTMENT' ? 'Apartment' :
+        listing.propertyType === 'BUILDER_FLOOR' ? 'Builder Floor' :
+        listing.propertyType === 'HOUSE' ? 'House' : 'Villa';
+      return `${listing.bedrooms} BHK ${typeLabel}`;
+    }
+    if (listing.propertyType === 'PLOT' || listing.propertyType === 'COMMERCIAL_LAND') {
+      return 'Plot / Land';
+    }
+    if (listing.propertyType === 'BUILDER_FLOOR') {
+      return 'Independent / Builder Floor';
+    }
+    return listing.title || 'Property';
+  };
 
   const fetchListings = useCallback(async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
@@ -224,6 +296,19 @@ export default function AdminListings() {
     return matchesSearch && matchesStatus && matchesType && matchesFor && matchesCity && matchesDate;
   });
 
+  const sortedListings = [...filteredListings].sort((a, b) => {
+    if (sortBy === 'OLDEST') {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
+    if (sortBy === 'PRICE_ASC') {
+      return Number(a.askingPrice) - Number(b.askingPrice);
+    }
+    if (sortBy === 'PRICE_DESC') {
+      return Number(b.askingPrice) - Number(a.askingPrice);
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
   const handleExportCSV = async () => {
     setExporting(true);
     try {
@@ -299,28 +384,153 @@ export default function AdminListings() {
 
   return (
     <div>
-      {/* Header */}
-      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+      {/* Header matching reference mockup */}
+      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
         <div>
-          <h1 className={styles.title}>All Properties Database</h1>
+          <h1 className={styles.title}>All Properties</h1>
           <p className={styles.subText}>Moderate, review, edit, or delete any listing submitted on ListMe.</p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <Button 
+        <div>
+          <button 
+            type="button"
             onClick={handleExportCSV} 
-            variant="outline" 
             disabled={exporting || loading}
-            loading={exporting}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            className={styles.exportPillBtn}
+            aria-label="Export all listings"
           >
-            <Download size={18} />
-            {exporting ? 'Exporting...' : 'Export Report'}
-          </Button>
+            <Download size={15} />
+            {exporting ? 'Exporting...' : 'Export'}
+          </button>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <Card padding="md" style={{ marginBottom: '1.5rem' }}>
+      {/* Mobile Toolbar (Screens < 768px) matching reference mockup */}
+      <div className={`${styles.mobileToolbarWrapper} ${styles.mobileOnly}`}>
+        {/* Search Input Box */}
+        <div className={styles.mobileSearchBox}>
+          <Search size={18} className={styles.mobileSearchIcon} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search listings by title, ID, or location..."
+            className={styles.mobileSearchInput}
+            aria-label="Search listings by title, ID, or location"
+          />
+        </div>
+
+        {/* Filter Pill Row 1 */}
+        <div className={styles.filterPillRow1}>
+          <div className={styles.pillSelectWrapper}>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={styles.pillSelect}
+              aria-label="Filter by Status"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="PENDING_REVIEW">Pending</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="DEACTIVATED">Deactivated</option>
+            </select>
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
+
+          <div className={styles.pillSelectWrapper}>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className={styles.pillSelect}
+              aria-label="Filter by Property Type"
+            >
+              <option value="ALL">All Types</option>
+              <option value="APARTMENT">Apartment</option>
+              <option value="HOUSE">House</option>
+              <option value="VILLA">Villa</option>
+              <option value="BUILDER_FLOOR">Builder Floor</option>
+              <option value="PLOT">Plot / Land</option>
+              <option value="COMMERCIAL">Commercial</option>
+            </select>
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
+
+          <div className={styles.pillSelectWrapper}>
+            <select
+              value={forFilter}
+              onChange={(e) => setForFilter(e.target.value)}
+              className={styles.pillSelect}
+              aria-label="Filter by Listing For"
+            >
+              <option value="ALL">All Listing For</option>
+              <option value="SALE">For Sale</option>
+              <option value="RENT">For Rent</option>
+            </select>
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
+        </div>
+
+        {/* Filter Pill Row 2 */}
+        <div className={styles.filterPillRow2}>
+          <div className={styles.pillSelectWrapper}>
+            <MapPin size={14} className={styles.pillLeftIcon} />
+            <select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className={`${styles.pillSelect} ${styles.pillSelectWithIcon}`}
+              aria-label="Filter by City"
+            >
+              <option value="">All Cities</option>
+              {citiesList.map((city) => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
+
+          <div className={styles.pillSelectWrapper}>
+            <Calendar size={14} className={styles.pillLeftIcon} />
+            <button
+              type="button"
+              onClick={() => setShowDateModal(true)}
+              className={`${styles.pillSelect} ${styles.pillSelectWithIcon} ${(startDate || endDate) ? styles.dateRangeActivePill : ''}`}
+              style={{ textAlign: 'left', display: 'flex', alignItems: 'center' }}
+              aria-label="Select Date Range"
+            >
+              {startDate || endDate ? `${startDate ? startDate.slice(5) : 'Start'} - ${endDate ? endDate.slice(5) : 'End'}` : 'Date Range'}
+            </button>
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
+        </div>
+
+        {/* Results Count & Sort Row */}
+        <div className={styles.resultsSortRow}>
+          <div className={styles.resultsCount}>
+            <strong>{totalCount || filteredListings.length}</strong> Properties
+          </div>
+          <div className={styles.sortWrapper}>
+            <span>Sort by</span>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className={styles.sortPillSelect}
+                aria-label="Sort listings"
+              >
+                <option value="LATEST">Latest</option>
+                <option value="OLDEST">Oldest</option>
+                <option value="PRICE_ASC">Price: Low to High</option>
+                <option value="PRICE_DESC">Price: High to Low</option>
+              </select>
+              <ChevronDown size={12} style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Toolbar (Screens >= 768px) */}
+      <div className={styles.desktopOnly}>
+        <Card padding="md" style={{ marginBottom: '1.5rem' }}>
         <div className={styles.filterContainer}>
           {/* Top row: Search input + Clear filters */}
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -428,6 +638,7 @@ export default function AdminListings() {
           </div>
         </div>
       </Card>
+      </div>
 
       {/* Table grid */}
       {loading ? (
@@ -540,99 +751,188 @@ export default function AdminListings() {
             </table>
           </div>
 
-          {/* Mobile Cards View (Screens < 768px) */}
+          {/* Mobile Cards View (Screens < 768px) matching reference mockup */}
           <div className={`${styles.mobileCardsList} ${styles.mobileOnly}`}>
-            {filteredListings.map((listing) => (
-              <div key={listing.id} className={styles.mobileCard}>
-                <div className={styles.mobileCardTop}>
-                  <div>
-                    <div className={styles.mobileCardTitle}>{listing.title}</div>
-                    <div className={styles.mobileCardPrice}>{formatPrice(listing.askingPrice)}</div>
-                    <div className={styles.mobileCardMeta}>
-                      <span>{listing.locality}, {listing.city}</span>
-                      <span>·</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>ID: {listing.id.substring(0, 8)}</span>
+            {sortedListings.map((listing) => {
+              const primaryImage = listing.images?.find((img: any) => img.isPrimary)?.imageUrl || listing.images?.[0]?.imageUrl || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&auto=format&fit=crop&q=80';
+              const photoCount = listing.images?.length || 0;
+              const formattedTitle = getFormattedTitle(listing);
+              const shortId = listing.id ? listing.id.substring(0, 8) : '12742133';
+              const ownerName = listing.owner?.name || 'Unknown Owner';
+              const listedDate = new Date(listing.createdAt).toLocaleDateString('en-GB');
+              const isDropdownOpen = activeDropdownId === listing.id;
+
+              return (
+                <div key={listing.id} className={styles.propertyCard}>
+                  {/* Top Content Block */}
+                  <div className={styles.cardTopBlock}>
+                    {/* Left: Thumbnail with status and photo counter */}
+                    <div className={styles.thumbnailWrapper}>
+                      <img
+                        src={primaryImage}
+                        alt={listing.title}
+                        className={styles.thumbnailImg}
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <span className={`${styles.statusBadgeTop} ${
+                        listing.status === 'ACTIVE' ? styles.statusActive :
+                        listing.status === 'PENDING_REVIEW' ? styles.statusPending :
+                        listing.status === 'REJECTED' ? styles.statusRejected :
+                        styles.statusInactive
+                      }`}>
+                        {listing.status === 'ACTIVE' ? 'ACTIVE' :
+                         listing.status === 'PENDING_REVIEW' ? 'PENDING' :
+                         listing.status === 'REJECTED' ? 'REJECTED' : 'INACTIVE'}
+                      </span>
+                      {photoCount > 0 && (
+                        <span className={styles.photoCountBadge}>
+                          <ImageIcon size={11} /> {photoCount}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Right: Info Block */}
+                    <div className={styles.cardInfoBlock}>
+                      <div className={styles.cardTitleRow}>
+                        <h3 className={styles.cardPropertyTitle} title={listing.title}>
+                          {formattedTitle}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdownId(isDropdownOpen ? null : listing.id);
+                          }}
+                          className={styles.cardMoreBtn}
+                          aria-label="More options"
+                          aria-expanded={isDropdownOpen}
+                          aria-haspopup="true"
+                        >
+                          <MoreVertical size={16} />
+                        </button>
+
+                        {/* 3-dots Dropdown Menu */}
+                        {isDropdownOpen && (
+                          <div className={styles.cardDropdownMenu} onClick={(e) => e.stopPropagation()}>
+                            {listing.status === 'PENDING_REVIEW' && (
+                              <>
+                                <button
+                                  type="button"
+                                  className={styles.cardDropdownItem}
+                                  style={{ color: '#10b981' }}
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    handleModerate(listing.id, 'ACTIVE');
+                                  }}
+                                >
+                                  <Check size={14} /> Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.cardDropdownItem}
+                                  style={{ color: '#ef4444' }}
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    setRejectListingId(listing.id);
+                                  }}
+                                >
+                                  <X size={14} /> Reject
+                                </button>
+                              </>
+                            )}
+                            <Link
+                              href={`/dashboard/listings/${listing.id}/edit`}
+                              className={styles.cardDropdownItem}
+                              onClick={() => setActiveDropdownId(null)}
+                            >
+                              <Edit size={14} /> Edit Details
+                            </Link>
+                            <button
+                              type="button"
+                              className={styles.cardDropdownItem}
+                              style={{ color: '#ef4444' }}
+                              onClick={() => {
+                                setActiveDropdownId(null);
+                                setDeleteListingId(listing.id);
+                              }}
+                            >
+                              <Trash2 size={14} /> Delete Listing
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Price Row */}
+                      <div className={styles.cardPriceRow}>
+                        <span className={styles.cardPrice}>{formatPrice(listing.askingPrice)}</span>
+                        <span className={styles.cardTypeBadge}>
+                          {listing.listingFor} · {listing.propertyType.replace('_', ' ')}
+                        </span>
+                      </div>
+
+                      {/* Location */}
+                      <div className={styles.cardMetaLocation}>
+                        <MapPin size={12} />
+                        <span>{listing.locality ? `${listing.locality}, ${listing.city}` : listing.city}</span>
+                      </div>
+
+                      {/* ID */}
+                      <div className={styles.cardMetaId}>
+                        <FileText size={12} />
+                        <span>ID: {shortId}</span>
+                      </div>
+
+                      {/* Divider */}
+                      <div className={styles.cardFooterDivider} />
+
+                      {/* Owner and Date */}
+                      <div className={styles.cardOwnerDateRow}>
+                        <div className={styles.cardMetaCol}>
+                          <span className={styles.cardMetaSubLabel}>Owner</span>
+                          <span className={styles.cardMetaSubVal}>{ownerName}</span>
+                        </div>
+                        <div className={styles.cardMetaCol} style={{ textAlign: 'right' }}>
+                          <span className={styles.cardMetaSubLabel}>Listed Date</span>
+                          <span className={styles.cardMetaSubVal}>{listedDate}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.375rem' }}>
-                    <Badge 
-                      variant={
-                        listing.status === 'ACTIVE' ? 'success' :
-                        listing.status === 'PENDING_REVIEW' ? 'warning' :
-                        listing.status === 'REJECTED' ? 'error' : 'neutral'
-                      }
-                      size="sm"
-                    >
-                      {listing.status.replace('_', ' ')}
-                    </Badge>
-                    <Badge variant="neutral" size="sm">
-                      {listing.listingFor} · {listing.propertyType.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                </div>
 
-                {listing.status === 'REJECTED' && listing.rejectionReason && (
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--color-error)', backgroundColor: 'rgba(239, 68, 68, 0.06)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--color-error)' }}>
-                    <strong>Rejection Reason:</strong> {listing.rejectionReason}
-                  </div>
-                )}
-
-                <div className={styles.mobileCardDetails}>
-                  <div className={styles.mobileCardField}>
-                    <span className={styles.mobileCardFieldLabel}>Owner</span>
-                    <span className={styles.mobileCardFieldValue}>{listing.owner?.name || 'Unknown Owner'}</span>
-                  </div>
-                  <div className={styles.mobileCardField}>
-                    <span className={styles.mobileCardFieldLabel}>Listed Date</span>
-                    <span className={styles.mobileCardFieldValue}>{new Date(listing.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-
-                <div className={styles.mobileCardActions}>
-                  {listing.status === 'PENDING_REVIEW' && (
-                    <div className={styles.mobilePrimaryActions}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleModerate(listing.id, 'ACTIVE');
-                        }}
-                        className={styles.mobileTouchBtn}
-                        style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}
-                        disabled={actionId === listing.id}
-                      >
-                        <Check size={16} /> Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRejectListingId(listing.id);
-                        }}
-                        className={styles.mobileTouchBtn}
-                        style={{ backgroundColor: 'var(--color-error)', color: '#ffffff' }}
-                        disabled={actionId === listing.id}
-                      >
-                        <X size={16} /> Reject
-                      </button>
+                  {/* Rejection notice if rejected */}
+                  {listing.status === 'REJECTED' && listing.rejectionReason && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-error)', backgroundColor: 'rgba(239, 68, 68, 0.06)', padding: '0.375rem 0.625rem', borderRadius: '6px', borderLeft: '3px solid var(--color-error)', marginTop: '0.625rem' }}>
+                      <strong>Reason:</strong> {listing.rejectionReason}
                     </div>
                   )}
 
-                  <div className={styles.mobileSecondaryActions}>
-                    <Button href={`/property/${listing.id}`} variant="outline" size="sm" style={{ minHeight: '44px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                  {/* Card Action Buttons */}
+                  <div className={styles.cardActionRow}>
+                    <Link
+                      href={`/property/${listing.id}`}
+                      className={styles.viewPropertyBtn}
+                      aria-label="View property details"
+                    >
                       <Eye size={16} /> View Property
-                    </Button>
-                    <Button href={`/dashboard/listings/${listing.id}/edit`} variant="outline" size="sm" style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Edit listing" title="Edit Listing">
+                    </Link>
+                    <Link
+                      href={`/dashboard/listings/${listing.id}/edit`}
+                      className={styles.editActionBtn}
+                      aria-label="Edit listing"
+                      title="Edit Listing"
+                    >
                       <Edit size={16} />
-                    </Button>
+                    </Link>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setDeleteListingId(listing.id);
                       }}
-                      className={styles.mobileTouchIconBtn}
-                      style={{ color: 'var(--color-error)' }}
+                      className={styles.deleteActionBtn}
                       title="Delete Listing"
                       aria-label="Delete Listing"
                     >
@@ -640,8 +940,8 @@ export default function AdminListings() {
                     </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
         {/* Pagination Controls */}
@@ -816,6 +1116,59 @@ export default function AdminListings() {
               disabled={selectedReason === 'Other' && !otherReason.trim()}
             >
               Submit Rejection
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Date Range Selector Modal for Mobile */}
+      <Modal
+        isOpen={showDateModal}
+        onClose={() => setShowDateModal(false)}
+        title="Select Date Range"
+        size="sm"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.35rem', color: '#0f172a' }}>
+              Listed After (From)
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={styles.dateInput}
+              style={{ width: '100%', height: '44px' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.35rem', color: '#0f172a' }}>
+              Listed Before (To)
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={styles.dateInput}
+              style={{ width: '100%', height: '44px' }}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+                setShowDateModal(false);
+              }}
+            >
+              Clear Dates
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => setShowDateModal(false)}
+            >
+              Apply Filter
             </Button>
           </div>
         </div>

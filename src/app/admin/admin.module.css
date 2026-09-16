@@ -726,3 +726,560 @@
   text-align: center;
   color: var(--color-text-secondary);
 }
+
+/* --- Mobile Listings Redesign (Reference Design Match) --- */
+.exportPillBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.875rem;
+  border-radius: 9999px;
+  border: 1.5px solid #0078db;
+  background-color: #ffffff;
+  color: #0078db;
+  font-family: var(--font-heading);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+  min-height: 36px;
+  position: relative;
+}
+
+.exportPillBtn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+}
+
+.exportPillBtn:hover {
+  background-color: #eaf4ff;
+}
+
+.exportPillBtn:active {
+  transform: scale(0.96);
+}
+
+.mobileToolbarWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-bottom: 1.25rem;
+}
+
+.mobileSearchBox {
+  position: relative;
+  width: 100%;
+}
+
+.mobileSearchInput {
+  width: 100%;
+  padding: 0.65rem 1rem 0.65rem 2.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: #0f172a;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.mobileSearchInput:focus {
+  border-color: #0078db;
+  box-shadow: 0 0 0 3px rgba(0, 120, 219, 0.12);
+}
+
+.mobileSearchIcon {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+}
+
+.filterPillRow1 {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.filterPillRow2 {
+  display: flex;
+  gap: 0.625rem;
+  width: 100%;
+}
+
+.pillSelectWrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.pillSelect {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.45rem 1.625rem 0.45rem 0.75rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  height: 42px;
+  min-height: 42px;
+  touch-action: manipulation;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.pillSelect:focus {
+  border-color: #0078db;
+}
+
+.dateRangeActivePill {
+  border-color: #0078db !important;
+  color: #0078db !important;
+  font-weight: 700 !important;
+  background-color: #f0f7ff !important;
+}
+
+.pillSelectWithIcon {
+  padding-left: 2rem;
+}
+
+.pillLeftIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+}
+
+.pillChevron {
+  position: absolute;
+  right: 0.625rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+}
+
+.resultsSortRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0 0.125rem;
+}
+
+.resultsCount {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.resultsCount strong {
+  color: #0f172a;
+  font-weight: 800;
+  font-family: var(--font-heading);
+}
+
+.sortWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+  position: relative;
+}
+
+.sortPillSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.3rem 1.625rem 0.3rem 0.75rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.propertyCard {
+  background-color: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  margin-bottom: 1rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardTopBlock {
+  display: flex;
+  gap: 0.875rem;
+  align-items: flex-start;
+}
+
+.thumbnailWrapper {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  min-width: 110px;
+  max-width: 110px;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #f1f5f9;
+  flex-shrink: 0;
+}
+
+.thumbnailImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.statusBadgeTop {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.statusActive {
+  background-color: #e6f4ea;
+  color: #137333;
+}
+
+.statusPending {
+  background-color: #fff2e8;
+  color: #ea580c;
+}
+
+.statusInactive {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+.statusRejected {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.photoCountBadge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.cardInfoBlock {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cardTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.25rem;
+  position: relative;
+}
+
+.cardPropertyTitle {
+  font-family: var(--font-heading);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardMoreBtn {
+  color: #64748b;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+  background: transparent;
+  border: none;
+  touch-action: manipulation;
+}
+
+.cardMoreBtn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+}
+
+.cardMoreBtn:active {
+  background-color: #f1f5f9;
+}
+
+.cardDropdownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  min-width: 140px;
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardDropdownItem {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.cardDropdownItem:hover {
+  background-color: #f8fafc;
+}
+
+.cardPriceRow {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+
+.cardPrice {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.cardTypeBadge {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cardMetaLocation {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+  min-width: 0;
+}
+
+.cardMetaLocation svg,
+.cardMetaId svg {
+  flex-shrink: 0;
+}
+
+.cardMetaLocation span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMetaId {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.cardFooterDivider {
+  height: 1px;
+  background-color: #f1f5f9;
+  margin: 6px 0 4px 0;
+}
+
+.cardOwnerDateRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.cardMetaCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cardMetaSubLabel {
+  font-size: 9px;
+  color: #94a3b8;
+  text-transform: capitalize;
+}
+
+.cardMetaSubVal {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardActionRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.875rem;
+}
+
+.viewPropertyBtn {
+  flex: 1;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1.5px solid #0078db;
+  background-color: #ffffff;
+  color: #0078db;
+  font-family: var(--font-heading);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.viewPropertyBtn:active {
+  background-color: #eaf4ff;
+  transform: scale(0.98);
+}
+
+.editActionBtn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.editActionBtn:active {
+  background-color: #f8fafc;
+  transform: scale(0.96);
+}
+
+.deleteActionBtn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1.5px solid #fee2e2;
+  background-color: #fff5f5;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.deleteActionBtn:active {
+  background-color: #fecaca;
+  transform: scale(0.96);
+}
