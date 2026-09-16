@@ -155,7 +155,11 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
 
   // Media gallery & video walkthrough state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'video'>('photos');
+  const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'video'>(() => {
+    const hasPhotos = Boolean(initialListing?.images && initialListing.images.length > 0);
+    const hasVids = Boolean(initialListing?.videos && initialListing.videos.length > 0);
+    return !hasPhotos && hasVids ? 'video' : 'photos';
+  });
   const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Mobile touch gesture tracking
@@ -526,7 +530,12 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                       )}
                     </>
                   ) : (
-                    <Building size={96} className={styles.galleryIcon} />
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '2rem' }}>
+                      <Building size={64} className={styles.galleryIcon} />
+                      <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                        No photos uploaded for this property
+                      </span>
+                    </div>
                   )}
                 </div>
 

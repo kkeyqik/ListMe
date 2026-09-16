@@ -743,7 +743,7 @@ export default function NewListing() {
       const data = await response.json();
 
       if (response.ok) {
-        if (data.listing?.id && (selectedPhotos.length > 0 || selectedDocs.length > 0 || normalizedVideo)) {
+        if (data.listing?.id && (selectedPhotos.length > 0 || selectedDocs.length > 0 || normalizedVideo || Boolean(selectedVideo))) {
           await uploadListingMedia(data.listing.id, normalizedVideo);
         }
 
@@ -1375,12 +1375,12 @@ export default function NewListing() {
           <div className={styles.stepContainer}>
             <div className={styles.sectionHeading}>
               <Upload size={20} />
-              <span>Step 5: Media & Documents</span>
+              <span>Step 5: Media & Documents (Optional)</span>
             </div>
 
             {/* Photos upload section */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>Upload Photos (Max 5MB per image)</label>
+              <label className={styles.label}>Upload Photos (Optional, Max 5MB per image)</label>
               <div className={styles.dropzone}>
                 <input
                   type="file"
@@ -1392,7 +1392,7 @@ export default function NewListing() {
                 />
                 <label htmlFor="photos-upload" className={styles.dropzoneLabel}>
                   <Upload size={32} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
-                  <span>Drag & drop files or click to upload</span>
+                  <span>Drag & drop files or click to upload (Optional)</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>PNG, JPG, WEBP formats</span>
                 </label>
               </div>
@@ -1664,7 +1664,7 @@ export default function NewListing() {
               variant="secondary" 
               onClick={handleSubmit} 
               loading={loading} 
-              disabled={selectedPhotos.length === 0 || selectedPhotos.some((p) => !p.completed)} 
+              disabled={selectedPhotos.some((p) => !p.completed) || selectedDocs.some((d) => !d.completed)} 
               style={{ marginLeft: 'auto' }}
             >
               Submit Property

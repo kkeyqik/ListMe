@@ -1371,7 +1371,7 @@ export default function EditListing({ params }: EditListingProps) {
           <div className={styles.stepContainer}>
             <div className={styles.sectionHeading}>
               <Upload size={20} />
-              <span>Step 5: Media & Documents</span>
+              <span>Step 5: Media & Documents (Optional)</span>
             </div>
 
             {/* Current Photos */}
@@ -1414,7 +1414,7 @@ export default function EditListing({ params }: EditListingProps) {
 
             {/* Photos upload section */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>Upload Additional Photos (Max 5MB per image)</label>
+              <label className={styles.label}>Upload Additional Photos (Optional, Max 5MB per image)</label>
               <div className={styles.dropzone}>
                 <input
                   type="file"
@@ -1426,7 +1426,7 @@ export default function EditListing({ params }: EditListingProps) {
                 />
                 <label htmlFor="photos-upload" className={styles.dropzoneLabel}>
                   <Upload size={32} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
-                  <span>Click to add more photos</span>
+                  <span>Click to add more photos (Optional)</span>
                 </label>
               </div>
 
