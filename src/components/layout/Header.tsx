@@ -55,7 +55,7 @@ export const Header: React.FC = () => {
   ];
 
 
-  const isPostPropertyRoute = pathname === '/post-property';
+  const isPostPropertyRoute = pathname ? pathname.startsWith('/post-property') : false;
 
   // Scroll listener
   useEffect(() => {
@@ -63,7 +63,7 @@ export const Header: React.FC = () => {
       setScrolled(window.scrollY > 20);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
