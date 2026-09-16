@@ -96,3 +96,44 @@ export function getSessionCookieOptions(): object {
     sameSite: 'lax' as const,
   };
 }
+
+/** Password reset token lifetime — 15 minutes. */
+const RESET_TOKEN_DURATION = 900;
+
+/**
+ * Create a signed, short-lived token granting permission to reset password.
+ * Issued ONLY after OTP has been verified.
+ */
+export function createPasswordResetSessionToken(userId: string): string {
+  const expiry = Math.floor(Date.now() / 1000) + RESET_TOKEN_DURATION;
+  const payload = `RESET:${userId}:${expiry}`;
+  const signature = sign(payload);
+  return `${payload}:${signature}`;
+}
+
+/**
+ * Verify a password reset token.
+ * Returns the userId if valid and unexpired, null otherwise.
+ */
+export function verifyPasswordResetSessionToken(token: string): { userId: string } | null {
+  const parts = token.split(':');
+  if (parts.length !== 4 || parts[0] !== 'RESET') return null;
+
+  const [, userId, expiryStr, signature] = parts;
+  const payload = `RESET:${userId}:${expiryStr}`;
+
+  const expected = sign(payload);
+  if (
+    signature.length !== expected.length ||
+    !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+  ) {
+    return null;
+  }
+
+  const expiry = parseInt(expiryStr, 10);
+  if (isNaN(expiry) || Math.floor(Date.now() / 1000) > expiry) {
+    return null;
+  }
+
+  return { userId };
+}

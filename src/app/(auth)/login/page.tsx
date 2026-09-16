@@ -787,6 +787,14 @@ function LoginContent() {
                     Create Account
                   </button>
                 </p>
+                <p style={{ marginTop: '0.5rem' }}>
+                  <Link
+                    href={`/forgot-password${identifier ? `?prefill=${encodeURIComponent(identifier)}` : ''}`}
+                    style={{ color: 'var(--color-neutral-500)', fontSize: '0.875rem', textDecoration: 'none' }}
+                  >
+                    Forgot password?
+                  </Link>
+                </p>
               </div>
 
               <p className={styles.terms}>
@@ -843,6 +851,17 @@ function LoginContent() {
                     Login with {loginMethod === 'password' ? 'OTP' : 'Password'} instead
                   </button>
                 </div>
+
+                {loginMethod === 'password' && (
+                  <div style={{ textAlign: 'center' }}>
+                    <Link
+                      href={`/forgot-password?prefill=${encodeURIComponent(identifierType === 'email' ? email : phone)}`}
+                      style={{ color: 'var(--color-neutral-500)', fontSize: '0.875rem', textDecoration: 'none' }}
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                )}
               </form>
             </>
           )}

@@ -15,6 +15,9 @@ import {
   MapPin,
   User,
   ChevronDown,
+  MessageSquare,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
@@ -32,7 +35,7 @@ export interface AuthModalProps {
   initialPhone?: string;
 }
 
-type AuthView = 'identifier' | 'credential' | 'otp' | 'email-otp' | 'signup';
+type AuthView = 'identifier' | 'credential' | 'otp' | 'email-otp' | 'signup' | 'fp-identifier' | 'fp-channel' | 'fp-otp' | 'fp-new-password' | 'fp-success';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -67,6 +70,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
+
+  // Forgot Password flow states
+  const [fpIdentifier, setFpIdentifier] = useState('');
+  const [fpAccountInfo, setFpAccountInfo] = useState<{
+    name: string;
+    hasEmail: boolean;
+    maskedEmail: string | null;
+    hasPhone: boolean;
+    maskedPhone: string | null;
+    primaryChannel: 'sms' | 'email';
+  } | null>(null);
+  const [fpSelectedChannel, setFpSelectedChannel] = useState<'sms' | 'email'>('sms');
+  const [fpOtp, setFpOtp] = useState('');
+  const [fpResetToken, setFpResetToken] = useState('');
+  const [fpNewPassword, setFpNewPassword] = useState('');
+  const [fpConfirmPassword, setFpConfirmPassword] = useState('');
+  const [fpShowNewPassword, setFpShowNewPassword] = useState(false);
+  const [fpShowConfirmPassword, setFpShowConfirmPassword] = useState(false);
+  const [fpSentTarget, setFpSentTarget] = useState('');
 
   // Firebase auth state variables
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
@@ -579,6 +601,148 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  // ── Forgot Password Handlers ──
+  const handleFpLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fpIdentifier.trim()) {
+      showToast('Error', 'Please enter your email or mobile number', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: fpIdentifier.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.exists) {
+        showToast('Account Not Found', data.message || 'No account found with this email or number.', 'error');
+        return;
+      }
+      setFpAccountInfo(data);
+      setFpSelectedChannel(data.primaryChannel);
+      setView('fp-channel');
+    } catch {
+      showToast('Error', 'Something went wrong. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFpSendOtp = async (channelOverride?: 'sms' | 'email') => {
+    const channel = channelOverride || fpSelectedChannel;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: fpIdentifier.trim(), channel }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast('Failed', data.message || 'Could not send OTP', 'error');
+        return;
+      }
+      if (channel === 'sms' && isFirebaseConfigured && recaptchaVerifier && data.formattedPhone) {
+        try {
+          const auth = getFirebaseAuth();
+          if (auth) {
+            const confirmation = await signInWithPhoneNumber(auth, data.formattedPhone, recaptchaVerifier);
+            setConfirmationResult(confirmation);
+          }
+        } catch (fbErr: any) {
+          console.warn('[AuthModal FP] Firebase SMS fallback:', fbErr.message);
+        }
+      }
+      setFpSentTarget(data.target || '');
+      setFpSelectedChannel(channel);
+      setFpOtp('');
+      setView('fp-otp');
+      setTimer(30);
+    } catch {
+      showToast('Error', 'Something went wrong. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFpVerifyOtp = async (otpVal?: string) => {
+    const activeOtp = otpVal || fpOtp;
+    if (!activeOtp || activeOtp.length !== 6) return;
+    setLoading(true);
+    try {
+      if (fpSelectedChannel === 'sms' && confirmationResult) {
+        try {
+          await confirmationResult.confirm(activeOtp);
+        } catch (fbErr: any) {
+          showToast('Invalid Code', 'Incorrect OTP. Please try again.', 'error');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const res = await fetch('/api/auth/forgot-password/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: fpIdentifier.trim(), channel: fpSelectedChannel, otp: activeOtp }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast('Verification Failed', data.message || 'Incorrect code', 'error');
+        return;
+      }
+      setFpResetToken(data.resetToken);
+      setView('fp-new-password');
+    } catch {
+      showToast('Error', 'Something went wrong. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFpResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fpNewPassword || fpNewPassword.length < 6) {
+      showToast('Error', 'Password must be at least 6 characters', 'error');
+      return;
+    }
+    if (fpNewPassword !== fpConfirmPassword) {
+      showToast('Error', 'Passwords do not match', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetToken: fpResetToken, newPassword: fpNewPassword, confirmPassword: fpConfirmPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast('Failed', data.message || 'Could not reset password', 'error');
+        return;
+      }
+      await refreshProfile();
+      setView('fp-success');
+      showToast('Success!', 'Password reset successfully. You are now logged in.', 'success');
+      setTimeout(() => {
+        onClose();
+        onSuccess?.();
+        const role = data.profile?.role || 'USER';
+        if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = redirectPath || '/dashboard';
+        }
+      }, 2000);
+    } catch {
+      showToast('Error', 'Something went wrong. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   
   
   // ─── Render ──────────────────────────────────
@@ -758,6 +922,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
 
+            <div style={{ textAlign: 'center', marginTop: '0.25rem', fontSize: '0.85rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setFpIdentifier(identifier || phone || '');
+                  setView('fp-identifier');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-neutral-500)',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
+
             {/* Terms */}
             <p className={styles.terms}>
               By continuing, you agree to our{' '}
@@ -781,15 +964,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <form onSubmit={handleCredentialSubmit} className={styles.form}>
               {loginMethod === 'password' && (
-                <Input
-                  label="Password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  fullWidth
-                  required
-                />
+                <>
+                  <Input
+                    label="Password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    fullWidth
+                    required
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-8px', marginBottom: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFpIdentifier(identifier || email || phone || '');
+                        setView('fp-identifier');
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-neutral-500)',
+                        cursor: 'pointer',
+                        fontSize: '0.825rem',
+                        padding: 0,
+                      }}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                </>
               )}
               <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} rightIcon={<ArrowRight size={18} />}>
                 {loginMethod === 'password' ? 'Login' : 'Send OTP'}
@@ -1020,7 +1224,248 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        
+        {/* ── FORGOT PASSWORD: IDENTIFIER ── */}
+        {view === 'fp-identifier' && (
+          <div className={styles.content}>
+            <div className={styles.header}>
+              <h2 className={styles.title}>Forgot Password?</h2>
+              <p className={styles.subtitle}>Enter your registered email or mobile number to reset your password.</p>
+            </div>
+
+            <button type="button" onClick={() => setView('identifier')} style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', marginBottom: '16px', fontSize: '14px' }}>
+              ← Back to Login
+            </button>
+
+            <form onSubmit={handleFpLookup} className={styles.form}>
+              <Input
+                label="Email or Mobile Number"
+                type="text"
+                placeholder="Enter email or 10-digit number"
+                value={fpIdentifier}
+                onChange={(e) => setFpIdentifier(e.target.value)}
+                fullWidth
+                required
+                disabled={loading}
+              />
+              <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} rightIcon={<ArrowRight size={18} />}>
+                Find My Account
+              </Button>
+            </form>
+          </div>
+        )}
+
+        {/* ── FORGOT PASSWORD: DUAL CHANNEL SELECTION ── */}
+        {view === 'fp-channel' && fpAccountInfo && (
+          <div className={styles.content}>
+            <div className={styles.header}>
+              <h2 className={styles.title}>Choose Verification Method</h2>
+              <p className={styles.subtitle}>
+                Hi <strong>{fpAccountInfo.name}</strong>, select where you want to receive your OTP code:
+              </p>
+            </div>
+
+            <div className={styles.channelGrid}>
+              {/* SMS Card */}
+              {fpAccountInfo.hasPhone && (
+                <button
+                  type="button"
+                  className={`${styles.channelCard} ${fpSelectedChannel === 'sms' ? styles.channelCardSelected : ''}`}
+                  onClick={() => setFpSelectedChannel('sms')}
+                  disabled={loading}
+                >
+                  <div className={styles.channelIcon}>
+                    <MessageSquare size={20} />
+                  </div>
+                  <div className={styles.channelInfo}>
+                    <div className={styles.channelTitle}>SMS Verification</div>
+                    <div className={styles.channelSub}>Send code to {fpAccountInfo.maskedPhone}</div>
+                  </div>
+                  <div className={`${styles.channelRadio} ${fpSelectedChannel === 'sms' ? styles.channelRadioSelected : ''}`} />
+                </button>
+              )}
+
+              {/* Email Card */}
+              {fpAccountInfo.hasEmail && (
+                <button
+                  type="button"
+                  className={`${styles.channelCard} ${fpSelectedChannel === 'email' ? styles.channelCardSelected : ''}`}
+                  onClick={() => setFpSelectedChannel('email')}
+                  disabled={loading}
+                >
+                  <div className={styles.channelIcon}>
+                    <Mail size={20} />
+                  </div>
+                  <div className={styles.channelInfo}>
+                    <div className={styles.channelTitle}>Email Verification</div>
+                    <div className={styles.channelSub}>Send code to {fpAccountInfo.maskedEmail}</div>
+                  </div>
+                  <div className={`${styles.channelRadio} ${fpSelectedChannel === 'email' ? styles.channelRadioSelected : ''}`} />
+                </button>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={loading}
+              onClick={() => handleFpSendOtp()}
+              rightIcon={<ArrowRight size={18} />}
+            >
+              Send OTP Code
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => setView('fp-identifier')}
+              style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '14px', textAlign: 'center' }}
+            >
+              ← Use a different email or number
+            </button>
+          </div>
+        )}
+
+        {/* ── FORGOT PASSWORD: OTP ENTRY ── */}
+        {view === 'fp-otp' && (
+          <div className={styles.content}>
+            <div className={styles.header}>
+              <h2 className={styles.title}>Enter 6-Digit Code</h2>
+              <p className={styles.subtitle}>
+                We sent a 6-digit code {fpSelectedChannel === 'sms' ? 'via SMS' : 'via Email'} to{' '}
+                <strong>{fpSentTarget}</strong>
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
+              <OtpInput
+                value={fpOtp}
+                onChange={(val) => {
+                  setFpOtp(val);
+                  if (val.length === 6) handleFpVerifyOtp(val);
+                }}
+                numInputs={6}
+                disabled={loading}
+                autoFocus
+              />
+            </div>
+
+            {loading && (
+              <p style={{ textAlign: 'center', color: 'var(--color-neutral-500)', fontSize: '0.875rem' }}>Verifying code...</p>
+            )}
+
+            <div style={{ textAlign: 'center', fontSize: '0.875rem' }}>
+              {timer > 0 ? (
+                <span style={{ color: 'var(--color-neutral-500)' }}>Resend code in {timer}s</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleFpSendOtp()}
+                  disabled={loading}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Resend Code
+                </button>
+              )}
+            </div>
+
+            {fpAccountInfo && (
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => handleFpSendOtp(fpSelectedChannel === 'sms' ? 'email' : 'sms')}
+                  disabled={loading || (fpSelectedChannel === 'sms' ? !fpAccountInfo.hasEmail : !fpAccountInfo.hasPhone)}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '0.825rem' }}
+                >
+                  Send via {fpSelectedChannel === 'sms' ? 'Email' : 'SMS'} instead
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setView('fp-channel')}
+              style={{ background: 'none', border: 'none', color: 'var(--color-neutral-500)', cursor: 'pointer', fontSize: '14px', textAlign: 'center' }}
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+
+        {/* ── FORGOT PASSWORD: NEW PASSWORD ── */}
+        {view === 'fp-new-password' && (
+          <div className={styles.content}>
+            <div className={styles.header}>
+              <h2 className={styles.title}>Set New Password</h2>
+              <p className={styles.subtitle}>Enter and confirm your new secure password.</p>
+            </div>
+
+            <form onSubmit={handleFpResetPassword} className={styles.form}>
+              <div style={{ position: 'relative' }}>
+                <Input
+                  label="New Password"
+                  type={fpShowNewPassword ? 'text' : 'password'}
+                  placeholder="Minimum 6 characters"
+                  value={fpNewPassword}
+                  onChange={(e) => setFpNewPassword(e.target.value)}
+                  fullWidth
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setFpShowNewPassword(!fpShowNewPassword)}
+                  style={{ position: 'absolute', right: 12, top: 36, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 4 }}
+                >
+                  {fpShowNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              <div style={{ position: 'relative' }}>
+                <Input
+                  label="Confirm Password"
+                  type={fpShowConfirmPassword ? 'text' : 'password'}
+                  placeholder="Re-enter your password"
+                  value={fpConfirmPassword}
+                  onChange={(e) => setFpConfirmPassword(e.target.value)}
+                  fullWidth
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setFpShowConfirmPassword(!fpShowConfirmPassword)}
+                  style={{ position: 'absolute', right: 12, top: 36, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-neutral-500)', padding: 4 }}
+                >
+                  {fpShowConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={loading}
+                rightIcon={<CheckCircle size={18} />}
+                disabled={fpNewPassword.length < 6 || fpNewPassword !== fpConfirmPassword}
+              >
+                Reset Password & Login
+              </Button>
+            </form>
+          </div>
+        )}
+
+        {/* ── FORGOT PASSWORD: SUCCESS ── */}
+        {view === 'fp-success' && (
+          <div className={styles.content} style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <CheckCircle size={40} />
+            </div>
+            <h2 className={styles.title}>Password Reset!</h2>
+            <p className={styles.subtitle}>Your password has been changed. You are now logged in and being redirected...</p>
+          </div>
+        )}
 
       </div>
     </div>,

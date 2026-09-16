@@ -376,4 +376,19 @@ model EmailLog {
   @@map("email_logs")
 }
 
+model PasswordResetToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  channel   String    // "EMAIL" | "SMS"
+  target    String    // The email address or phone number the OTP was sent to
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, target])
+  @@map("password_reset_tokens")
+}
+
 
