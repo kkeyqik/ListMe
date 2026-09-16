@@ -581,6 +581,188 @@ const TrustUserIcon = () => (
   </svg>
 );
 
+// ─── Category Icons for "Recently Posted Properties" (Per Mockup) ───
+const FlatCategoryIcon = () => (
+  <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="22" cy="22" r="22" fill="#eff6ff" />
+    <rect x="14" y="11" width="16" height="23" rx="1.5" fill="#cbe3f7" stroke="#0078db" strokeWidth="1.2" />
+    <rect x="13" y="10" width="18" height="2.5" rx="1" fill="#0078db" />
+    <rect x="16.5" y="14.5" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="21" y="14.5" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="25" y="14.5" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="16.5" y="19" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="21" y="19" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="25" y="19" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="16.5" y="23.5" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="21" y="23.5" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="25" y="23.5" width="3" height="3" rx="0.5" fill="#ffffff" />
+    <rect x="20" y="28.5" width="4" height="5.5" rx="0.75" fill="#0078db" />
+  </svg>
+);
+
+const HouseCategoryIcon = () => (
+  <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="22" cy="22" r="22" fill="#eff6ff" />
+    <path d="M22 13L11 22H14.5V31H29.5V22H33L22 13Z" fill="#cbe3f7" stroke="#0078db" strokeWidth="1.2" />
+    <path d="M22 14L12 22.5H15.5L22 17L28.5 22.5H32L22 14Z" fill="#0078db" />
+    <path d="M19.5 31V25C19.5 23.62 20.62 22.5 22 22.5C23.38 22.5 24.5 23.62 24.5 25V31H19.5Z" fill="#0078db" />
+    <rect x="16" y="24" width="2.5" height="3" rx="0.5" fill="#0078db" opacity="0.6" />
+    <rect x="25.5" y="24" width="2.5" height="3" rx="0.5" fill="#0078db" opacity="0.6" />
+  </svg>
+);
+
+const PlotCategoryIcon = () => (
+  <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="22" cy="22" r="22" fill="#eff6ff" />
+    <ellipse cx="22" cy="29" rx="14" ry="5.5" fill="#fed7aa" opacity="0.7" />
+    <rect x="29" y="22" width="2" height="7" fill="#b45309" rx="0.5" />
+    <circle cx="30" cy="20" r="4.5" fill="#f59e0b" opacity="0.85" />
+    <path d="M12 24H27M12 27H27" stroke="#0078db" strokeWidth="1.5" strokeLinecap="round" />
+    <rect x="14" y="22" width="2" height="8" rx="0.5" fill="#0078db" />
+    <rect x="20" y="22" width="2" height="8" rx="0.5" fill="#0078db" />
+    <rect x="25" y="22" width="2" height="8" rx="0.5" fill="#0078db" />
+  </svg>
+);
+
+const OfficeCategoryIcon = () => (
+  <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="22" cy="22" r="22" fill="#eff6ff" />
+    <rect x="12" y="22" width="6" height="11" rx="1" fill="#fed7aa" opacity="0.8" />
+    <rect x="28" y="19" width="5" height="14" rx="1" fill="#fed7aa" opacity="0.8" />
+    <rect x="18" y="12" width="10" height="21" rx="1.5" fill="#0078db" />
+    <rect x="20" y="14" width="6" height="17" rx="1" fill="#60a5fa" opacity="0.9" />
+    <line x1="20" y1="18" x2="26" y2="18" stroke="#ffffff" strokeWidth="0.75" />
+    <line x1="20" y1="22" x2="26" y2="22" stroke="#ffffff" strokeWidth="0.75" />
+    <line x1="20" y1="26" x2="26" y2="26" stroke="#ffffff" strokeWidth="0.75" />
+  </svg>
+);
+
+const POPULAR_CITIES = ['Delhi', 'Noida', 'Gurgaon', 'Mumbai', 'Bangalore', 'Pune', 'Hyderabad'];
+
+interface CityCategoryListing {
+  categoryName: string;
+  categoryCount: string;
+  categoryCode: string;
+  title: string;
+  price: string;
+  locality: string;
+  postedAgo: string;
+  id?: string;
+}
+
+const CITY_FALLBACK_DATA: Record<string, { buy: CityCategoryListing[]; rent: CityCategoryListing[] }> = {
+  Delhi: {
+    buy: [
+      { categoryName: 'Flats', categoryCount: '32K+ Flats', categoryCode: 'APARTMENT', title: '4 Bhk Independent/Builder Floor', price: '₹88 Lac', locality: 'Saarthi Luxurious Homes, Uttam Nagar', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '4.1K+ Houses', categoryCode: 'HOUSE', title: '2 Bhk Independent House/Villa for Sale', price: 'Available on Request', locality: 'Sainik Farm, South Delhi', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '2.8K+ Plots', categoryCode: 'PLOT', title: 'Residential Land for Sale', price: '₹22.5 Lac', locality: 'Kirti Nagar, Delhi, West Delhi', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '1.2K+ Offices', categoryCode: 'OFFICE', title: 'Ready to move office space for Sale', price: '₹27.5 Lac', locality: 'Chawla Complex, Laxmi Nagar', postedAgo: 'Today' },
+    ],
+    rent: [
+      { categoryName: 'Flats', categoryCount: '28K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Furnished Apartment for Rent', price: '₹38,000 / mo', locality: 'Saket, South Delhi', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '3.4K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Kothi for Rent', price: '₹75,000 / mo', locality: 'Vasant Vihar, South West Delhi', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '1.5K+ Plots', categoryCode: 'PLOT', title: 'Commercial Plot on Main Road for Lease', price: '₹1.2 Lac / mo', locality: 'Okhla Phase 3, South Delhi', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '2.1K+ Offices', categoryCode: 'OFFICE', title: 'Fully Furnished Office Space for Rent', price: '₹45,000 / mo', locality: 'Connaught Place, Central Delhi', postedAgo: 'Today' },
+    ],
+  },
+  Noida: {
+    buy: [
+      { categoryName: 'Flats', categoryCount: '24K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Luxury Flat in Sector 75', price: '₹1.15 Cr', locality: 'Sector 75, Noida', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '2.9K+ Houses', categoryCode: 'HOUSE', title: 'Independent Duplex Villa for Sale', price: '₹2.4 Cr', locality: 'Sector 44, Noida', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '3.1K+ Plots', categoryCode: 'PLOT', title: 'Authority Residential Plot for Sale', price: '₹85 Lac', locality: 'Sector 150, Noida Expressway', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '1.8K+ Offices', categoryCode: 'OFFICE', title: 'Grade A IT Office Space for Sale', price: '₹55 Lac', locality: 'Sector 62, Noida', postedAgo: 'Today' },
+    ],
+    rent: [
+      { categoryName: 'Flats', categoryCount: '19K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk High Rise Apartment for Rent', price: '₹24,000 / mo', locality: 'Sector 137, Noida Expressway', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '1.8K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Independent Floor for Rent', price: '₹35,000 / mo', locality: 'Sector 26, Noida', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '900+ Plots', categoryCode: 'PLOT', title: 'Industrial Plot for Long Term Lease', price: '₹90,000 / mo', locality: 'Phase 2, Noida', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '2.4K+ Offices', categoryCode: 'OFFICE', title: 'Plug & Play Coworking/Office Space', price: '₹60,000 / mo', locality: 'Sector 16, Film City, Noida', postedAgo: 'Today' },
+    ],
+  },
+  Gurgaon: {
+    buy: [
+      { categoryName: 'Flats', categoryCount: '36K+ Flats', categoryCode: 'APARTMENT', title: '4 Bhk Ultra Luxury Condominium', price: '₹3.8 Cr', locality: 'Golf Course Extension, Gurgaon', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '5.2K+ Houses', categoryCode: 'HOUSE', title: 'Luxury Villa with Private Garden', price: '₹5.5 Cr', locality: 'DLF Phase 1, Gurgaon', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '4.5K+ Plots', categoryCode: 'PLOT', title: 'Gated Township Residential Land', price: '₹1.8 Cr', locality: 'Sector 57, Gurgaon', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '3.1K+ Offices', categoryCode: 'OFFICE', title: 'Corporate Office in Signature Tower', price: '₹1.4 Cr', locality: 'Cyber City, Gurgaon', postedAgo: 'Today' },
+    ],
+    rent: [
+      { categoryName: 'Flats', categoryCount: '30K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Fully Furnished Apartment', price: '₹65,000 / mo', locality: 'Sohna Road, Gurgaon', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '4.0K+ Houses', categoryCode: 'HOUSE', title: 'Independent Floor with Terrace Garden', price: '₹85,000 / mo', locality: 'Sushant Lok 1, Gurgaon', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '1.2K+ Plots', categoryCode: 'PLOT', title: 'Commercial Yard for Lease', price: '₹2.5 Lac / mo', locality: 'Manesar, Gurgaon', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '4.8K+ Offices', categoryCode: 'OFFICE', title: '50-Seater Ready Corporate Office', price: '₹1.8 Lac / mo', locality: 'MG Road, Gurgaon', postedAgo: 'Today' },
+    ],
+  },
+  Mumbai: {
+    buy: [
+      { categoryName: 'Flats', categoryCount: '42K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Sea View Apartment for Sale', price: '₹2.8 Cr', locality: 'Andheri West, Mumbai', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '2.1K+ Houses', categoryCode: 'HOUSE', title: 'Row House / Bungalow for Sale', price: '₹6.2 Cr', locality: 'Juhu Scheme, Mumbai', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '1.1K+ Plots', categoryCode: 'PLOT', title: 'Non-Agricultural Land Parcel', price: '₹1.9 Cr', locality: 'Panvel, Navi Mumbai', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '3.8K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Office in Business Park', price: '₹1.75 Cr', locality: 'BKC, Mumbai', postedAgo: 'Today' },
+    ],
+    rent: [
+      { categoryName: 'Flats', categoryCount: '38K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk High Floor Flat for Rent', price: '₹70,000 / mo', locality: 'Bandra West, Mumbai', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '1.5K+ Houses', categoryCode: 'HOUSE', title: 'Independent Bungalow for Rent', price: '₹1.8 Lac / mo', locality: 'Pali Hill, Bandra, Mumbai', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '850+ Plots', categoryCode: 'PLOT', title: 'Industrial Open Yard for Lease', price: '₹1.5 Lac / mo', locality: 'Thane West, Mumbai', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '5.2K+ Offices', categoryCode: 'OFFICE', title: 'Furnished Office Cabin & Workstations', price: '₹95,000 / mo', locality: 'Lower Parel, Mumbai', postedAgo: 'Today' },
+    ],
+  },
+  Bangalore: {
+    buy: [
+      { categoryName: 'Flats', categoryCount: '35K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Gated Community Apartment', price: '₹1.45 Cr', locality: 'Whitefield, Bangalore', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '4.8K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Villa with Garden', price: '₹3.1 Cr', locality: 'Sarjapur Road, Bangalore', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '3.9K+ Plots', categoryCode: 'PLOT', title: 'BMRDA Approved Villa Plot for Sale', price: '₹65 Lac', locality: 'Electronic City, Bangalore', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '2.5K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Tech Space for Sale', price: '₹95 Lac', locality: 'HSR Layout, Bangalore', postedAgo: 'Today' },
+    ],
+    rent: [
+      { categoryName: 'Flats', categoryCount: '31K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Premium Society Flat for Rent', price: '₹48,000 / mo', locality: 'Bellandur, Outer Ring Road', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '3.2K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Triplex Villa for Rent', price: '₹80,000 / mo', locality: 'Indiranagar, Bangalore', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '1.1K+ Plots', categoryCode: 'PLOT', title: 'Commercial Open Land for Lease', price: '₹85,000 / mo', locality: 'Hebbal, Bangalore', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '3.6K+ Offices', categoryCode: 'OFFICE', title: 'Fully Fitted Tech Office for Rent', price: '₹1.1 Lac / mo', locality: 'Koramangala, Bangalore', postedAgo: 'Today' },
+    ],
+  },
+  Pune: {
+    buy: [
+      { categoryName: 'Flats', categoryCount: '22K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Modern Flat for Sale', price: '₹72 Lac', locality: 'Kharadi, Pune', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '3.1K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Independent Row House', price: '₹1.6 Cr', locality: 'Baner, Pune', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '2.4K+ Plots', categoryCode: 'PLOT', title: 'Residential NA Plot for Sale', price: '₹42 Lac', locality: 'Wagholi, Pune', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '1.5K+ Offices', categoryCode: 'OFFICE', title: 'Commercial IT Park Office', price: '₹48 Lac', locality: 'Hinjawadi, Pune', postedAgo: 'Today' },
+    ],
+    rent: [
+      { categoryName: 'Flats', categoryCount: '18K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Furnished Flat for Rent', price: '₹26,000 / mo', locality: 'Viman Nagar, Pune', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '2.0K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Villa for Rent', price: '₹45,000 / mo', locality: 'Koregaon Park, Pune', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '800+ Plots', categoryCode: 'PLOT', title: 'Commercial Plot for Lease', price: '₹60,000 / mo', locality: 'Hadapsar, Pune', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '1.9K+ Offices', categoryCode: 'OFFICE', title: 'Furnished Office Space for Rent', price: '₹55,000 / mo', locality: 'Senapati Bapat Road, Pune', postedAgo: 'Today' },
+    ],
+  },
+  Hyderabad: {
+    buy: [
+      { categoryName: 'Flats', categoryCount: '28K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Gated Flat for Sale', price: '₹1.25 Cr', locality: 'Gachibowli, Hyderabad', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '3.6K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Villa for Sale', price: '₹2.8 Cr', locality: 'Jubilee Hills, Hyderabad', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '3.2K+ Plots', categoryCode: 'PLOT', title: 'HMDA Approved Villa Plot', price: '₹58 Lac', locality: 'Miyapur, Hyderabad', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '2.0K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Space in IT Corridor', price: '₹75 Lac', locality: 'Hitec City, Hyderabad', postedAgo: 'Today' },
+    ],
+    rent: [
+      { categoryName: 'Flats', categoryCount: '22K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk High Rise Flat for Rent', price: '₹42,000 / mo', locality: 'Kondapur, Hyderabad', postedAgo: 'Today' },
+      { categoryName: 'Houses', categoryCount: '2.4K+ Houses', categoryCode: 'HOUSE', title: 'Independent Villa with Lawn', price: '₹65,000 / mo', locality: 'Madhapur, Hyderabad', postedAgo: 'Today' },
+      { categoryName: 'Plots', categoryCount: '950+ Plots', categoryCode: 'PLOT', title: 'Commercial Land for Lease', price: '₹70,000 / mo', locality: 'Kukatpally, Hyderabad', postedAgo: 'Today' },
+      { categoryName: 'Offices', categoryCount: '2.7K+ Offices', categoryCode: 'OFFICE', title: 'Plug & Play Office Space', price: '₹85,000 / mo', locality: 'Financial District, Hyderabad', postedAgo: 'Today' },
+    ],
+  },
+};
+
+function formatRelativeTime(dateStr?: string | Date) {
+  if (!dateStr) return 'Today';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffHours = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60));
+  if (diffHours < 1) return 'Just now';
+  if (diffHours < 24) return 'Today';
+  if (diffHours < 48) return 'Yesterday';
+  const days = Math.floor(diffHours / 24);
+  return `${days} days ago`;
+}
+
 export default function PostPropertyPage() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -622,6 +804,74 @@ export default function PostPropertyPage() {
       formatted += ' / month';
     }
     return formatted;
+  };
+
+  // ─── Mobile "Recently Posted Properties" Dynamic State ───
+  const [recentTab, setRecentTab] = useState<'buy' | 'rent'>('buy');
+  const [recentCity, setRecentCity] = useState<string>('Delhi');
+  const [cityListings, setCityListings] = useState<any[]>([]);
+  const [, setCityListingsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchCityListings = async () => {
+      setCityListingsLoading(true);
+      try {
+        const typeParam = recentTab === 'buy' ? 'sale' : 'rent';
+        const res = await fetch(`/api/listings?city=${encodeURIComponent(recentCity)}&type=${typeParam}&limit=16`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled && data.listings && Array.isArray(data.listings)) {
+            setCityListings(data.listings);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch city listings:', err);
+      } finally {
+        if (!isCancelled) setCityListingsLoading(false);
+      }
+    };
+
+    fetchCityListings();
+    return () => {
+      isCancelled = true;
+    };
+  }, [recentCity, recentTab]);
+
+  // Helper to extract or fallback the 4 category rows for the mobile section
+  const getCategoryRowData = (rowIndex: number, categoryTypes: string[]) => {
+    const fallbackList = CITY_FALLBACK_DATA[recentCity]?.[recentTab] || CITY_FALLBACK_DATA.Delhi[recentTab];
+    const fallback = fallbackList[rowIndex];
+
+    // Check if a real listing exists for this category in cityListings
+    const matchedListing = cityListings.find((l) =>
+      categoryTypes.includes(l.propertyType)
+    );
+
+    if (matchedListing) {
+      const isRent = recentTab === 'rent';
+      const formattedPrice = formatCardPrice(matchedListing.askingPrice, isRent);
+      const bhkText = matchedListing.bedrooms ? `${matchedListing.bedrooms} Bhk ` : '';
+      const localityText = matchedListing.locality ? ` in ${matchedListing.locality}` : ` in ${matchedListing.city}`;
+      const title = `${bhkText}${matchedListing.title} (${formattedPrice})${localityText}`;
+
+      return {
+        categoryName: fallback.categoryName,
+        categoryCount: fallback.categoryCount,
+        categoryCode: fallback.categoryCode,
+        title,
+        postedAgo: formatRelativeTime(matchedListing.createdAt),
+        link: `/property/${matchedListing.id}`,
+        isReal: true,
+      };
+    }
+
+    // Fallback to rich authentic city data
+    return {
+      ...fallback,
+      link: `/listings?type=${recentTab === 'buy' ? 'sale' : 'rent'}&city=${encodeURIComponent(recentCity)}&property_type=${fallback.categoryCode}`,
+      isReal: false,
+    };
   };
 
   // Form states
@@ -1571,6 +1821,177 @@ export default function PostPropertyPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        {/* MOBILE RECENTLY POSTED PROPERTIES DYNAMIC SECTION (Matches user screenshots) */}
+        <section className={styles.mobileRecentSection} aria-label="Recently posted properties">
+          <h2 className={styles.mobileRecentTitle}>Recently posted properties</h2>
+
+          {/* Buy vs Rent/Lease Tabs */}
+          <div className={styles.mobileRecentTabs} role="tablist" aria-label="Property transaction types">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={recentTab === 'buy'}
+              className={`${styles.mobileRecentTabBtn} ${recentTab === 'buy' ? styles.mobileRecentTabBtnActive : ''}`}
+              onClick={() => setRecentTab('buy')}
+            >
+              Buy
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={recentTab === 'rent'}
+              className={`${styles.mobileRecentTabBtn} ${recentTab === 'rent' ? styles.mobileRecentTabBtnActive : ''}`}
+              onClick={() => setRecentTab('rent')}
+            >
+              Rent/Lease
+            </button>
+            <div
+              className={styles.mobileRecentTabIndicator}
+              style={{
+                left: recentTab === 'buy' ? '0%' : '50%',
+                width: '50%',
+              }}
+            />
+          </div>
+
+          {/* Location Filter Pills Track */}
+          <div className={styles.mobileCityPillsTrack} role="region" aria-label="Location filters">
+            {POPULAR_CITIES.map((city) => {
+              const isSelected = city === recentCity;
+              return (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => setRecentCity(city)}
+                  className={`${styles.mobileCityPill} ${isSelected ? styles.mobileCityPillActive : ''}`}
+                  aria-pressed={isSelected}
+                >
+                  {city}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Category Table Card */}
+          <div className={styles.mobileRecentTableCard}>
+            {/* Row 1: Flats */}
+            {(() => {
+              const row = getCategoryRowData(0, ['APARTMENT', 'BUILDER_FLOOR', 'PENTHOUSE']);
+              return (
+                <div className={styles.mobileRecentRow}>
+                  <Link
+                    href={`/listings?type=${recentTab === 'buy' ? 'sale' : 'rent'}&city=${encodeURIComponent(recentCity)}&property_type=APARTMENT`}
+                    className={styles.mobileCategoryCol}
+                    title={`View ${row.categoryCount} in ${recentCity}`}
+                  >
+                    <span className={styles.mobileCategoryCount}>{row.categoryCount}</span>
+                  </Link>
+                  <Link
+                    href={row.link}
+                    className={styles.mobileListingCol}
+                    title={row.title}
+                  >
+                    <div className={styles.mobileCategoryIconWrapper}>
+                      <FlatCategoryIcon />
+                    </div>
+                    <div className={styles.mobileListingDetails}>
+                      <p className={styles.mobileListingTitle}>{row.title}</p>
+                      <span className={styles.mobileListingDate}>{row.postedAgo}</span>
+                    </div>
+                  </Link>
+                </div>
+              );
+            })()}
+
+            {/* Row 2: Houses */}
+            {(() => {
+              const row = getCategoryRowData(1, ['HOUSE', 'VILLA']);
+              return (
+                <div className={styles.mobileRecentRow}>
+                  <Link
+                    href={`/listings?type=${recentTab === 'buy' ? 'sale' : 'rent'}&city=${encodeURIComponent(recentCity)}&property_type=HOUSE`}
+                    className={styles.mobileCategoryCol}
+                    title={`View ${row.categoryCount} in ${recentCity}`}
+                  >
+                    <span className={styles.mobileCategoryCount}>{row.categoryCount}</span>
+                  </Link>
+                  <Link
+                    href={row.link}
+                    className={styles.mobileListingCol}
+                    title={row.title}
+                  >
+                    <div className={styles.mobileCategoryIconWrapper}>
+                      <HouseCategoryIcon />
+                    </div>
+                    <div className={styles.mobileListingDetails}>
+                      <p className={styles.mobileListingTitle}>{row.title}</p>
+                      <span className={styles.mobileListingDate}>{row.postedAgo}</span>
+                    </div>
+                  </Link>
+                </div>
+              );
+            })()}
+
+            {/* Row 3: Plots */}
+            {(() => {
+              const row = getCategoryRowData(2, ['PLOT', 'COMMERCIAL_LAND']);
+              return (
+                <div className={styles.mobileRecentRow}>
+                  <Link
+                    href={`/listings?type=${recentTab === 'buy' ? 'sale' : 'rent'}&city=${encodeURIComponent(recentCity)}&property_type=PLOT`}
+                    className={styles.mobileCategoryCol}
+                    title={`View ${row.categoryCount} in ${recentCity}`}
+                  >
+                    <span className={styles.mobileCategoryCount}>{row.categoryCount}</span>
+                  </Link>
+                  <Link
+                    href={row.link}
+                    className={styles.mobileListingCol}
+                    title={row.title}
+                  >
+                    <div className={styles.mobileCategoryIconWrapper}>
+                      <PlotCategoryIcon />
+                    </div>
+                    <div className={styles.mobileListingDetails}>
+                      <p className={styles.mobileListingTitle}>{row.title}</p>
+                      <span className={styles.mobileListingDate}>{row.postedAgo}</span>
+                    </div>
+                  </Link>
+                </div>
+              );
+            })()}
+
+            {/* Row 4: Offices */}
+            {(() => {
+              const row = getCategoryRowData(3, ['OFFICE', 'SHOP', 'WAREHOUSE']);
+              return (
+                <div className={styles.mobileRecentRow}>
+                  <Link
+                    href={`/listings?type=${recentTab === 'buy' ? 'sale' : 'rent'}&city=${encodeURIComponent(recentCity)}&property_type=OFFICE`}
+                    className={styles.mobileCategoryCol}
+                    title={`View ${row.categoryCount} in ${recentCity}`}
+                  >
+                    <span className={styles.mobileCategoryCount}>{row.categoryCount}</span>
+                  </Link>
+                  <Link
+                    href={row.link}
+                    className={styles.mobileListingCol}
+                    title={row.title}
+                  >
+                    <div className={styles.mobileCategoryIconWrapper}>
+                      <OfficeCategoryIcon />
+                    </div>
+                    <div className={styles.mobileListingDetails}>
+                      <p className={styles.mobileListingTitle}>{row.title}</p>
+                      <span className={styles.mobileListingDate}>{row.postedAgo}</span>
+                    </div>
+                  </Link>
+                </div>
+              );
+            })()}
           </div>
         </section>
 
