@@ -104,21 +104,23 @@ export const Header: React.FC = () => {
     return (
       <div className={styles.ppHeaderWrapper}>
         <header className={`${styles.ppHeader} ${scrolled ? styles.ppHeaderScrolled : ''}`}>
-          {/* Mobile Left Hamburger */}
-          <button
-            type="button"
-            className={styles.ppMobileMenuBtn}
-            onClick={() => setPostPropDrawerOpen(true)}
-            aria-label="Open navigation menu"
-          >
-            <Menu size={24} />
-          </button>
+          {/* Left: Mobile Menu Button + Logo */}
+          <div className={styles.ppHeaderLeft}>
+            <button
+              type="button"
+              className={styles.ppMobileMenuBtn}
+              onClick={() => setPostPropDrawerOpen(true)}
+              aria-label="Open navigation menu"
+            >
+              <Menu size={24} />
+            </button>
 
-          {/* Logo */}
-          <Link href="/" className={styles.ppLogo}>
-            <Home className={styles.ppLogoIcon} size={28} />
-            <span className={styles.ppLogoText}>ListMe</span>
-          </Link>
+            {/* Logo */}
+            <Link href="/" className={styles.ppLogo}>
+              <Home className={styles.ppLogoIcon} size={28} />
+              <span className={styles.ppLogoText}>ListMe</span>
+            </Link>
+          </div>
 
           {/* Mobile Right WhatsApp Action */}
           <a

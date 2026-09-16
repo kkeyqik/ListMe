@@ -468,6 +468,13 @@
   display: flex;
 }
 
+.ppHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
   .ppHeaderWrapper {
     position: relative;
@@ -484,6 +491,13 @@
     box-shadow: none;
   }
 
+  .ppHeaderLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+
   .ppHeaderScrolled {
     background: #0d599c;
     backdrop-filter: none;
@@ -498,6 +512,8 @@
 
   .ppHeader .ppLogoIcon {
     color: #ffffff;
+    width: 26px;
+    height: 26px;
   }
 
   .ppHeader .ppLogo {
