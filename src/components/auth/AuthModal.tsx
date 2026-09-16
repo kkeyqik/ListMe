@@ -96,13 +96,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Reset state when modal closes or prefill on open
   useEffect(() => {
     if (isOpen) {
-      const prefill = initialPhone || (typeof window !== 'undefined' ? window.sessionStorage.getItem('onboarding_phone') : '');
-      if (prefill && prefill.trim()) {
-        const clean = prefill.trim().replace('+91', '').trim();
+      const prefillPhone = initialPhone || (typeof window !== 'undefined' ? window.sessionStorage.getItem('onboarding_phone') : '');
+      const prefillEmail = typeof window !== 'undefined' ? window.sessionStorage.getItem('onboarding_email') : '';
+      if (prefillPhone && prefillPhone.trim()) {
+        const clean = prefillPhone.trim().replace('+91', '').trim();
         setIdentifier(clean);
         setIsPhoneDetected(true);
         setCountryCode('+91');
         setSignupPhone(clean);
+        setLoginMethod('otp');
+      } else if (prefillEmail && prefillEmail.trim()) {
+        const cleanEmail = prefillEmail.trim();
+        setIdentifier(cleanEmail);
+        setIsPhoneDetected(false);
+        setSignupEmail(cleanEmail);
         setLoginMethod('otp');
       }
     } else {

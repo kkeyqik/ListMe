@@ -140,6 +140,20 @@ export default function NewListing() {
           prefilledData.propertyType = 'HOUSE';
         }
       }
+
+      const queryIsPg = params.get('isPg') === 'true' || queryPropType?.toUpperCase() === 'PG';
+      const queryRoomType = params.get('roomType') || window.sessionStorage.getItem('onboarding_room_type');
+      const queryPgSub = window.sessionStorage.getItem('onboarding_pg_subproperty');
+
+      if (queryIsPg) {
+        prefilledData.propertyType = 'PG';
+        prefilledData.listingFor = 'RENT';
+        if (queryRoomType) {
+          const roomLabel = queryRoomType.charAt(0).toUpperCase() + queryRoomType.slice(1);
+          const subLabel = queryPgSub ? ` in ${queryPgSub}` : '';
+          prefilledData.title = `${roomLabel} Room${subLabel} PG / Co-Living Space`;
+        }
+      }
       
       if (Object.keys(prefilledData).length > 0) {
         setFormData((prev: any) => ({

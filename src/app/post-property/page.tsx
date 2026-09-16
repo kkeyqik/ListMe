@@ -448,6 +448,9 @@ export default function PostPropertyPage() {
   const [selectedRoomType, setSelectedRoomType] = useState<'sharing' | 'private'>('sharing');
   const [mobileContact, setMobileContact] = useState<string>('');
 
+  // Ref to track whether form submission originated from desktop card or mobile section
+  const submitSourceRef = useRef<'desktop' | 'mobile'>('mobile');
+
   // Prefill contact if user is authenticated
   useEffect(() => {
     if (profile?.phone) {
@@ -474,19 +477,41 @@ export default function PostPropertyPage() {
     return 'Your contact details for the buyer to reach you';
   };
 
+  const getNewListingUrl = (source?: 'desktop' | 'mobile') => {
+    const isDesktop = (source || submitSourceRef.current) === 'desktop';
+    if (isDesktop) {
+      return `/dashboard/listings/new?type=${listingFor}&propertyType=${propertyType}`;
+    }
+    const activePills = getActiveMobilePills();
+    const chosenPill = activePills.find((p) => p.id === selectedPillId) || activePills[0];
+    const targetType = mobileTopTab === 'sell' ? 'sell' : 'rent';
+    const targetPropType = mobileTopTab === 'pg' ? 'PG' : chosenPill.type;
+    let url = `/dashboard/listings/new?type=${targetType}&propertyType=${targetPropType}`;
+    if (mobileTopTab === 'pg') {
+      url += `&isPg=true&roomType=${selectedRoomType}`;
+    }
+    return url;
+  };
+
   const handleMobileTopTabChange = (tab: 'sell' | 'rent' | 'pg') => {
     setMobileTopTab(tab);
     if (tab === 'sell') {
       setListingFor('sell');
       const pills = mobileCategory === 'residential' ? RESIDENTIAL_SELL_PILLS : COMMERCIAL_PILLS;
-      if (!pills.some((p) => p.id === selectedPillId)) {
+      const currentPill = pills.find((p) => p.id === selectedPillId);
+      if (currentPill) {
+        setPropertyType(currentPill.type);
+      } else {
         setSelectedPillId(pills[0].id);
         setPropertyType(pills[0].type);
       }
     } else if (tab === 'rent') {
       setListingFor('rent');
       const pills = mobileCategory === 'residential' ? RESIDENTIAL_RENT_PILLS : COMMERCIAL_PILLS;
-      if (!pills.some((p) => p.id === selectedPillId)) {
+      const currentPill = pills.find((p) => p.id === selectedPillId);
+      if (currentPill) {
+        setPropertyType(currentPill.type);
+      } else {
         setSelectedPillId(pills[0].id);
         setPropertyType(pills[0].type);
       }
@@ -494,7 +519,8 @@ export default function PostPropertyPage() {
       setListingFor('rent');
       setCategory('residential');
       setMobileCategory('residential');
-      if (!PG_PROPERTY_PILLS.some((p) => p.id === selectedPillId)) {
+      const currentPill = PG_PROPERTY_PILLS.find((p) => p.id === selectedPillId);
+      if (!currentPill) {
         setSelectedPillId(PG_PROPERTY_PILLS[0].id);
       }
       setPropertyType('PG');
@@ -525,6 +551,7 @@ export default function PostPropertyPage() {
 
   const handleMobileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    submitSourceRef.current = 'mobile';
     const contact = mobileContact.trim();
     if (!contact) {
       showToast('Contact Required', 'Please enter your phone number or email', 'error');
@@ -558,15 +585,15 @@ export default function PostPropertyPage() {
     setPropertyType(targetPropertyType);
     setListingFor(targetType);
 
-    let targetUrl = `/dashboard/listings/new?type=${targetType}&propertyType=${targetPropertyType}`;
     if (mobileTopTab === 'pg') {
-      targetUrl += `&isPg=true&roomType=${selectedRoomType}`;
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem('onboarding_room_type', selectedRoomType);
         window.sessionStorage.setItem('onboarding_is_pg', 'true');
         window.sessionStorage.setItem('onboarding_pg_subproperty', chosenPill.label);
       }
     }
+
+    const targetUrl = getNewListingUrl('mobile');
 
     if (!user) {
       setAuthModalOpen(true);
@@ -610,13 +637,10 @@ export default function PostPropertyPage() {
   };
 
   const handleAuthSuccess = () => {
-    const activePills = getActiveMobilePills();
-    const chosenPill = activePills.find((p) => p.id === selectedPillId);
-    const activePropType = mobileTopTab === 'pg' ? 'PG' : (chosenPill ? chosenPill.type : propertyType);
-    const activeType = mobileTopTab === 'sell' ? 'sell' : listingFor;
-    let targetUrl = `/dashboard/listings/new?type=${activeType}&propertyType=${activePropType}`;
-    if (mobileTopTab === 'pg') {
-      targetUrl += `&isPg=true&roomType=${selectedRoomType}`;
+    const isDesktop = submitSourceRef.current === 'desktop';
+    if (!isDesktop && mobileTopTab === 'pg') {
+      const activePills = getActiveMobilePills();
+      const chosenPill = activePills.find((p) => p.id === selectedPillId) || activePills[0];
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem('onboarding_room_type', selectedRoomType);
         window.sessionStorage.setItem('onboarding_is_pg', 'true');
@@ -625,11 +649,13 @@ export default function PostPropertyPage() {
         }
       }
     }
+    const targetUrl = getNewListingUrl();
     router.push(targetUrl);
   };
 
   const handleBeginPosting = (e: React.FormEvent) => {
     e.preventDefault();
+    submitSourceRef.current = 'desktop';
     if (!phone || phone.length < 10) {
       showToast('Error', 'Please enter a valid 10-digit contact number', 'error');
       return;
@@ -640,7 +666,7 @@ export default function PostPropertyPage() {
       window.sessionStorage.setItem('onboarding_phone', phone);
     }
 
-    const targetUrl = `/dashboard/listings/new?type=${listingFor}&propertyType=${propertyType}`;
+    const targetUrl = getNewListingUrl('desktop');
 
     if (!user) {
       // Open inline authentication modal popup instead of sending the user to /login
@@ -872,13 +898,15 @@ export default function PostPropertyPage() {
               </div>
             ) : (
               <div className={styles.mobileCategoryNav} role="tablist" aria-label="Property category">
-                <div 
+                <button 
+                  type="button"
                   role="tab" 
                   aria-selected={true} 
                   className={`${styles.mobileCategoryTab} ${styles.mobileCategoryActive}`}
+                  style={{ cursor: 'default' }}
                 >
                   Residential
-                </div>
+                </button>
               </div>
             )}
 
@@ -1374,7 +1402,7 @@ export default function PostPropertyPage() {
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
         initialPhone={phone || (mobileContact.replace(/\D/g, '').length >= 10 ? mobileContact.replace(/\D/g, '').slice(-10) : '')}
-        redirectPath={`/dashboard/listings/new?type=${mobileTopTab === 'sell' ? 'sell' : listingFor}&propertyType=${propertyType}${mobileTopTab === 'pg' ? `&isPg=true&roomType=${selectedRoomType}` : ''}`}
+        redirectPath={getNewListingUrl()}
       />
       <PhoneVerificationModal
         isOpen={verificationModalOpen}
