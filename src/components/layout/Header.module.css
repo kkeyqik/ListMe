@@ -456,6 +456,93 @@
   }
 }
 
+.ppMobileMenuBtn {
+  display: none;
+}
+
+.ppWhatsappBtn {
+  display: none;
+}
+
+.ppDesktopControls {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .ppHeader {
+    background: #0d599c;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem 1rem;
+    box-shadow: none;
+  }
+
+  .ppHeaderScrolled {
+    background: rgba(13, 89, 156, 0.96);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .ppHeader .ppLogoText {
+    color: #ffffff;
+    font-size: 1.4rem;
+  }
+
+  .ppHeader .ppLogoIcon {
+    color: #ffffff;
+  }
+
+  .ppMobileMenuBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    padding: 0;
+    touch-action: manipulation;
+  }
+
+  .ppWhatsappBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 6px 12px;
+    border-radius: 9999px;
+    touch-action: manipulation;
+    transition: background-color var(--transition-fast);
+  }
+
+  .ppWhatsappBtn:hover,
+  .ppWhatsappBtn:active {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  .ppWhatsappBadge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: #25D366;
+    border-radius: 50%;
+    color: #ffffff;
+    flex-shrink: 0;
+  }
+
+  .ppDesktopControls {
+    display: none !important;
+  }
+}
+
 /* ── Logo ── */
 .ppLogo {
   display: flex;
