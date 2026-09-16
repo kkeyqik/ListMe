@@ -575,6 +575,53 @@ export default function PostPropertyPage() {
   // Ref to track whether form submission originated from desktop card or mobile section
   const submitSourceRef = useRef<'desktop' | 'mobile'>('mobile');
 
+  // Sticky Floating Mobile Bottom CTA
+  const mobileFormRef = useRef<HTMLFormElement | null>(null);
+  const inlineCtaRef = useRef<HTMLButtonElement | null>(null);
+  const [showStickyCta, setShowStickyCta] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleScroll = () => {
+      const inlineBtn = inlineCtaRef.current;
+      if (inlineBtn) {
+        const rect = inlineBtn.getBoundingClientRect();
+        // Becomes visible when the inline CTA button has scrolled off the top of the viewport
+        setShowStickyCta(rect.bottom < 40);
+      } else {
+        setShowStickyCta(window.scrollY > 450);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const handleStickyCtaClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const contact = mobileContact.trim() || (profile?.phone || '');
+    if (!contact) {
+      const inputEl = document.getElementById('mobileContactInput');
+      if (inputEl) {
+        inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        inputEl.focus();
+      }
+      showToast('Contact Required', 'Please enter your phone number or email to start posting', 'info');
+      return;
+    }
+
+    if (profile?.phone && !mobileContact.trim()) {
+      setMobileContact(profile.phone);
+      setPhone(profile.phone);
+    }
+
+    if (mobileFormRef.current) {
+      mobileFormRef.current.requestSubmit();
+    }
+  };
+
   // Prefill contact if user is authenticated
   useEffect(() => {
     if (profile?.phone) {
@@ -1080,6 +1127,7 @@ export default function PostPropertyPage() {
 
           {/* White Form Container */}
           <form 
+            ref={mobileFormRef}
             id="mobile-property-form"
             role="tabpanel"
             aria-labelledby={mobileTopTab === 'sell' ? 'mobile-tab-sell' : mobileTopTab === 'rent' ? 'mobile-tab-rent' : 'mobile-tab-pg'}
@@ -1188,6 +1236,7 @@ export default function PostPropertyPage() {
               </div>
 
               <button
+                ref={inlineCtaRef}
                 type="submit"
                 className={styles.mobileCtaBtn}
               >
@@ -1676,6 +1725,21 @@ export default function PostPropertyPage() {
           </div>
         </section>
       </main>
+
+      {/* STICKY FLOATING MOBILE BOTTOM CTA */}
+      <div 
+        className={`${styles.stickyMobileCtaContainer} ${showStickyCta ? styles.stickyMobileCtaVisible : ''}`}
+        aria-hidden={!showStickyCta}
+      >
+        <button
+          type="button"
+          onClick={handleStickyCtaClick}
+          className={styles.stickyMobileCtaBtn}
+          tabIndex={showStickyCta ? 0 : -1}
+        >
+          Start now, it’s FREE
+        </button>
+      </div>
 
       <Footer />
       <AuthModal

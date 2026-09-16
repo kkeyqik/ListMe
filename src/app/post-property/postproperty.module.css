@@ -19,6 +19,11 @@
   display: none !important;
 }
 
+/* Sticky Floating Mobile Bottom CTA */
+.stickyMobileCtaContainer {
+  display: none !important;
+}
+
 .heroSection {
   position: relative;
   background: radial-gradient(circle at 80% 20%, rgba(96, 122, 102, 0.15) 0%, transparent 50%),
@@ -378,6 +383,69 @@
   .mobileCtaBtn:focus-visible {
     outline: 2px solid #091e42;
     outline-offset: 2px;
+  }
+
+  /* Sticky Floating Mobile Bottom CTA */
+  .stickyMobileCtaContainer {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(9, 30, 66, 0.08);
+    box-shadow: 0 -4px 20px rgba(9, 30, 66, 0.12);
+    padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom, 0px)) 1.25rem;
+    z-index: 99;
+    transform: translateY(115%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  }
+
+  .stickyMobileCtaVisible {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .stickyMobileCtaBtn {
+    width: 100%;
+    height: 52px;
+    border-radius: 6px;
+    background: #0078db;
+    color: #ffffff;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    box-shadow: 0 4px 14px rgba(0, 120, 219, 0.32);
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .stickyMobileCtaBtn:hover {
+    background: #0066c0;
+  }
+
+  .stickyMobileCtaBtn:active {
+    transform: scale(0.99);
+  }
+
+  .stickyMobileCtaBtn:focus-visible {
+    outline: 2px solid #091e42;
+    outline-offset: 2px;
+  }
+
+  .pageWrapper {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   }
 }
 
