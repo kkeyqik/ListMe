@@ -85,6 +85,22 @@ export const Header: React.FC = () => {
     };
   }, [postPropDrawerOpen, mobileMenuOpen]);
 
+  // Close drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPostPropDrawerOpen(false);
+        setMobileMenuOpen(false);
+      }
+    };
+    if (postPropDrawerOpen || mobileMenuOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [postPropDrawerOpen, mobileMenuOpen]);
+
   const navLinks = [
     { label: 'Buy', href: '/listings?type=sale' },
     { label: 'Rent', href: '/listings?type=rent' },

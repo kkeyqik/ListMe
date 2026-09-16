@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Header, Footer } from '@/components/layout';
 import { Input, Button, Badge, Select, useToast } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { useMobileMenu } from '@/context/MobileMenuContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
 import { 
@@ -575,15 +576,23 @@ export default function PostPropertyPage() {
   // Ref to track whether form submission originated from desktop card or mobile section
   const submitSourceRef = useRef<'desktop' | 'mobile'>('mobile');
 
+  // Drawer context for menu state awareness
+  const { isMenuOpen } = useMobileMenu();
+
   // Sticky Floating Mobile Bottom CTA
   const mobileFormRef = useRef<HTMLFormElement | null>(null);
   const inlineCtaRef = useRef<HTMLButtonElement | null>(null);
   const [showStickyCta, setShowStickyCta] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const handleScroll = () => {
+      if (window.innerWidth > 768) {
+        setShowStickyCta(false);
+        return;
+      }
       const inlineBtn = inlineCtaRef.current;
       if (inlineBtn) {
         const rect = inlineBtn.getBoundingClientRect();
@@ -595,26 +604,94 @@ export default function PostPropertyPage() {
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [mobileTopTab, mobileCategory]);
+
+  // Track keyboard opening / input focus to avoid floating CTA obscuring inputs or keyboard
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let blurTimeout: NodeJS.Timeout | null = null;
+
+    const handleFocusIn = (e: FocusEvent) => {
+      if (blurTimeout) clearTimeout(blurTimeout);
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        setIsInputFocused(true);
+      }
+    };
+
+    const handleFocusOut = (e: FocusEvent) => {
+      const nextTarget = e.relatedTarget as HTMLElement | null;
+      if (nextTarget && (nextTarget.tagName === 'INPUT' || nextTarget.tagName === 'TEXTAREA' || nextTarget.isContentEditable)) {
+        return;
+      }
+      blurTimeout = setTimeout(() => {
+        setIsInputFocused(false);
+      }, 100);
+    };
+
+    const handleViewportResize = () => {
+      if (window.visualViewport) {
+        const isKeyboard = window.innerHeight - window.visualViewport.height > 150;
+        if (isKeyboard) {
+          setIsInputFocused(true);
+        } else if (!document.activeElement || (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA')) {
+          setIsInputFocused(false);
+        }
+      }
+    };
+
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportResize);
+    }
+
+    return () => {
+      if (blurTimeout) clearTimeout(blurTimeout);
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('focusout', handleFocusOut);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportResize);
+      }
+    };
   }, []);
+
+  const isStickyVisible = showStickyCta && !isInputFocused && !isMenuOpen && !authModalOpen && !verificationModalOpen;
 
   const handleStickyCtaClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const contact = mobileContact.trim() || (profile?.phone || '');
+    submitSourceRef.current = 'mobile';
+    const inputEl = document.getElementById('mobileContactInput') as HTMLInputElement | null;
+    const currentVal = inputEl?.value || mobileContact;
+    const contact = currentVal.trim() || (profile?.phone || '');
+
     if (!contact) {
-      const inputEl = document.getElementById('mobileContactInput');
       if (inputEl) {
+        inputEl.focus({ preventScroll: true });
         inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        inputEl.focus();
       }
       showToast('Contact Required', 'Please enter your phone number or email to start posting', 'info');
       return;
     }
 
-    if (profile?.phone && !mobileContact.trim()) {
-      setMobileContact(profile.phone);
-      setPhone(profile.phone);
+    if (inputEl && !inputEl.value && contact) {
+      inputEl.value = contact;
+    }
+    if (!mobileContact.trim() && contact) {
+      setMobileContact(contact);
+    }
+    if (!phone && contact) {
+      const digits = contact.replace(/\D/g, '');
+      if (digits.length >= 10) {
+        setPhone(digits.slice(-10));
+      }
     }
 
     if (mobileFormRef.current) {
@@ -750,9 +827,16 @@ export default function PostPropertyPage() {
   const handleMobileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     submitSourceRef.current = 'mobile';
-    const contact = mobileContact.trim();
+    const inputEl = document.getElementById('mobileContactInput') as HTMLInputElement | null;
+    const currentVal = inputEl?.value || mobileContact;
+    const contact = currentVal.trim() || (profile?.phone || '');
+
     if (!contact) {
       showToast('Contact Required', 'Please enter your phone number or email', 'error');
+      if (inputEl) {
+        inputEl.focus({ preventScroll: true });
+        inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
@@ -765,10 +849,12 @@ export default function PostPropertyPage() {
       setPhone(tenDigits);
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem('onboarding_phone', tenDigits);
+        window.sessionStorage.removeItem('onboarding_email');
       }
     } else if (isEmail) {
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem('onboarding_email', contact);
+        window.sessionStorage.removeItem('onboarding_phone');
       }
     } else {
       showToast('Error', 'Please enter a valid 10-digit mobile number or email address', 'error');
@@ -1728,14 +1814,15 @@ export default function PostPropertyPage() {
 
       {/* STICKY FLOATING MOBILE BOTTOM CTA */}
       <div 
-        className={`${styles.stickyMobileCtaContainer} ${showStickyCta ? styles.stickyMobileCtaVisible : ''}`}
-        aria-hidden={!showStickyCta}
+        className={`${styles.stickyMobileCtaContainer} ${isStickyVisible ? styles.stickyMobileCtaVisible : ''}`}
+        aria-hidden={!isStickyVisible}
       >
         <button
           type="button"
           onClick={handleStickyCtaClick}
           className={styles.stickyMobileCtaBtn}
-          tabIndex={showStickyCta ? 0 : -1}
+          tabIndex={isStickyVisible ? 0 : -1}
+          aria-label="Start posting your property now for free"
         >
           Start now, it’s FREE
         </button>
