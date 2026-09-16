@@ -201,16 +201,19 @@ const PG_ROOM_TYPES = [
   { id: 'private', label: 'Private' },
 ];
 
+// Commercial Pills (img1 & img2: 7 options for both Sell and Rent/Lease)
 const COMMERCIAL_PILLS = [
-  { id: 'ready-office', label: 'Ready to move office space', type: 'OFFICE' },
-  { id: 'bare-shell-office', label: 'Bare shell office space', type: 'OFFICE' },
-  { id: 'commercial-shop', label: 'Commercial Shop', type: 'SHOP' },
-  { id: 'commercial-showroom', label: 'Commercial Showroom', type: 'SHOP' },
-  { id: 'commercial-land', label: 'Commercial Land', type: 'PLOT' },
-  { id: 'warehouse', label: 'Warehouse / Godown', type: 'OFFICE' },
-  { id: 'industrial-bldg', label: 'Industrial Building', type: 'OFFICE' },
-  { id: 'other-comm', label: 'Other', type: 'OFFICE' },
+  { id: 'comm-office', label: 'Office', type: 'OFFICE' },
+  { id: 'comm-retail', label: 'Retail', type: 'SHOP' },
+  { id: 'comm-plot-land', label: 'Plot / Land', type: 'PLOT' },
+  { id: 'comm-storage', label: 'Storage', type: 'OFFICE' },
+  { id: 'comm-industry', label: 'Industry', type: 'OFFICE' },
+  { id: 'comm-hospitality', label: 'Hospitality', type: 'OFFICE' },
+  { id: 'comm-other', label: 'Other', type: 'OFFICE' },
 ];
+
+const COMMERCIAL_SELL_PILLS = COMMERCIAL_PILLS;
+const COMMERCIAL_RENT_PILLS = COMMERCIAL_PILLS;
 
 const HouseIllustration = ({ activeTab }: { activeTab: 'sell' | 'rent' | 'pg' }) => {
   const badgeText = activeTab === 'sell' ? 'Sell' : activeTab === 'rent' ? 'Rent' : 'PG';
@@ -463,11 +466,13 @@ export default function PostPropertyPage() {
   }, [profile, user]);
 
   const getActiveMobilePills = () => {
-    if (mobileTopTab === 'pg') return PG_PROPERTY_PILLS;
-    if (mobileCategory === 'residential') {
-      return mobileTopTab === 'sell' ? RESIDENTIAL_SELL_PILLS : RESIDENTIAL_RENT_PILLS;
+    if (mobileCategory === 'commercial') {
+      return mobileTopTab === 'sell' ? COMMERCIAL_SELL_PILLS : COMMERCIAL_RENT_PILLS;
     }
-    return COMMERCIAL_PILLS;
+    if (mobileTopTab === 'pg') {
+      return PG_PROPERTY_PILLS;
+    }
+    return mobileTopTab === 'sell' ? RESIDENTIAL_SELL_PILLS : RESIDENTIAL_RENT_PILLS;
   };
 
   const getContactHeading = () => {
@@ -494,10 +499,13 @@ export default function PostPropertyPage() {
   };
 
   const handleMobileTopTabChange = (tab: 'sell' | 'rent' | 'pg') => {
+    if (mobileCategory === 'commercial' && tab === 'pg') {
+      return;
+    }
     setMobileTopTab(tab);
     if (tab === 'sell') {
       setListingFor('sell');
-      const pills = mobileCategory === 'residential' ? RESIDENTIAL_SELL_PILLS : COMMERCIAL_PILLS;
+      const pills = mobileCategory === 'residential' ? RESIDENTIAL_SELL_PILLS : COMMERCIAL_SELL_PILLS;
       const currentPill = pills.find((p) => p.id === selectedPillId);
       if (currentPill) {
         setPropertyType(currentPill.type);
@@ -507,7 +515,7 @@ export default function PostPropertyPage() {
       }
     } else if (tab === 'rent') {
       setListingFor('rent');
-      const pills = mobileCategory === 'residential' ? RESIDENTIAL_RENT_PILLS : COMMERCIAL_PILLS;
+      const pills = mobileCategory === 'residential' ? RESIDENTIAL_RENT_PILLS : COMMERCIAL_RENT_PILLS;
       const currentPill = pills.find((p) => p.id === selectedPillId);
       if (currentPill) {
         setPropertyType(currentPill.type);
@@ -531,12 +539,34 @@ export default function PostPropertyPage() {
     setMobileCategory(cat);
     setCategory(cat);
     if (cat === 'residential') {
-      const pills = mobileTopTab === 'sell' ? RESIDENTIAL_SELL_PILLS : RESIDENTIAL_RENT_PILLS;
-      setSelectedPillId(pills[0].id);
-      setPropertyType(pills[0].type);
+      const targetTopTab = mobileTopTab === 'pg' ? 'pg' : mobileTopTab;
+      const pills = targetTopTab === 'pg' 
+        ? PG_PROPERTY_PILLS 
+        : targetTopTab === 'sell' 
+          ? RESIDENTIAL_SELL_PILLS 
+          : RESIDENTIAL_RENT_PILLS;
+      const currentPill = pills.find((p) => p.id === selectedPillId);
+      if (currentPill) {
+        setPropertyType(currentPill.type);
+      } else {
+        setSelectedPillId(pills[0].id);
+        setPropertyType(pills[0].type);
+      }
     } else {
-      setSelectedPillId('ready-office');
-      setPropertyType('OFFICE');
+      // Commercial mode: ensure mobileTopTab is 'sell' or 'rent' (no 'pg')
+      const targetTopTab = mobileTopTab === 'pg' ? 'sell' : mobileTopTab;
+      if (mobileTopTab === 'pg') {
+        setMobileTopTab('sell');
+        setListingFor('sell');
+      }
+      const pills = targetTopTab === 'sell' ? COMMERCIAL_SELL_PILLS : COMMERCIAL_RENT_PILLS;
+      const currentPill = pills.find((p) => p.id === selectedPillId);
+      if (currentPill) {
+        setPropertyType(currentPill.type);
+      } else {
+        setSelectedPillId(COMMERCIAL_SELL_PILLS[0].id);
+        setPropertyType(COMMERCIAL_SELL_PILLS[0].type);
+      }
     }
   };
 
@@ -590,6 +620,24 @@ export default function PostPropertyPage() {
         window.sessionStorage.setItem('onboarding_room_type', selectedRoomType);
         window.sessionStorage.setItem('onboarding_is_pg', 'true');
         window.sessionStorage.setItem('onboarding_pg_subproperty', chosenPill.label);
+        window.sessionStorage.setItem('onboarding_category', 'residential');
+        window.sessionStorage.removeItem('onboarding_commercial_subproperty');
+      }
+    } else if (mobileCategory === 'commercial') {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('onboarding_category', 'commercial');
+        window.sessionStorage.setItem('onboarding_commercial_subproperty', chosenPill.label);
+        window.sessionStorage.removeItem('onboarding_is_pg');
+        window.sessionStorage.removeItem('onboarding_room_type');
+        window.sessionStorage.removeItem('onboarding_pg_subproperty');
+      }
+    } else {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('onboarding_category', 'residential');
+        window.sessionStorage.removeItem('onboarding_commercial_subproperty');
+        window.sessionStorage.removeItem('onboarding_is_pg');
+        window.sessionStorage.removeItem('onboarding_room_type');
+        window.sessionStorage.removeItem('onboarding_pg_subproperty');
       }
     }
 
@@ -628,25 +676,56 @@ export default function PostPropertyPage() {
 
   const handleCategoryChange = (cat: 'residential' | 'commercial') => {
     setCategory(cat);
+    setMobileCategory(cat);
     // Auto-update sub-category to first element of the new category list
     if (cat === 'residential') {
       setPropertyType('APARTMENT');
     } else {
       setPropertyType('OFFICE');
+      if (mobileTopTab === 'pg') {
+        setMobileTopTab('sell');
+        setListingFor('sell');
+      }
     }
   };
 
   const handleAuthSuccess = () => {
     const isDesktop = submitSourceRef.current === 'desktop';
-    if (!isDesktop && mobileTopTab === 'pg') {
+    if (!isDesktop) {
       const activePills = getActiveMobilePills();
       const chosenPill = activePills.find((p) => p.id === selectedPillId) || activePills[0];
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('onboarding_room_type', selectedRoomType);
-        window.sessionStorage.setItem('onboarding_is_pg', 'true');
-        if (chosenPill) {
-          window.sessionStorage.setItem('onboarding_pg_subproperty', chosenPill.label);
+        if (mobileTopTab === 'pg') {
+          window.sessionStorage.setItem('onboarding_room_type', selectedRoomType);
+          window.sessionStorage.setItem('onboarding_is_pg', 'true');
+          if (chosenPill) {
+            window.sessionStorage.setItem('onboarding_pg_subproperty', chosenPill.label);
+          }
+          window.sessionStorage.setItem('onboarding_category', 'residential');
+          window.sessionStorage.removeItem('onboarding_commercial_subproperty');
+        } else if (mobileCategory === 'commercial') {
+          window.sessionStorage.setItem('onboarding_category', 'commercial');
+          if (chosenPill) {
+            window.sessionStorage.setItem('onboarding_commercial_subproperty', chosenPill.label);
+          }
+          window.sessionStorage.removeItem('onboarding_is_pg');
+          window.sessionStorage.removeItem('onboarding_room_type');
+          window.sessionStorage.removeItem('onboarding_pg_subproperty');
+        } else {
+          window.sessionStorage.setItem('onboarding_category', 'residential');
+          window.sessionStorage.removeItem('onboarding_commercial_subproperty');
+          window.sessionStorage.removeItem('onboarding_is_pg');
+          window.sessionStorage.removeItem('onboarding_room_type');
+          window.sessionStorage.removeItem('onboarding_pg_subproperty');
         }
+      }
+    } else {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('onboarding_category', category);
+        window.sessionStorage.removeItem('onboarding_commercial_subproperty');
+        window.sessionStorage.removeItem('onboarding_is_pg');
+        window.sessionStorage.removeItem('onboarding_room_type');
+        window.sessionStorage.removeItem('onboarding_pg_subproperty');
       }
     }
     const targetUrl = getNewListingUrl();
@@ -664,6 +743,11 @@ export default function PostPropertyPage() {
     // Securely pass the phone number using sessionStorage to avoid exposing it in browser history logs
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem('onboarding_phone', phone);
+      window.sessionStorage.setItem('onboarding_category', category);
+      window.sessionStorage.removeItem('onboarding_commercial_subproperty');
+      window.sessionStorage.removeItem('onboarding_is_pg');
+      window.sessionStorage.removeItem('onboarding_room_type');
+      window.sessionStorage.removeItem('onboarding_pg_subproperty');
     }
 
     const targetUrl = getNewListingUrl('desktop');
@@ -829,12 +913,17 @@ export default function PostPropertyPage() {
             {/* Animated Rotating Value Proposition Ticker */}
             <BenefitTicker />
 
-            {/* 3 Top Tabs: Sell | Rent / Lease | PG */}
-            <div className={styles.mobileTopTabs} role="tablist" aria-label="Listing type">
+            {/* Top Toggle Tabs: Sell | Rent / Lease | PG (or 2 Tabs: Sell | Rent / Lease for Commercial per screenshots) */}
+            <div 
+              className={mobileCategory === 'commercial' ? styles.mobileTopTabsTwo : styles.mobileTopTabs} 
+              role="tablist" 
+              aria-label="Listing type"
+            >
               <button
                 type="button"
                 role="tab"
                 id="mobile-tab-sell"
+                aria-controls="mobile-property-form"
                 aria-selected={mobileTopTab === 'sell'}
                 className={`${styles.mobileTab} ${styles.mobileTabLeft} ${mobileTopTab === 'sell' ? styles.mobileTabActive : ''}`}
                 onClick={() => handleMobileTopTabChange('sell')}
@@ -845,27 +934,34 @@ export default function PostPropertyPage() {
                 type="button"
                 role="tab"
                 id="mobile-tab-rent"
+                aria-controls="mobile-property-form"
                 aria-selected={mobileTopTab === 'rent'}
-                className={`${styles.mobileTab} ${styles.mobileTabCenter} ${mobileTopTab === 'rent' ? styles.mobileTabActive : ''}`}
+                className={`${styles.mobileTab} ${mobileCategory === 'commercial' ? styles.mobileTabRight : styles.mobileTabCenter} ${mobileTopTab === 'rent' ? styles.mobileTabActive : ''}`}
                 onClick={() => handleMobileTopTabChange('rent')}
               >
                 Rent / Lease
               </button>
-              <button
-                type="button"
-                role="tab"
-                id="mobile-tab-pg"
-                aria-selected={mobileTopTab === 'pg'}
-                className={`${styles.mobileTab} ${styles.mobileTabRight} ${mobileTopTab === 'pg' ? styles.mobileTabActive : ''}`}
-                onClick={() => handleMobileTopTabChange('pg')}
-              >
-                PG
-              </button>
+              {mobileCategory !== 'commercial' && (
+                <button
+                  type="button"
+                  role="tab"
+                  id="mobile-tab-pg"
+                  aria-controls="mobile-property-form"
+                  aria-selected={mobileTopTab === 'pg'}
+                  className={`${styles.mobileTab} ${styles.mobileTabRight} ${mobileTopTab === 'pg' ? styles.mobileTabActive : ''}`}
+                  onClick={() => handleMobileTopTabChange('pg')}
+                >
+                  PG
+                </button>
+              )}
             </div>
           </div>
 
           {/* White Form Container */}
           <form 
+            id="mobile-property-form"
+            role="tabpanel"
+            aria-labelledby={mobileTopTab === 'sell' ? 'mobile-tab-sell' : mobileTopTab === 'rent' ? 'mobile-tab-rent' : 'mobile-tab-pg'}
             onSubmit={handleMobileSubmit} 
             className={styles.mobileFormCard}
             noValidate
@@ -875,40 +971,28 @@ export default function PostPropertyPage() {
             </h2>
 
             {/* Category Underline Tabs */}
-            {mobileTopTab !== 'pg' ? (
-              <div className={styles.mobileCategoryNav} role="tablist" aria-label="Property category">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mobileCategory === 'residential'}
-                  className={`${styles.mobileCategoryTab} ${mobileCategory === 'residential' ? styles.mobileCategoryActive : ''}`}
-                  onClick={() => handleMobileCategoryChange('residential')}
-                >
-                  Residential
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mobileCategory === 'commercial'}
-                  className={`${styles.mobileCategoryTab} ${mobileCategory === 'commercial' ? styles.mobileCategoryActive : ''}`}
-                  onClick={() => handleMobileCategoryChange('commercial')}
-                >
-                  Commercial
-                </button>
-              </div>
-            ) : (
-              <div className={styles.mobileCategoryNav} role="tablist" aria-label="Property category">
-                <button 
-                  type="button"
-                  role="tab" 
-                  aria-selected={true} 
-                  className={`${styles.mobileCategoryTab} ${styles.mobileCategoryActive}`}
-                  style={{ cursor: 'default' }}
-                >
-                  Residential
-                </button>
-              </div>
-            )}
+            <div className={styles.mobileCategoryNav} role="tablist" aria-label="Property category">
+              <button
+                type="button"
+                role="tab"
+                id="category-tab-residential"
+                aria-selected={mobileCategory === 'residential'}
+                className={`${styles.mobileCategoryTab} ${mobileCategory === 'residential' ? styles.mobileCategoryActive : ''}`}
+                onClick={() => handleMobileCategoryChange('residential')}
+              >
+                Residential
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="category-tab-commercial"
+                aria-selected={mobileCategory === 'commercial'}
+                className={`${styles.mobileCategoryTab} ${mobileCategory === 'commercial' ? styles.mobileCategoryActive : ''}`}
+                onClick={() => handleMobileCategoryChange('commercial')}
+              >
+                Commercial
+              </button>
+            </div>
 
             {/* Sub-category Pills */}
             <div className={styles.mobilePillsWrapper} role="radiogroup" aria-label="Property sub-category">

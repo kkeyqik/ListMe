@@ -129,6 +129,14 @@
     gap: 0;
   }
 
+  /* 2 Top Tabs: Sell | Rent / Lease (Commercial mode per screenshots) */
+  .mobileTopTabsTwo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 0;
+  }
+
   .mobileTab {
     height: 48px;
     font-family: var(--font-heading);

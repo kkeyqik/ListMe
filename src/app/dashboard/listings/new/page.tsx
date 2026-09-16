@@ -154,6 +154,21 @@ export default function NewListing() {
           prefilledData.title = `${roomLabel} Room${subLabel} PG / Co-Living Space`;
         }
       }
+
+      const queryCategory = window.sessionStorage.getItem('onboarding_category');
+      const queryCommSub = window.sessionStorage.getItem('onboarding_commercial_subproperty');
+
+      if (queryCategory === 'commercial' && queryCommSub && !queryIsPg && !prefilledData.title && !formData.title) {
+        const forText = (prefilledData.listingFor || formData.listingFor) === 'RENT' ? 'Rent / Lease' : 'Sale';
+        prefilledData.title = `Commercial ${queryCommSub} for ${forText}`;
+      }
+
+      // Cleanup consumed onboarding keys to avoid leaking state into future sessions
+      window.sessionStorage.removeItem('onboarding_is_pg');
+      window.sessionStorage.removeItem('onboarding_room_type');
+      window.sessionStorage.removeItem('onboarding_pg_subproperty');
+      window.sessionStorage.removeItem('onboarding_category');
+      window.sessionStorage.removeItem('onboarding_commercial_subproperty');
       
       if (Object.keys(prefilledData).length > 0) {
         setFormData((prev: any) => ({
