@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './MobileMenuDrawer.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
@@ -200,7 +200,7 @@ const SUB_OPTIONS: SubOptionsType = {
     {
       title: 'Support & Settings',
       items: [
-        { label: 'Log in', icon: <User size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/login' },
+        { label: 'Manage Profile', icon: <User size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/dashboard/profile' },
         { label: 'Customer Service', icon: <Headset size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/contact' },
         { label: 'Contact Us', icon: <Headphones size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/contact' },
         { label: 'Request Info', icon: <HelpCircle size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/contact' },
@@ -260,31 +260,7 @@ export const MobileMenuDrawer: React.FC = () => {
     }
   }, [activeTab]);
 
-  // Dynamic options: For logged-in users under activity_support, offer "My Profile" instead of "Log in"
-  const currentOptions = useMemo(() => {
-    const options = SUB_OPTIONS[activeTab as keyof typeof SUB_OPTIONS] || [];
-    if (activeTab === 'activity_support' && user) {
-      return options.map(section => {
-        if (section.title === 'Support & Settings') {
-          return {
-            ...section,
-            items: section.items.map(item => {
-              if (item.label === 'Log in') {
-                return {
-                  ...item,
-                  label: 'My Profile',
-                  href: '/dashboard/profile'
-                };
-              }
-              return item;
-            })
-          };
-        }
-        return section;
-      });
-    }
-    return options;
-  }, [activeTab, user]);
+  const currentOptions = SUB_OPTIONS[activeTab as keyof typeof SUB_OPTIONS] || [];
 
   if (!isMenuOpen) return null;
 
@@ -303,7 +279,11 @@ export const MobileMenuDrawer: React.FC = () => {
     }
 
     if (item.href) {
-      router.push(item.href);
+      if ((item.href === '/dashboard/profile' || item.label === 'Manage Profile') && !user) {
+        router.push('/login');
+      } else {
+        router.push(item.href);
+      }
     }
   };
 
