@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './MobileMenuDrawer.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
@@ -14,7 +14,6 @@ import {
   ArrowUp, 
   HardHat, 
   Building, 
-  Building2,
   Home, 
   BedDouble, 
   PlusSquare, 
@@ -40,31 +39,18 @@ import {
   HelpCircle, 
   Bell, 
   Key,
-  History,
-  LogOut
+  LogOut,
+  X
 } from 'lucide-react';
 
 const CATEGORIES = [
-  { 
-    id: 'sell_rent', 
-    label: 'Sell/Rent', 
-    icon: (
-      <div className={styles.sellRentBadgeIcon}>
-        <span className={styles.sellRentPlus}>+</span>
-        <span className={styles.sellRentFree}>FREE</span>
-      </div>
-    ) 
-  },
+  { id: 'sell_rent', label: 'Sell/Rent', icon: <PlusSquare size={20} /> },
   { id: 'buy_residential', label: 'Buy Residential', icon: <Home size={20} /> },
   { id: 'rent_pg', label: 'Rent / PG', icon: <Key size={20} /> },
   { id: 'buy_commercial', label: 'Buy Commercial', icon: <Store size={20} /> },
-  { id: 'lease_commercial', label: 'Lease Commercial', icon: <Building2 size={20} /> },
-  { 
-    id: 'price_insights', 
-    label: 'Price & Insights', 
-    icon: <span className={styles.rupeeIcon}>₹</span> 
-  },
-  { id: 'activity_support', label: 'Activity & Support', icon: <History size={20} /> },
+  { id: 'lease_commercial', label: 'Lease Commercial', icon: <Store size={20} /> },
+  { id: 'price_insights', label: 'Price & Insights', icon: <TrendingUp size={20} /> },
+  { id: 'activity_support', label: 'Activity & Support', icon: <Info size={20} /> },
 ];
 
 type SubOptionItem = {
@@ -228,30 +214,39 @@ const SUB_OPTIONS: SubOptionsType = {
 export const MobileMenuDrawer: React.FC = () => {
   const { isMenuOpen, closeMenu } = useMobileMenu();
   const [activeTab, setActiveTab] = useState('sell_rent');
+  const [avatarError, setAvatarError] = useState(false);
   const router = useRouter();
   const { settings } = useSettings();
   const { showToast } = useToast();
   const { user, profile, signOut } = useAuth();
 
+  // Reset avatar error fallback if profile image updates
+  useEffect(() => {
+    setAvatarError(false);
+  }, [profile?.avatarUrl]);
+
   // Lock body scroll when drawer is open
   useEffect(() => {
     if (isMenuOpen) {
+      const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isMenuOpen]);
 
-  // Close drawer on Escape key
+  // Close drawer on Escape key with proper listener attachment
   useEffect(() => {
+    if (!isMenuOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         closeMenu();
       }
     };
+
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -265,9 +260,33 @@ export const MobileMenuDrawer: React.FC = () => {
     }
   }, [activeTab]);
 
-  if (!isMenuOpen) return null;
+  // Dynamic options: For logged-in users under activity_support, offer "My Profile" instead of "Log in"
+  const currentOptions = useMemo(() => {
+    const options = SUB_OPTIONS[activeTab as keyof typeof SUB_OPTIONS] || [];
+    if (activeTab === 'activity_support' && user) {
+      return options.map(section => {
+        if (section.title === 'Support & Settings') {
+          return {
+            ...section,
+            items: section.items.map(item => {
+              if (item.label === 'Log in') {
+                return {
+                  ...item,
+                  label: 'My Profile',
+                  href: '/dashboard/profile'
+                };
+              }
+              return item;
+            })
+          };
+        }
+        return section;
+      });
+    }
+    return options;
+  }, [activeTab, user]);
 
-  const currentOptions = SUB_OPTIONS[activeTab as keyof typeof SUB_OPTIONS] || [];
+  if (!isMenuOpen) return null;
 
   const handleOptionClick = (item: SubOptionItem) => {
     closeMenu();
@@ -305,7 +324,7 @@ export const MobileMenuDrawer: React.FC = () => {
             onClick={closeMenu}
             aria-label="Close categories menu"
           >
-            ×
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
         
@@ -315,10 +334,20 @@ export const MobileMenuDrawer: React.FC = () => {
               <button 
                 type="button"
                 key={cat.id} 
+                id={`tab-${cat.id}`}
                 role="tab"
                 aria-selected={activeTab === cat.id}
+                aria-controls={`panel-${cat.id}`}
                 className={`${styles.tabItem} ${activeTab === cat.id ? styles.activeTab : ''}`}
-                onClick={() => setActiveTab(cat.id)}
+                onClick={() => {
+                  if (activeTab === cat.id) {
+                    if (contentAreaRef.current) {
+                      contentAreaRef.current.scrollTop = 0;
+                    }
+                  } else {
+                    setActiveTab(cat.id);
+                  }
+                }}
               >
                 <div className={styles.tabIcon}>{cat.icon}</div>
                 <span>{cat.label}</span>
@@ -326,13 +355,24 @@ export const MobileMenuDrawer: React.FC = () => {
             ))}
           </div>
           
-          <div className={styles.contentArea} ref={contentAreaRef}>
+          <div 
+            className={styles.contentArea} 
+            ref={contentAreaRef}
+            role="tabpanel"
+            id={`panel-${activeTab}`}
+            aria-labelledby={`tab-${activeTab}`}
+          >
             {/* Login / Personalize Experience Card — Displayed across all 7 categories */}
             <div className={styles.loginCard}>
               <div className={styles.loginCardHeader}>
                 <div className={styles.loginAvatarCircle}>
-                  {profile?.avatarUrl ? (
-                    <img src={profile.avatarUrl} alt={profile.name || 'User'} className={styles.loginAvatarImg} />
+                  {profile?.avatarUrl && !avatarError ? (
+                    <img 
+                      src={profile.avatarUrl} 
+                      alt={profile.name || 'User'} 
+                      className={styles.loginAvatarImg} 
+                      onError={() => setAvatarError(true)}
+                    />
                   ) : (
                     <User size={22} color={user ? '#0078db' : '#64748b'} />
                   )}
@@ -366,8 +406,13 @@ export const MobileMenuDrawer: React.FC = () => {
                     type="button"
                     className={styles.logoutBtn}
                     onClick={async () => {
-                      await signOut();
-                      showToast('Logged Out', 'You have been signed out successfully.', 'info');
+                      try {
+                        closeMenu();
+                        await signOut();
+                        showToast('Logged Out', 'You have been signed out successfully.', 'info');
+                      } catch (err) {
+                        console.error('[MobileMenuDrawer] Logout error:', err);
+                      }
                     }}
                     title="Sign Out"
                     aria-label="Sign Out"
