@@ -653,100 +653,100 @@ interface CityCategoryListing {
 const CITY_FALLBACK_DATA: Record<string, { buy: CityCategoryListing[]; rent: CityCategoryListing[] }> = {
   Delhi: {
     buy: [
-      { categoryName: 'Flats', categoryCount: '32K+ Flats', categoryCode: 'APARTMENT', title: '4 Bhk Independent/Builder Floor', price: '₹88 Lac', locality: 'Saarthi Luxurious Homes, Uttam Nagar', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '4.1K+ Houses', categoryCode: 'HOUSE', title: '2 Bhk Independent House/Villa for Sale', price: 'Available on Request', locality: 'Sainik Farm, South Delhi', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '2.8K+ Plots', categoryCode: 'PLOT', title: 'Residential Land for Sale', price: '₹22.5 Lac', locality: 'Kirti Nagar, Delhi, West Delhi', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '1.2K+ Offices', categoryCode: 'OFFICE', title: 'Ready to move office space for Sale', price: '₹27.5 Lac', locality: 'Chawla Complex, Laxmi Nagar', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '32K+ Flats', categoryCode: 'APARTMENT', title: '4 Bhk Independent/Builder Floor', price: '₹88 Lac', locality: 'Saarthi Luxurious Homes, Uttam Nagar', postedAgo: '24 mins ago' },
+      { categoryName: 'Houses', categoryCount: '4.1K+ Houses', categoryCode: 'HOUSE', title: '2 Bhk Independent House/Villa for Sale', price: 'Available on Request', locality: 'Sainik Farm, South Delhi', postedAgo: '2 hours ago' },
+      { categoryName: 'Plots', categoryCount: '2.8K+ Plots', categoryCode: 'PLOT', title: 'Residential Land for Sale', price: '₹22.5 Lac', locality: 'Kirti Nagar, Delhi, West Delhi', postedAgo: '5 hours ago' },
+      { categoryName: 'Offices', categoryCount: '1.2K+ Offices', categoryCode: 'OFFICE', title: 'Ready to move office space for Sale', price: '₹27.5 Lac', locality: 'Chawla Complex, Laxmi Nagar', postedAgo: '8 hours ago' },
     ],
     rent: [
-      { categoryName: 'Flats', categoryCount: '28K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Furnished Apartment for Rent', price: '₹38,000 / mo', locality: 'Saket, South Delhi', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '3.4K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Kothi for Rent', price: '₹75,000 / mo', locality: 'Vasant Vihar, South West Delhi', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '1.5K+ Plots', categoryCode: 'PLOT', title: 'Commercial Plot on Main Road for Lease', price: '₹1.2 Lac / mo', locality: 'Okhla Phase 3, South Delhi', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '2.1K+ Offices', categoryCode: 'OFFICE', title: 'Fully Furnished Office Space for Rent', price: '₹45,000 / mo', locality: 'Connaught Place, Central Delhi', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '28K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Furnished Apartment for Rent', price: '₹38,000 / mo', locality: 'Saket, South Delhi', postedAgo: '35 mins ago' },
+      { categoryName: 'Houses', categoryCount: '3.4K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Kothi for Rent', price: '₹75,000 / mo', locality: 'Vasant Vihar, South West Delhi', postedAgo: '3 hours ago' },
+      { categoryName: 'Plots', categoryCount: '1.5K+ Plots', categoryCode: 'PLOT', title: 'Commercial Plot on Main Road for Lease', price: '₹1.2 Lac / mo', locality: 'Okhla Phase 3, South Delhi', postedAgo: '6 hours ago' },
+      { categoryName: 'Offices', categoryCount: '2.1K+ Offices', categoryCode: 'OFFICE', title: 'Fully Furnished Office Space for Rent', price: '₹45,000 / mo', locality: 'Connaught Place, Central Delhi', postedAgo: '9 hours ago' },
     ],
   },
   Noida: {
     buy: [
-      { categoryName: 'Flats', categoryCount: '24K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Luxury Flat in Sector 75', price: '₹1.15 Cr', locality: 'Sector 75, Noida', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '2.9K+ Houses', categoryCode: 'HOUSE', title: 'Independent Duplex Villa for Sale', price: '₹2.4 Cr', locality: 'Sector 44, Noida', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '3.1K+ Plots', categoryCode: 'PLOT', title: 'Authority Residential Plot for Sale', price: '₹85 Lac', locality: 'Sector 150, Noida Expressway', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '1.8K+ Offices', categoryCode: 'OFFICE', title: 'Grade A IT Office Space for Sale', price: '₹55 Lac', locality: 'Sector 62, Noida', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '24K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Luxury Flat in Sector 75', price: '₹1.15 Cr', locality: 'Sector 75, Noida', postedAgo: '18 mins ago' },
+      { categoryName: 'Houses', categoryCount: '2.9K+ Houses', categoryCode: 'HOUSE', title: 'Independent Duplex Villa for Sale', price: '₹2.4 Cr', locality: 'Sector 44, Noida', postedAgo: '2 hours ago' },
+      { categoryName: 'Plots', categoryCount: '3.1K+ Plots', categoryCode: 'PLOT', title: 'Authority Residential Plot for Sale', price: '₹85 Lac', locality: 'Sector 150, Noida Expressway', postedAgo: '4 hours ago' },
+      { categoryName: 'Offices', categoryCount: '1.8K+ Offices', categoryCode: 'OFFICE', title: 'Grade A IT Office Space for Sale', price: '₹55 Lac', locality: 'Sector 62, Noida', postedAgo: '7 hours ago' },
     ],
     rent: [
-      { categoryName: 'Flats', categoryCount: '19K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk High Rise Apartment for Rent', price: '₹24,000 / mo', locality: 'Sector 137, Noida Expressway', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '1.8K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Independent Floor for Rent', price: '₹35,000 / mo', locality: 'Sector 26, Noida', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '900+ Plots', categoryCode: 'PLOT', title: 'Industrial Plot for Long Term Lease', price: '₹90,000 / mo', locality: 'Phase 2, Noida', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '2.4K+ Offices', categoryCode: 'OFFICE', title: 'Plug & Play Coworking/Office Space', price: '₹60,000 / mo', locality: 'Sector 16, Film City, Noida', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '19K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk High Rise Apartment for Rent', price: '₹24,000 / mo', locality: 'Sector 137, Noida Expressway', postedAgo: '40 mins ago' },
+      { categoryName: 'Houses', categoryCount: '1.8K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Independent Floor for Rent', price: '₹35,000 / mo', locality: 'Sector 26, Noida', postedAgo: '3 hours ago' },
+      { categoryName: 'Plots', categoryCount: '900+ Plots', categoryCode: 'PLOT', title: 'Industrial Plot for Long Term Lease', price: '₹90,000 / mo', locality: 'Phase 2, Noida', postedAgo: '6 hours ago' },
+      { categoryName: 'Offices', categoryCount: '2.4K+ Offices', categoryCode: 'OFFICE', title: 'Plug & Play Coworking/Office Space', price: '₹60,000 / mo', locality: 'Sector 16, Film City, Noida', postedAgo: '10 hours ago' },
     ],
   },
   Gurgaon: {
     buy: [
-      { categoryName: 'Flats', categoryCount: '36K+ Flats', categoryCode: 'APARTMENT', title: '4 Bhk Ultra Luxury Condominium', price: '₹3.8 Cr', locality: 'Golf Course Extension, Gurgaon', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '5.2K+ Houses', categoryCode: 'HOUSE', title: 'Luxury Villa with Private Garden', price: '₹5.5 Cr', locality: 'DLF Phase 1, Gurgaon', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '4.5K+ Plots', categoryCode: 'PLOT', title: 'Gated Township Residential Land', price: '₹1.8 Cr', locality: 'Sector 57, Gurgaon', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '3.1K+ Offices', categoryCode: 'OFFICE', title: 'Corporate Office in Signature Tower', price: '₹1.4 Cr', locality: 'Cyber City, Gurgaon', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '36K+ Flats', categoryCode: 'APARTMENT', title: '4 Bhk Ultra Luxury Condominium', price: '₹3.8 Cr', locality: 'Golf Course Extension, Gurgaon', postedAgo: '15 mins ago' },
+      { categoryName: 'Houses', categoryCount: '5.2K+ Houses', categoryCode: 'HOUSE', title: 'Luxury Villa with Private Garden', price: '₹5.5 Cr', locality: 'DLF Phase 1, Gurgaon', postedAgo: '2 hours ago' },
+      { categoryName: 'Plots', categoryCount: '4.5K+ Plots', categoryCode: 'PLOT', title: 'Gated Township Residential Land', price: '₹1.8 Cr', locality: 'Sector 57, Gurgaon', postedAgo: '4 hours ago' },
+      { categoryName: 'Offices', categoryCount: '3.1K+ Offices', categoryCode: 'OFFICE', title: 'Corporate Office in Signature Tower', price: '₹1.4 Cr', locality: 'Cyber City, Gurgaon', postedAgo: '6 hours ago' },
     ],
     rent: [
-      { categoryName: 'Flats', categoryCount: '30K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Fully Furnished Apartment', price: '₹65,000 / mo', locality: 'Sohna Road, Gurgaon', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '4.0K+ Houses', categoryCode: 'HOUSE', title: 'Independent Floor with Terrace Garden', price: '₹85,000 / mo', locality: 'Sushant Lok 1, Gurgaon', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '1.2K+ Plots', categoryCode: 'PLOT', title: 'Commercial Yard for Lease', price: '₹2.5 Lac / mo', locality: 'Manesar, Gurgaon', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '4.8K+ Offices', categoryCode: 'OFFICE', title: '50-Seater Ready Corporate Office', price: '₹1.8 Lac / mo', locality: 'MG Road, Gurgaon', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '30K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Fully Furnished Apartment', price: '₹65,000 / mo', locality: 'Sohna Road, Gurgaon', postedAgo: '30 mins ago' },
+      { categoryName: 'Houses', categoryCount: '4.0K+ Houses', categoryCode: 'HOUSE', title: 'Independent Floor with Terrace Garden', price: '₹85,000 / mo', locality: 'Sushant Lok 1, Gurgaon', postedAgo: '3 hours ago' },
+      { categoryName: 'Plots', categoryCount: '1.2K+ Plots', categoryCode: 'PLOT', title: 'Commercial Yard for Lease', price: '₹2.5 Lac / mo', locality: 'Manesar, Gurgaon', postedAgo: '7 hours ago' },
+      { categoryName: 'Offices', categoryCount: '4.8K+ Offices', categoryCode: 'OFFICE', title: '50-Seater Ready Corporate Office', price: '₹1.8 Lac / mo', locality: 'MG Road, Gurgaon', postedAgo: '11 hours ago' },
     ],
   },
   Mumbai: {
     buy: [
-      { categoryName: 'Flats', categoryCount: '42K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Sea View Apartment for Sale', price: '₹2.8 Cr', locality: 'Andheri West, Mumbai', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '2.1K+ Houses', categoryCode: 'HOUSE', title: 'Row House / Bungalow for Sale', price: '₹6.2 Cr', locality: 'Juhu Scheme, Mumbai', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '1.1K+ Plots', categoryCode: 'PLOT', title: 'Non-Agricultural Land Parcel', price: '₹1.9 Cr', locality: 'Panvel, Navi Mumbai', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '3.8K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Office in Business Park', price: '₹1.75 Cr', locality: 'BKC, Mumbai', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '42K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Sea View Apartment for Sale', price: '₹2.8 Cr', locality: 'Andheri West, Mumbai', postedAgo: '20 mins ago' },
+      { categoryName: 'Houses', categoryCount: '2.1K+ Houses', categoryCode: 'HOUSE', title: 'Row House / Bungalow for Sale', price: '₹6.2 Cr', locality: 'Juhu Scheme, Mumbai', postedAgo: '2 hours ago' },
+      { categoryName: 'Plots', categoryCount: '1.1K+ Plots', categoryCode: 'PLOT', title: 'Non-Agricultural Land Parcel', price: '₹1.9 Cr', locality: 'Panvel, Navi Mumbai', postedAgo: '5 hours ago' },
+      { categoryName: 'Offices', categoryCount: '3.8K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Office in Business Park', price: '₹1.75 Cr', locality: 'BKC, Mumbai', postedAgo: '8 hours ago' },
     ],
     rent: [
-      { categoryName: 'Flats', categoryCount: '38K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk High Floor Flat for Rent', price: '₹70,000 / mo', locality: 'Bandra West, Mumbai', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '1.5K+ Houses', categoryCode: 'HOUSE', title: 'Independent Bungalow for Rent', price: '₹1.8 Lac / mo', locality: 'Pali Hill, Bandra, Mumbai', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '850+ Plots', categoryCode: 'PLOT', title: 'Industrial Open Yard for Lease', price: '₹1.5 Lac / mo', locality: 'Thane West, Mumbai', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '5.2K+ Offices', categoryCode: 'OFFICE', title: 'Furnished Office Cabin & Workstations', price: '₹95,000 / mo', locality: 'Lower Parel, Mumbai', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '38K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk High Floor Flat for Rent', price: '₹70,000 / mo', locality: 'Bandra West, Mumbai', postedAgo: '45 mins ago' },
+      { categoryName: 'Houses', categoryCount: '1.5K+ Houses', categoryCode: 'HOUSE', title: 'Independent Bungalow for Rent', price: '₹1.8 Lac / mo', locality: 'Pali Hill, Bandra, Mumbai', postedAgo: '3 hours ago' },
+      { categoryName: 'Plots', categoryCount: '850+ Plots', categoryCode: 'PLOT', title: 'Industrial Open Yard for Lease', price: '₹1.5 Lac / mo', locality: 'Thane West, Mumbai', postedAgo: '6 hours ago' },
+      { categoryName: 'Offices', categoryCount: '5.2K+ Offices', categoryCode: 'OFFICE', title: 'Furnished Office Cabin & Workstations', price: '₹95,000 / mo', locality: 'Lower Parel, Mumbai', postedAgo: '9 hours ago' },
     ],
   },
   Bangalore: {
     buy: [
-      { categoryName: 'Flats', categoryCount: '35K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Gated Community Apartment', price: '₹1.45 Cr', locality: 'Whitefield, Bangalore', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '4.8K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Villa with Garden', price: '₹3.1 Cr', locality: 'Sarjapur Road, Bangalore', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '3.9K+ Plots', categoryCode: 'PLOT', title: 'BMRDA Approved Villa Plot for Sale', price: '₹65 Lac', locality: 'Electronic City, Bangalore', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '2.5K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Tech Space for Sale', price: '₹95 Lac', locality: 'HSR Layout, Bangalore', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '35K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Gated Community Apartment', price: '₹1.45 Cr', locality: 'Whitefield, Bangalore', postedAgo: '22 mins ago' },
+      { categoryName: 'Houses', categoryCount: '4.8K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Villa with Garden', price: '₹3.1 Cr', locality: 'Sarjapur Road, Bangalore', postedAgo: '2 hours ago' },
+      { categoryName: 'Plots', categoryCount: '3.9K+ Plots', categoryCode: 'PLOT', title: 'BMRDA Approved Villa Plot for Sale', price: '₹65 Lac', locality: 'Electronic City, Bangalore', postedAgo: '5 hours ago' },
+      { categoryName: 'Offices', categoryCount: '2.5K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Tech Space for Sale', price: '₹95 Lac', locality: 'HSR Layout, Bangalore', postedAgo: '7 hours ago' },
     ],
     rent: [
-      { categoryName: 'Flats', categoryCount: '31K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Premium Society Flat for Rent', price: '₹48,000 / mo', locality: 'Bellandur, Outer Ring Road', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '3.2K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Triplex Villa for Rent', price: '₹80,000 / mo', locality: 'Indiranagar, Bangalore', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '1.1K+ Plots', categoryCode: 'PLOT', title: 'Commercial Open Land for Lease', price: '₹85,000 / mo', locality: 'Hebbal, Bangalore', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '3.6K+ Offices', categoryCode: 'OFFICE', title: 'Fully Fitted Tech Office for Rent', price: '₹1.1 Lac / mo', locality: 'Koramangala, Bangalore', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '31K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Premium Society Flat for Rent', price: '₹48,000 / mo', locality: 'Bellandur, Outer Ring Road', postedAgo: '35 mins ago' },
+      { categoryName: 'Houses', categoryCount: '3.2K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Triplex Villa for Rent', price: '₹80,000 / mo', locality: 'Indiranagar, Bangalore', postedAgo: '3 hours ago' },
+      { categoryName: 'Plots', categoryCount: '1.1K+ Plots', categoryCode: 'PLOT', title: 'Commercial Open Land for Lease', price: '₹85,000 / mo', locality: 'Hebbal, Bangalore', postedAgo: '6 hours ago' },
+      { categoryName: 'Offices', categoryCount: '3.6K+ Offices', categoryCode: 'OFFICE', title: 'Fully Fitted Tech Office for Rent', price: '₹1.1 Lac / mo', locality: 'Koramangala, Bangalore', postedAgo: '10 hours ago' },
     ],
   },
   Pune: {
     buy: [
-      { categoryName: 'Flats', categoryCount: '22K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Modern Flat for Sale', price: '₹72 Lac', locality: 'Kharadi, Pune', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '3.1K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Independent Row House', price: '₹1.6 Cr', locality: 'Baner, Pune', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '2.4K+ Plots', categoryCode: 'PLOT', title: 'Residential NA Plot for Sale', price: '₹42 Lac', locality: 'Wagholi, Pune', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '1.5K+ Offices', categoryCode: 'OFFICE', title: 'Commercial IT Park Office', price: '₹48 Lac', locality: 'Hinjawadi, Pune', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '22K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Modern Flat for Sale', price: '₹72 Lac', locality: 'Kharadi, Pune', postedAgo: '28 mins ago' },
+      { categoryName: 'Houses', categoryCount: '3.1K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Independent Row House', price: '₹1.6 Cr', locality: 'Baner, Pune', postedAgo: '2 hours ago' },
+      { categoryName: 'Plots', categoryCount: '2.4K+ Plots', categoryCode: 'PLOT', title: 'Residential NA Plot for Sale', price: '₹42 Lac', locality: 'Wagholi, Pune', postedAgo: '4 hours ago' },
+      { categoryName: 'Offices', categoryCount: '1.5K+ Offices', categoryCode: 'OFFICE', title: 'Commercial IT Park Office', price: '₹48 Lac', locality: 'Hinjawadi, Pune', postedAgo: '8 hours ago' },
     ],
     rent: [
-      { categoryName: 'Flats', categoryCount: '18K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Furnished Flat for Rent', price: '₹26,000 / mo', locality: 'Viman Nagar, Pune', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '2.0K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Villa for Rent', price: '₹45,000 / mo', locality: 'Koregaon Park, Pune', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '800+ Plots', categoryCode: 'PLOT', title: 'Commercial Plot for Lease', price: '₹60,000 / mo', locality: 'Hadapsar, Pune', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '1.9K+ Offices', categoryCode: 'OFFICE', title: 'Furnished Office Space for Rent', price: '₹55,000 / mo', locality: 'Senapati Bapat Road, Pune', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '18K+ Flats', categoryCode: 'APARTMENT', title: '2 Bhk Furnished Flat for Rent', price: '₹26,000 / mo', locality: 'Viman Nagar, Pune', postedAgo: '40 mins ago' },
+      { categoryName: 'Houses', categoryCount: '2.0K+ Houses', categoryCode: 'HOUSE', title: '3 Bhk Villa for Rent', price: '₹45,000 / mo', locality: 'Koregaon Park, Pune', postedAgo: '3 hours ago' },
+      { categoryName: 'Plots', categoryCount: '800+ Plots', categoryCode: 'PLOT', title: 'Commercial Plot for Lease', price: '₹60,000 / mo', locality: 'Hadapsar, Pune', postedAgo: '7 hours ago' },
+      { categoryName: 'Offices', categoryCount: '1.9K+ Offices', categoryCode: 'OFFICE', title: 'Furnished Office Space for Rent', price: '₹55,000 / mo', locality: 'Senapati Bapat Road, Pune', postedAgo: '11 hours ago' },
     ],
   },
   Hyderabad: {
     buy: [
-      { categoryName: 'Flats', categoryCount: '28K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Gated Flat for Sale', price: '₹1.25 Cr', locality: 'Gachibowli, Hyderabad', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '3.6K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Villa for Sale', price: '₹2.8 Cr', locality: 'Jubilee Hills, Hyderabad', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '3.2K+ Plots', categoryCode: 'PLOT', title: 'HMDA Approved Villa Plot', price: '₹58 Lac', locality: 'Miyapur, Hyderabad', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '2.0K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Space in IT Corridor', price: '₹75 Lac', locality: 'Hitec City, Hyderabad', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '28K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk Gated Flat for Sale', price: '₹1.25 Cr', locality: 'Gachibowli, Hyderabad', postedAgo: '16 mins ago' },
+      { categoryName: 'Houses', categoryCount: '3.6K+ Houses', categoryCode: 'HOUSE', title: '4 Bhk Independent Villa for Sale', price: '₹2.8 Cr', locality: 'Jubilee Hills, Hyderabad', postedAgo: '2 hours ago' },
+      { categoryName: 'Plots', categoryCount: '3.2K+ Plots', categoryCode: 'PLOT', title: 'HMDA Approved Villa Plot', price: '₹58 Lac', locality: 'Miyapur, Hyderabad', postedAgo: '5 hours ago' },
+      { categoryName: 'Offices', categoryCount: '2.0K+ Offices', categoryCode: 'OFFICE', title: 'Commercial Space in IT Corridor', price: '₹75 Lac', locality: 'Hitec City, Hyderabad', postedAgo: '8 hours ago' },
     ],
     rent: [
-      { categoryName: 'Flats', categoryCount: '22K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk High Rise Flat for Rent', price: '₹42,000 / mo', locality: 'Kondapur, Hyderabad', postedAgo: 'Today' },
-      { categoryName: 'Houses', categoryCount: '2.4K+ Houses', categoryCode: 'HOUSE', title: 'Independent Villa with Lawn', price: '₹65,000 / mo', locality: 'Madhapur, Hyderabad', postedAgo: 'Today' },
-      { categoryName: 'Plots', categoryCount: '950+ Plots', categoryCode: 'PLOT', title: 'Commercial Land for Lease', price: '₹70,000 / mo', locality: 'Kukatpally, Hyderabad', postedAgo: 'Today' },
-      { categoryName: 'Offices', categoryCount: '2.7K+ Offices', categoryCode: 'OFFICE', title: 'Plug & Play Office Space', price: '₹85,000 / mo', locality: 'Financial District, Hyderabad', postedAgo: 'Today' },
+      { categoryName: 'Flats', categoryCount: '22K+ Flats', categoryCode: 'APARTMENT', title: '3 Bhk High Rise Flat for Rent', price: '₹42,000 / mo', locality: 'Kondapur, Hyderabad', postedAgo: '25 mins ago' },
+      { categoryName: 'Houses', categoryCount: '2.4K+ Houses', categoryCode: 'HOUSE', title: 'Independent Villa with Lawn', price: '₹65,000 / mo', locality: 'Madhapur, Hyderabad', postedAgo: '3 hours ago' },
+      { categoryName: 'Plots', categoryCount: '950+ Plots', categoryCode: 'PLOT', title: 'Commercial Land for Lease', price: '₹70,000 / mo', locality: 'Kukatpally, Hyderabad', postedAgo: '6 hours ago' },
+      { categoryName: 'Offices', categoryCount: '2.7K+ Offices', categoryCode: 'OFFICE', title: 'Plug & Play Office Space', price: '₹85,000 / mo', locality: 'Financial District, Hyderabad', postedAgo: '9 hours ago' },
     ],
   },
 };
@@ -755,9 +755,14 @@ function formatRelativeTime(dateStr?: string | Date) {
   if (!dateStr) return 'Today';
   const d = new Date(dateStr);
   const now = new Date();
-  const diffHours = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60));
-  if (diffHours < 1) return 'Just now';
-  if (diffHours < 24) return 'Today';
+  const diffMs = Math.max(0, now.getTime() - d.getTime());
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes} mins ago`;
+  if (diffHours === 1) return '1 hour ago';
+  if (diffHours < 24) return `${diffHours} hours ago`;
   if (diffHours < 48) return 'Yesterday';
   const days = Math.floor(diffHours / 24);
   return `${days} days ago`;
@@ -866,9 +871,11 @@ export default function PostPropertyPage() {
       };
     }
 
-    // Fallback to rich authentic city data
+    // Fallback to rich authentic city data with full headline (Title, Price, Locality)
+    const fallbackTitle = `${fallback.title} (${fallback.price}) in ${fallback.locality}`;
     return {
       ...fallback,
+      title: fallbackTitle,
       link: `/listings?type=${recentTab === 'buy' ? 'sale' : 'rent'}&city=${encodeURIComponent(recentCity)}&property_type=${fallback.categoryCode}`,
       isReal: false,
     };
