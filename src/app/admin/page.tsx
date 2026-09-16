@@ -160,18 +160,19 @@ export default function AdminHome() {
       {/* Metrics Grid */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ backgroundColor: 'var(--color-secondary-fade)', color: 'var(--color-secondary)' }}>
-            <Building size={22} />
+          <div className={styles.statIcon} style={{ backgroundColor: '#eaf4ff', color: '#0078db' }}>
+            <Building size={20} />
           </div>
           <div className={styles.statInfo}>
             <span className={styles.statVal}>{metrics.totalListings}</span>
-            <span className={styles.statLabel}>Total Listings ({metrics.activeListings} Active)</span>
+            <span className={styles.statLabel}>Total Listings</span>
+            <span className={styles.activePill}>{metrics.activeListings} Active</span>
           </div>
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ backgroundColor: 'rgba(212, 163, 115, 0.12)', color: 'var(--color-accent)' }}>
-            <ShieldAlert size={22} />
+          <div className={styles.statIcon} style={{ backgroundColor: '#fff2e8', color: '#ea580c' }}>
+            <ShieldAlert size={20} />
           </div>
           <div className={styles.statInfo}>
             <span className={styles.statVal}>{metrics.pendingReview}</span>
@@ -180,8 +181,8 @@ export default function AdminHome() {
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)' }}>
-            <Users size={22} />
+          <div className={styles.statIcon} style={{ backgroundColor: '#e6f4ea', color: '#16a34a' }}>
+            <Users size={20} />
           </div>
           <div className={styles.statInfo}>
             <span className={styles.statVal}>{metrics.totalUsers}</span>
@@ -190,8 +191,8 @@ export default function AdminHome() {
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-info)' }}>
-            <IndianRupee size={22} />
+          <div className={styles.statIcon} style={{ backgroundColor: '#eaf4ff', color: '#0078db' }}>
+            <IndianRupee size={20} />
           </div>
           <div className={styles.statInfo}>
             <span className={styles.statVal}>{formatPrice(metrics.estimatedCommissions)}</span>
@@ -208,18 +209,33 @@ export default function AdminHome() {
           <div className={styles.sectionTitle}>
             <span>Pending Approvals Queue</span>
             <Link href="/admin/listings" className={styles.viewLink}>
-              View All Queue <ArrowRight size={12} style={{ display: 'inline', marginLeft: '2px' }} />
+              View All Queue <ArrowRight size={14} style={{ display: 'inline', marginLeft: '3px' }} />
             </Link>
           </div>
 
           {loading ? (
             <Card padding="md">Loading queue...</Card>
           ) : pendingListings.length === 0 ? (
-            <Card padding="lg" style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-              <Check size={40} style={{ color: 'var(--color-success)', margin: '0 auto 0.75rem' }} />
-              <h3>Moderation queue is empty</h3>
-              <p>All property listings have been verified and approved.</p>
-            </Card>
+            <div className={styles.emptyStateCard}>
+              <div className={styles.emptyIllustrationWrapper}>
+                <div className={styles.bubbleTopLeft} />
+                <div className={styles.bubbleTopRight} />
+                <div className={styles.bubbleBottomLeft} />
+                <div className={styles.bubbleBottomRight} />
+                <div className={styles.emptyCircleBg}>
+                  <div className={styles.docIconCard}>
+                    <div className={styles.docLine1} />
+                    <div className={styles.docLine2} />
+                    <div className={styles.docLine3} />
+                    <div className={styles.docCheckBadge}>
+                      <Check size={12} strokeWidth={3.5} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <h3 className={styles.emptyTitle}>Moderation queue is empty</h3>
+              <p className={styles.emptySubtitle}>All property listings have been verified and approved.</p>
+            </div>
           ) : (
             <>
               {/* Desktop Table View */}
@@ -347,17 +363,26 @@ export default function AdminHome() {
           <div className={styles.sectionTitle}>
             <span>Recent Seeker Inquiries</span>
             <Link href="/admin/interests" className={styles.viewLink}>
-              View Log <ArrowRight size={12} style={{ display: 'inline', marginLeft: '2px' }} />
+              View Log <ArrowRight size={14} style={{ display: 'inline', marginLeft: '3px' }} />
             </Link>
           </div>
 
           {loading ? (
             <Card padding="md">Loading log...</Card>
           ) : recentInterests.length === 0 ? (
-            <Card padding="md" style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-              <Heart size={32} style={{ opacity: 0.3, margin: '0 auto 0.5rem' }} />
-              <p>No seeker inquiries recorded yet.</p>
-            </Card>
+            <div className={styles.emptyStateCard}>
+              <div className={styles.emptyIllustrationWrapper}>
+                <div className={styles.bubbleTopLeft} />
+                <div className={styles.bubbleTopRight} />
+                <div className={styles.bubbleBottomLeft} />
+                <div className={styles.bubbleBottomRight} />
+                <div className={styles.emptyCircleBg}>
+                  <Heart size={32} className={styles.heartEmptyIcon} />
+                </div>
+              </div>
+              <h3 className={styles.emptyTitle}>No seeker inquiries recorded yet.</h3>
+              <p className={styles.emptySubtitle}>You&apos;ll see the latest inquiries from property seekers here.</p>
+            </div>
           ) : (
             <div className={styles.listContainer}>
               {recentInterests.map((interest) => (

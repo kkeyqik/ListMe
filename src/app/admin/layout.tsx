@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu, Home } from 'lucide-react';
+import { Menu, Home, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AdminSidebar } from '@/components/layout';
+import { AdminMobileBottomNav } from '@/components/layout/AdminMobileBottomNav';
 import styles from '../dashboard/layout.module.css';
 
 export default function AdminLayout({
@@ -39,16 +40,9 @@ export default function AdminLayout({
 
       {/* Main Content Area */}
       <div className={styles.mainContent}>
-        {/* Mobile Top Bar */}
+        {/* Mobile Top Bar matching reference design */}
         <div className={styles.mobileTopBar}>
-          <Link href="/" className={styles.logo} aria-label="ListMe Home">
-            <Home className={styles.logoIcon} size={24} />
-            <span className={styles.logoText}>ListMe</span>
-          </Link>
-          <div className={styles.adminControls}>
-            <span className={styles.adminBadge}>
-              ADMIN
-            </span>
+          <div className={styles.headerLeft}>
             <button
               onClick={() => setSidebarOpen(true)}
               className={styles.menuButton}
@@ -58,6 +52,23 @@ export default function AdminLayout({
             >
               <Menu size={24} />
             </button>
+            <Link href="/" className={styles.adminMobileLogo} aria-label="ListMe Home">
+              <Home className={styles.adminMobileLogoIcon} size={24} />
+              <span className={styles.adminMobileLogoText}>ListMe</span>
+            </Link>
+          </div>
+          <div className={styles.adminControls}>
+            <span className={styles.adminBadge}>
+              ADMIN
+            </span>
+            <Link
+              href="/dashboard/profile"
+              className={styles.profileButton}
+              aria-label="Admin Profile"
+              title="Admin Profile"
+            >
+              <User size={20} />
+            </Link>
           </div>
         </div>
 
@@ -71,6 +82,12 @@ export default function AdminLayout({
             children
           )}
         </main>
+
+        {/* Dedicated Admin Mobile Bottom Navigation */}
+        <AdminMobileBottomNav 
+          onMoreClick={() => setSidebarOpen(true)} 
+          isMoreActive={sidebarOpen} 
+        />
       </div>
     </div>
   );
