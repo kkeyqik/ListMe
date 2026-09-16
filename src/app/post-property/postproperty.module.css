@@ -43,7 +43,7 @@
   /* Blue Hero Canvas */
   .mobileHeroCanvas {
     background: linear-gradient(180deg, #0d599c 0%, #137fd9 100%);
-    padding-top: calc(4.25rem + env(safe-area-inset-top, 0px));
+    padding-top: 0.5rem;
     padding-left: 1rem;
     padding-right: 1rem;
     padding-bottom: 0;

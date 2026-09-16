@@ -15,8 +15,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
   const pathname = usePathname();
   const { isMenuOpen, openMenu } = useMobileMenu();
 
-  // Hide the consumer bottom nav on all admin portal routes to avoid clashing with admin workflows
-  if (pathname?.startsWith('/admin')) {
+  // Hide the consumer bottom nav on all admin portal routes and post-property page (which has its own top header hamburger menu)
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/post-property')) {
     return null;
   }
 

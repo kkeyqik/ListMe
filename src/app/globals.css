@@ -25,6 +25,10 @@ body {
   body {
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); /* Space for MobileBottomNav with safe area */
   }
+
+  body:has(.ppHeaderWrapper) {
+    padding-bottom: 0;
+  }
 }
 
 .mobileOnly {
