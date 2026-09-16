@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header, Footer } from '@/components/layout';
@@ -251,6 +252,98 @@ const HouseIllustration = ({ activeTab }: { activeTab: 'sell' | 'rent' | 'pg' })
         {badgeText}
       </text>
     </svg>
+  );
+};
+
+const TICKER_ITEMS = [
+  {
+    prefix: 'Assistance in co-ordinating ',
+    highlight: 'site visits*',
+  },
+  {
+    prefix: 'Advertise for ',
+    highlight: 'free',
+  },
+  {
+    prefix: 'Get ',
+    highlight: 'unlimited enquiries',
+  },
+  {
+    prefix: 'Get ',
+    highlight: 'shortlisted buyers and tenants',
+  },
+];
+
+const BenefitTicker = () => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const slidesRef = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const slides = slidesRef.current.filter(Boolean) as HTMLDivElement[];
+    if (slides.length <= 1) return;
+
+    const ctx = gsap.context(() => {
+      // Set initial positions: first slide visible, all others placed below
+      gsap.set(slides[0], { yPercent: 0, opacity: 1, autoAlpha: 1 });
+      slides.slice(1).forEach((slide) => {
+        gsap.set(slide, { yPercent: 100, opacity: 0, autoAlpha: 0 });
+      });
+
+      const tl = gsap.timeline({ repeat: -1 });
+
+      slides.forEach((current, i) => {
+        const next = slides[(i + 1) % slides.length];
+
+        // Hold current slide visible for 2.4s
+        tl.to({}, { duration: 2.4 });
+
+        // Shift current slide up and disappear
+        tl.to(current, {
+          yPercent: -100,
+          opacity: 0,
+          autoAlpha: 0,
+          duration: 0.45,
+          ease: 'power2.inOut',
+        });
+
+        // Incoming slide arrives from bottom
+        tl.fromTo(
+          next,
+          { yPercent: 100, opacity: 0, autoAlpha: 0 },
+          {
+            yPercent: 0,
+            opacity: 1,
+            autoAlpha: 1,
+            duration: 0.45,
+            ease: 'power2.inOut',
+          },
+          '<'
+        );
+      });
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <div ref={containerRef} className={styles.tickerContainer} aria-live="polite">
+      {TICKER_ITEMS.map((item, idx) => (
+        <div
+          key={idx}
+          ref={(el) => {
+            slidesRef.current[idx] = el;
+          }}
+          className={styles.tickerSlide}
+        >
+          <Check size={16} className={styles.mobileCheckIcon} />
+          <span className={styles.tickerText}>
+            {item.prefix}
+            <span className={styles.yellowHighlight}>{item.highlight}</span>
+          </span>
+        </div>
+      ))}
+    </div>
   );
 };
 
@@ -628,10 +721,8 @@ export default function PostPropertyPage() {
               Sell or Rent Property online faster
             </h1>
 
-            <div className={styles.mobileSubtitle}>
-              <Check size={16} className={styles.mobileCheckIcon} />
-              <span>Assistance in co-ordinating site visits*</span>
-            </div>
+            {/* Animated Rotating Value Proposition Ticker */}
+            <BenefitTicker />
 
             {/* 3 Top Tabs: Sell | Rent / Lease | PG */}
             <div className={styles.mobileTopTabs} role="tablist" aria-label="Listing type">
