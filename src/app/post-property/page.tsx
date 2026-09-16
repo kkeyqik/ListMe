@@ -405,26 +405,25 @@ const Step1Illustration = () => (
     style={{ maxWidth: '100%', height: 'auto' }}
   >
     {/* Soft organic light-blue blob background */}
-    <rect x="4" y="4" width="88" height="88" rx="26" fill="#eef6fc" />
+    <path d="M12 44 C10 22 24 8 48 6 C70 4 86 16 90 36 C94 58 86 80 66 88 C46 94 18 86 12 66 Z" fill="#eef6fc" />
     
     {/* Document card in warm pastel gold */}
     <rect x="22" y="18" width="46" height="54" rx="5" fill="#fef3c7" stroke="#fde68a" strokeWidth="1.5" />
     
-    {/* Folded blue corner at bottom right */}
-    <path d="M54,72 L68,72 C68,72 68,58 54,72 Z" fill="#0078db" />
-    <path d="M54,58 L68,72 L54,72 Z" fill="#0066c0" opacity="0.25" />
-    
-    {/* Horizontal document lines */}
+    {/* Horizontal document lines (3 lines per reference mockup) */}
     <line x1="30" y1="36" x2="48" y2="36" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
     <line x1="30" y1="44" x2="58" y2="44" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
-    <line x1="30" y1="52" x2="52" y2="52" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
-    <line x1="30" y1="60" x2="44" y2="60" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+    <line x1="30" y1="52" x2="48" y2="52" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+
+    {/* Folded paper curl banner at bottom */}
+    <path d="M44 72 C52 72 64 72 70 72 C74 72 76 70 76 67 C76 64 73 64 68 64 L52 64 C44 64 38 68 44 72 Z" fill="#0078db" />
+    <path d="M54 60 L68 72 L54 72 Z" fill="#0066c0" opacity="0.25" />
 
     {/* Blue circular badge on top right */}
-    <circle cx="60" cy="24" r="14" fill="#0078db" />
+    <circle cx="60" cy="22" r="13" fill="#0078db" />
     {/* White house icon inside badge */}
-    <path d="M60,16 L51,23.5 L53,23.5 L53,30.5 L67,30.5 L67,23.5 L69,23.5 Z" fill="#ffffff" />
-    <rect x="58" y="25.5" width="4" height="5" fill="#0078db" />
+    <path d="M60 14.5 L51 21.5 L53 21.5 L53 28.5 L67 28.5 L67 21.5 L69 21.5 Z" fill="#ffffff" />
+    <rect x="58" y="24" width="4" height="4.5" rx="0.5" fill="#0078db" />
   </svg>
 );
 
@@ -439,23 +438,23 @@ const Step2Illustration = () => (
     style={{ maxWidth: '100%', height: 'auto' }}
   >
     {/* Soft organic light-blue blob background */}
-    <rect x="4" y="4" width="88" height="88" rx="26" fill="#eef6fc" />
+    <path d="M22 68 C12 50 18 26 36 14 C54 4 72 10 84 26 C94 44 86 68 68 80 C50 92 32 84 22 68 Z" fill="#eef6fc" />
     
-    {/* Back photo card (warm golden, tilted -14 deg) */}
-    <g transform="rotate(-14 44 48)">
+    {/* Back photo card (warm golden, tilted -16 deg) */}
+    <g transform="rotate(-16 44 48)">
       <rect x="20" y="24" width="46" height="40" rx="4" fill="#fef3c7" stroke="#fde68a" strokeWidth="1.5" />
-      <circle cx="32" cy="34" r="4" fill="#f59e0b" opacity="0.6" />
+      <circle cx="32" cy="34" r="3.5" fill="#f59e0b" opacity="0.6" />
       <polygon points="24,56 34,44 44,56" fill="#f59e0b" opacity="0.4" />
       <polygon points="40,56 50,46 60,56" fill="#f59e0b" opacity="0.6" />
     </g>
 
-    {/* Front photo card (vivid blue, tilted +10 deg) */}
-    <g transform="rotate(10 52 52)">
-      <rect x="25" y="25" width="48" height="42" rx="4" fill="#0078db" />
-      {/* Sun/moon */}
-      <circle cx="36" cy="35" r="3.5" fill="#ffffff" fillOpacity="0.85" />
-      {/* White mountain landscape */}
-      <polygon points="28,58 41,43 51,55 58,47 68,58" fill="#ffffff" />
+    {/* Front photo card (vivid blue, tilted +12 deg) */}
+    <g transform="rotate(12 52 50)">
+      <rect x="25" y="24" width="48" height="42" rx="4" fill="#0078db" />
+      {/* Sun on top right corner per mockup */}
+      <circle cx="59" cy="34" r="3.5" fill="#ffffff" fillOpacity="0.9" />
+      {/* Smooth rounded white mountain landscape per mockup */}
+      <path d="M25 54 C31 52 36 43 43 43 C49 43 52 49 57 49 C61 49 64 46 68 48 L73 52 L73 66 L25 66 Z" fill="#ffffff" />
     </g>
   </svg>
 );
@@ -471,29 +470,30 @@ const Step3Illustration = () => (
     style={{ maxWidth: '100%', height: 'auto' }}
   >
     {/* Soft organic light-blue blob background */}
-    <rect x="4" y="4" width="88" height="88" rx="26" fill="#eef6fc" />
+    <path d="M12 44 C10 24 24 12 50 12 C74 12 88 24 86 48 C84 70 72 84 46 84 C20 84 14 64 12 44 Z" fill="#eef6fc" />
     
+    {/* Small blue spire on roof apex per mockup */}
+    <rect x="46.5" y="16" width="3" height="6" rx="1" fill="#0078db" />
+
     {/* Blue eaves / roof outer trim */}
-    <path d="M48,22 L20,43 L25,46 L48,28 L71,46 L76,43 Z" fill="#0078db" />
+    <path d="M48 21 L18 43 L23 46 L48 27 L73 46 L78 43 Z" fill="#0078db" />
     
     {/* Orange roof triangle */}
-    <polygon points="48,25 26,42 70,42" fill="#f97316" />
-    <polygon points="48,25 30,39 66,39" fill="#fb923c" />
+    <polygon points="48,24 25,42 71,42" fill="#f97316" />
+    <polygon points="48,25 29,40 67,40" fill="#fb923c" />
 
     {/* House walls & side pillars */}
-    <rect x="28" y="42" width="40" height="31" rx="2" fill="#dbeafe" />
-    <rect x="28" y="42" width="10" height="31" rx="1" fill="#93c5fd" />
-    <rect x="58" y="42" width="10" height="31" rx="1" fill="#93c5fd" />
+    <rect x="26" y="42" width="13" height="32" rx="2" fill="#cbe3f7" />
+    <rect x="57" y="42" width="13" height="32" rx="2" fill="#cbe3f7" />
 
     {/* Center doorway with Rupee symbol */}
-    <rect x="38" y="48" width="20" height="25" rx="2" fill="#ffffff" />
     <text 
       x="48" 
-      y="65" 
+      y="60" 
       textAnchor="middle" 
       dominantBaseline="central" 
       fill="#0078db" 
-      fontSize="15" 
+      fontSize="16" 
       fontWeight="bold" 
       fontFamily="system-ui, -apple-system, sans-serif"
     >
@@ -503,14 +503,14 @@ const Step3Illustration = () => (
 );
 
 const ConnectorCurveRight = () => (
-  <svg width="76" height="76" viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M0,2 H44 A30,30 0 0 1 74,32 V76" stroke="#d4ebf9" strokeWidth="2.5" strokeLinecap="round" />
+  <svg width="76" height="88" viewBox="0 0 76 88" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0,2 H42 A32,32 0 0 1 74,34 V88" stroke="#d4ebf9" strokeWidth="2.5" strokeLinecap="round" />
   </svg>
 );
 
 const ConnectorCurveLeft = () => (
-  <svg width="76" height="76" viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M2,76 V32 A30,30 0 0 1 32,2 H76" stroke="#d4ebf9" strokeWidth="2.5" strokeLinecap="round" />
+  <svg width="76" height="88" viewBox="0 0 76 88" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M2,88 V34 A32,32 0 0 1 34,2 H76" stroke="#d4ebf9" strokeWidth="2.5" strokeLinecap="round" />
   </svg>
 );
 

@@ -645,7 +645,7 @@
 
   .mobileStepsTitle {
     font-family: var(--font-heading);
-    font-size: 1.625rem;
+    font-size: clamp(1.4rem, 5vw, 1.625rem);
     font-weight: 800;
     color: #091e42;
     line-height: 1.25;
@@ -656,7 +656,7 @@
   .mobileStepsFlow {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 2.25rem;
   }
 
   .mobileStepRow {
@@ -728,17 +728,17 @@
   .connectorWrapper {
     display: flex;
     justify-content: flex-end;
-    align-items: center;
-    padding-top: 3.25rem;
-    padding-right: 0.5rem;
+    align-items: flex-start;
+    padding-top: 6.875rem;
+    padding-right: 0.75rem;
   }
 
   .connectorWrapperLeft {
     display: flex;
     justify-content: flex-start;
-    align-items: center;
-    padding-top: 4.25rem;
-    padding-left: 0.5rem;
+    align-items: flex-start;
+    padding-top: 6.875rem;
+    padding-left: 0.75rem;
   }
 }
 
