@@ -1575,7 +1575,7 @@
   }
 
   .mobileTestimonialsHeader {
-    padding: 0 1.25rem;
+    padding: 0 max(18px, 5%);
     margin-bottom: 1.25rem;
   }
 
@@ -1593,19 +1593,28 @@
     display: flex;
     gap: 1rem;
     overflow-x: auto;
-    padding: 0.25rem 1.25rem 1rem 1.25rem;
+    padding: 0.25rem max(18px, 5%) 1.25rem max(18px, 5%);
     scroll-snap-type: x mandatory;
+    scroll-padding-left: max(18px, 5%);
+    scroll-padding-inline-start: max(18px, 5%);
+    scroll-padding-inline: max(18px, 5%);
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    box-sizing: border-box;
   }
 
   .mobileTestimonialsTrack::-webkit-scrollbar {
     display: none;
   }
 
+  .mobileTestimonialsTrack::after {
+    content: '';
+    flex: 0 0 max(10px, 2.5%);
+  }
+
   .mobileTestimonialCard {
-    flex: 0 0 82%;
-    min-width: 275px;
+    flex: 0 0 80%;
+    min-width: 270px;
     max-width: 320px;
     background: #ffffff;
     border-radius: 14px;
@@ -1613,10 +1622,13 @@
     box-shadow: 0 4px 14px rgba(9, 30, 66, 0.04);
     padding: 1.25rem 1.125rem;
     scroll-snap-align: start;
+    scroll-margin-left: max(18px, 5%);
+    scroll-margin-inline-start: max(18px, 5%);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
   }
 
   .mobileTestimonialCard:active {
