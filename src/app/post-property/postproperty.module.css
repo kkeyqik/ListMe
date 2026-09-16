@@ -592,11 +592,154 @@
   color: var(--color-text-muted);
 }
 
-/* Steps Section */
+/* Steps Section (Desktop) */
 .stepsSection {
   background-color: var(--color-neutral-50);
   border-top: 1px solid var(--color-neutral-200);
   border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.desktopSteps {
+  display: block;
+}
+
+/* Mobile 3 Simple Steps Section (Exact Mockup) */
+.mobileStepsSection {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktopSteps {
+    display: none !important;
+  }
+
+  .mobileStepsSection {
+    display: block !important;
+    background-color: #ffffff;
+    padding: 3.25rem 1.25rem 3.5rem 1.25rem;
+    overflow-x: hidden;
+  }
+
+  .mobileStepsContainer {
+    max-width: 440px;
+    margin: 0 auto;
+  }
+
+  .mobileStepsHeader {
+    text-align: center;
+    margin-bottom: 2.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .mobileStepsPreheading {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6b778c;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobileStepsTitle {
+    font-family: var(--font-heading);
+    font-size: 1.625rem;
+    font-weight: 800;
+    color: #091e42;
+    line-height: 1.25;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .mobileStepsFlow {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .mobileStepRow {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  .mobileStepLeftCol {
+    width: 62%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobileStepRightCol {
+    width: 38%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobileStepRightAlign {
+    align-items: flex-end;
+    text-align: right;
+    width: 62%;
+  }
+
+  .mobileStepRowAlt .mobileStepLeftCol {
+    width: 38%;
+    align-items: flex-start;
+  }
+
+  .mobileStepIllustration {
+    margin-bottom: 0.875rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .mobileStepRightAlign .mobileStepIllustration {
+    justify-content: flex-end;
+  }
+
+  .mobileStepHeading {
+    font-family: var(--font-heading);
+    font-size: 1.0625rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.35;
+  }
+
+  .mobileStepNum {
+    color: #0078db;
+    font-weight: 800;
+  }
+
+  .mobileStepTitle {
+    color: #091e42;
+    font-weight: 700;
+  }
+
+  .mobileStepDesc {
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    color: #5e6c84;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  .connectorWrapper {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-top: 3.25rem;
+    padding-right: 0.5rem;
+  }
+
+  .connectorWrapperLeft {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding-top: 4.25rem;
+    padding-left: 0.5rem;
+  }
 }
 
 .sectionHeader {

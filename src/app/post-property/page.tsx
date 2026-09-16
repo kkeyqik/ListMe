@@ -393,6 +393,127 @@ const BenefitTicker = () => {
   );
 };
 
+// ─── Step Illustrations & Connectors for Mobile "3 Simple Steps" ───
+const Step1Illustration = () => (
+  <svg 
+    width="88" 
+    height="88" 
+    viewBox="0 0 96 96" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg" 
+    aria-hidden="true"
+    style={{ maxWidth: '100%', height: 'auto' }}
+  >
+    {/* Soft organic light-blue blob background */}
+    <rect x="4" y="4" width="88" height="88" rx="26" fill="#eef6fc" />
+    
+    {/* Document card in warm pastel gold */}
+    <rect x="22" y="18" width="46" height="54" rx="5" fill="#fef3c7" stroke="#fde68a" strokeWidth="1.5" />
+    
+    {/* Folded blue corner at bottom right */}
+    <path d="M54,72 L68,72 C68,72 68,58 54,72 Z" fill="#0078db" />
+    <path d="M54,58 L68,72 L54,72 Z" fill="#0066c0" opacity="0.25" />
+    
+    {/* Horizontal document lines */}
+    <line x1="30" y1="36" x2="48" y2="36" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+    <line x1="30" y1="44" x2="58" y2="44" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+    <line x1="30" y1="52" x2="52" y2="52" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+    <line x1="30" y1="60" x2="44" y2="60" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+
+    {/* Blue circular badge on top right */}
+    <circle cx="60" cy="24" r="14" fill="#0078db" />
+    {/* White house icon inside badge */}
+    <path d="M60,16 L51,23.5 L53,23.5 L53,30.5 L67,30.5 L67,23.5 L69,23.5 Z" fill="#ffffff" />
+    <rect x="58" y="25.5" width="4" height="5" fill="#0078db" />
+  </svg>
+);
+
+const Step2Illustration = () => (
+  <svg 
+    width="88" 
+    height="88" 
+    viewBox="0 0 96 96" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg" 
+    aria-hidden="true"
+    style={{ maxWidth: '100%', height: 'auto' }}
+  >
+    {/* Soft organic light-blue blob background */}
+    <rect x="4" y="4" width="88" height="88" rx="26" fill="#eef6fc" />
+    
+    {/* Back photo card (warm golden, tilted -14 deg) */}
+    <g transform="rotate(-14 44 48)">
+      <rect x="20" y="24" width="46" height="40" rx="4" fill="#fef3c7" stroke="#fde68a" strokeWidth="1.5" />
+      <circle cx="32" cy="34" r="4" fill="#f59e0b" opacity="0.6" />
+      <polygon points="24,56 34,44 44,56" fill="#f59e0b" opacity="0.4" />
+      <polygon points="40,56 50,46 60,56" fill="#f59e0b" opacity="0.6" />
+    </g>
+
+    {/* Front photo card (vivid blue, tilted +10 deg) */}
+    <g transform="rotate(10 52 52)">
+      <rect x="25" y="25" width="48" height="42" rx="4" fill="#0078db" />
+      {/* Sun/moon */}
+      <circle cx="36" cy="35" r="3.5" fill="#ffffff" fillOpacity="0.85" />
+      {/* White mountain landscape */}
+      <polygon points="28,58 41,43 51,55 58,47 68,58" fill="#ffffff" />
+    </g>
+  </svg>
+);
+
+const Step3Illustration = () => (
+  <svg 
+    width="88" 
+    height="88" 
+    viewBox="0 0 96 96" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg" 
+    aria-hidden="true"
+    style={{ maxWidth: '100%', height: 'auto' }}
+  >
+    {/* Soft organic light-blue blob background */}
+    <rect x="4" y="4" width="88" height="88" rx="26" fill="#eef6fc" />
+    
+    {/* Blue eaves / roof outer trim */}
+    <path d="M48,22 L20,43 L25,46 L48,28 L71,46 L76,43 Z" fill="#0078db" />
+    
+    {/* Orange roof triangle */}
+    <polygon points="48,25 26,42 70,42" fill="#f97316" />
+    <polygon points="48,25 30,39 66,39" fill="#fb923c" />
+
+    {/* House walls & side pillars */}
+    <rect x="28" y="42" width="40" height="31" rx="2" fill="#dbeafe" />
+    <rect x="28" y="42" width="10" height="31" rx="1" fill="#93c5fd" />
+    <rect x="58" y="42" width="10" height="31" rx="1" fill="#93c5fd" />
+
+    {/* Center doorway with Rupee symbol */}
+    <rect x="38" y="48" width="20" height="25" rx="2" fill="#ffffff" />
+    <text 
+      x="48" 
+      y="65" 
+      textAnchor="middle" 
+      dominantBaseline="central" 
+      fill="#0078db" 
+      fontSize="15" 
+      fontWeight="bold" 
+      fontFamily="system-ui, -apple-system, sans-serif"
+    >
+      ₹
+    </text>
+  </svg>
+);
+
+const ConnectorCurveRight = () => (
+  <svg width="76" height="76" viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0,2 H44 A30,30 0 0 1 74,32 V76" stroke="#d4ebf9" strokeWidth="2.5" strokeLinecap="round" />
+  </svg>
+);
+
+const ConnectorCurveLeft = () => (
+  <svg width="76" height="76" viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M2,76 V32 A30,30 0 0 1 32,2 H76" stroke="#d4ebf9" strokeWidth="2.5" strokeLinecap="round" />
+  </svg>
+);
+
 export default function PostPropertyPage() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -1076,8 +1197,81 @@ export default function PostPropertyPage() {
           </form>
         </section>
 
-        {/* 3 SIMPLE STEPS SECTION */}
-        <section className={`${styles.stepsSection} section-padding`}>
+        {/* MOBILE 3 SIMPLE STEPS SECTION (Matches uploaded reference mockup) */}
+        <section className={styles.mobileStepsSection} aria-label="How to post property in 3 simple steps">
+          <div className={styles.mobileStepsContainer}>
+            <div className={styles.mobileStepsHeader}>
+              <span className={styles.mobileStepsPreheading}>HOW TO POST</span>
+              <h2 className={styles.mobileStepsTitle}>
+                Post Your Property in<br />3 Simple Steps
+              </h2>
+            </div>
+
+            <div className={styles.mobileStepsFlow}>
+              {/* Step 01 */}
+              <div className={styles.mobileStepRow}>
+                <div className={styles.mobileStepLeftCol}>
+                  <div className={styles.mobileStepIllustration}>
+                    <Step1Illustration />
+                  </div>
+                  <h3 className={styles.mobileStepHeading}>
+                    <span className={styles.mobileStepNum}>01. </span>
+                    <span className={styles.mobileStepTitle}>Add property details</span>
+                  </h3>
+                  <p className={styles.mobileStepDesc}>
+                    Begin by telling us the few basic details about your property like your property type, location, rooms, etc
+                  </p>
+                </div>
+                <div className={styles.mobileStepRightCol}>
+                  <div className={styles.connectorWrapper}>
+                    <ConnectorCurveRight />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 02 */}
+              <div className={`${styles.mobileStepRow} ${styles.mobileStepRowAlt}`}>
+                <div className={styles.mobileStepLeftCol}>
+                  <div className={styles.connectorWrapperLeft}>
+                    <ConnectorCurveLeft />
+                  </div>
+                </div>
+                <div className={`${styles.mobileStepRightCol} ${styles.mobileStepRightAlign}`}>
+                  <div className={styles.mobileStepIllustration}>
+                    <Step2Illustration />
+                  </div>
+                  <h3 className={styles.mobileStepHeading}>
+                    <span className={styles.mobileStepNum}>02. </span>
+                    <span className={styles.mobileStepTitle}>Upload Photos &amp; Videos</span>
+                  </h3>
+                  <p className={styles.mobileStepDesc}>
+                    Add photos/videos of your property from desktop or mobile
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 03 */}
+              <div className={styles.mobileStepRow}>
+                <div className={styles.mobileStepLeftCol}>
+                  <div className={styles.mobileStepIllustration}>
+                    <Step3Illustration />
+                  </div>
+                  <h3 className={styles.mobileStepHeading}>
+                    <span className={styles.mobileStepNum}>03. </span>
+                    <span className={styles.mobileStepTitle}>Add Pricing &amp; Ownership</span>
+                  </h3>
+                  <p className={styles.mobileStepDesc}>
+                    Add ownership details and expected price, then you are ready to post
+                  </p>
+                </div>
+                <div className={styles.mobileStepRightCol} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* DESKTOP 3 SIMPLE STEPS SECTION */}
+        <section className={`${styles.stepsSection} ${styles.desktopSteps} section-padding`}>
           <div className="container">
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>Post Property in 3 Simple Steps</h2>
