@@ -196,7 +196,15 @@ const HouseIllustration = ({ activeTab }: { activeTab: 'sell' | 'rent' | 'pg' })
   const badgeText = activeTab === 'sell' ? 'Sell' : activeTab === 'rent' ? 'Rent' : 'PG';
 
   return (
-    <svg width="220" height="115" viewBox="0 0 240 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg 
+      width="220" 
+      height="115" 
+      viewBox="0 0 240 120" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      aria-hidden="true"
+      style={{ maxWidth: '100%', height: 'auto' }}
+    >
       {/* Soft ground shadow */}
       <ellipse cx="120" cy="112" rx="95" ry="8" fill="#fef3c7" fillOpacity="0.6" />
       
@@ -230,7 +238,16 @@ const HouseIllustration = ({ activeTab }: { activeTab: 'sell' | 'rent' | 'pg' })
       <rect x="180" y="66" width="3" height="44" fill="#ffffff" rx="1" />
       <rect x="174" y="68" width="34" height="3" fill="#ffffff" rx="1" />
       <rect x="182" y="74" width="34" height="20" rx="3" fill="#f59e0b" />
-      <text x="199" y="88" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold" fontFamily="system-ui, -apple-system, sans-serif">
+      <text 
+        x="199" 
+        y="84" 
+        textAnchor="middle" 
+        dominantBaseline="central"
+        fill="#ffffff" 
+        fontSize="11" 
+        fontWeight="bold" 
+        fontFamily="system-ui, -apple-system, sans-serif"
+      >
         {badgeText}
       </text>
     </svg>
@@ -309,22 +326,41 @@ export default function PostPropertyPage() {
     setMobileTopTab(tab);
     if (tab === 'sell') {
       setListingFor('sell');
-      setSelectedPillId(mobileCategory === 'residential' ? 'flat-apartment' : 'ready-office');
+      const defaultId = mobileCategory === 'residential' ? 'flat-apartment' : 'ready-office';
+      const defaultType = mobileCategory === 'residential' ? 'APARTMENT' : 'OFFICE';
+      setSelectedPillId(defaultId);
+      setPropertyType(defaultType);
     } else if (tab === 'rent') {
       setListingFor('rent');
-      setSelectedPillId(mobileCategory === 'residential' ? 'flat-apartment' : 'ready-office');
+      const defaultId = mobileCategory === 'residential' ? 'flat-apartment' : 'ready-office';
+      const defaultType = mobileCategory === 'residential' ? 'APARTMENT' : 'OFFICE';
+      setSelectedPillId(defaultId);
+      setPropertyType(defaultType);
     } else if (tab === 'pg') {
       setListingFor('rent');
       setSelectedPillId('paying-guest');
+      setPropertyType('PG');
     }
   };
 
   const handleMobileCategoryChange = (cat: 'residential' | 'commercial') => {
     setMobileCategory(cat);
+    setCategory(cat);
     if (cat === 'residential') {
       setSelectedPillId('flat-apartment');
+      setPropertyType('APARTMENT');
     } else {
       setSelectedPillId('ready-office');
+      setPropertyType('OFFICE');
+    }
+  };
+
+  const handleSelectPill = (pillId: string) => {
+    setSelectedPillId(pillId);
+    const activePills = getActiveMobilePills();
+    const chosenPill = activePills.find((p) => p.id === pillId);
+    if (chosenPill) {
+      setPropertyType(chosenPill.type);
     }
   };
 
@@ -342,16 +378,21 @@ export default function PostPropertyPage() {
     }
 
     const digitsOnly = contact.replace(/\D/g, '');
-    if (digitsOnly.length >= 10) {
+    const isEmail = contact.includes('@') && contact.includes('.');
+    const isPhone = digitsOnly.length >= 10;
+
+    if (isPhone) {
+      const tenDigits = digitsOnly.slice(-10);
+      setPhone(tenDigits);
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('onboarding_phone', digitsOnly.slice(-10));
+        window.sessionStorage.setItem('onboarding_phone', tenDigits);
       }
-    } else if (contact.includes('@')) {
+    } else if (isEmail) {
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem('onboarding_email', contact);
       }
-    } else if (contact.length < 3) {
-      showToast('Error', 'Please enter a valid contact number or email', 'error');
+    } else {
+      showToast('Error', 'Please enter a valid 10-digit mobile number or email address', 'error');
       return;
     }
 
@@ -360,11 +401,14 @@ export default function PostPropertyPage() {
     const targetType = mobileTopTab === 'sell' ? 'sell' : 'rent';
     const targetPropertyType = chosenPill.type;
 
+    setPropertyType(targetPropertyType);
+    setListingFor(targetType);
+
     const targetUrl = `/dashboard/listings/new?type=${targetType}&propertyType=${targetPropertyType}`;
 
     if (!user) {
       setAuthModalOpen(true);
-    } else if (!profile?.phoneVerified && digitsOnly.length >= 10) {
+    } else if (!profile?.phoneVerified && isPhone) {
       setVerificationModalOpen(true);
     } else {
       router.push(targetUrl);
@@ -404,7 +448,11 @@ export default function PostPropertyPage() {
   };
 
   const handleAuthSuccess = () => {
-    const targetUrl = `/dashboard/listings/new?type=${listingFor}&propertyType=${propertyType}`;
+    const activePills = getActiveMobilePills();
+    const chosenPill = activePills.find((p) => p.id === selectedPillId);
+    const activePropType = chosenPill ? chosenPill.type : propertyType;
+    const activeType = mobileTopTab === 'sell' ? 'sell' : listingFor;
+    const targetUrl = `/dashboard/listings/new?type=${activeType}&propertyType=${activePropType}`;
     router.push(targetUrl);
   };
 
@@ -586,10 +634,11 @@ export default function PostPropertyPage() {
             </div>
 
             {/* 3 Top Tabs: Sell | Rent / Lease | PG */}
-            <div className={styles.mobileTopTabs} role="tablist">
+            <div className={styles.mobileTopTabs} role="tablist" aria-label="Listing type">
               <button
                 type="button"
                 role="tab"
+                id="mobile-tab-sell"
                 aria-selected={mobileTopTab === 'sell'}
                 className={`${styles.mobileTab} ${styles.mobileTabLeft} ${mobileTopTab === 'sell' ? styles.mobileTabActive : ''}`}
                 onClick={() => handleMobileTopTabChange('sell')}
@@ -599,6 +648,7 @@ export default function PostPropertyPage() {
               <button
                 type="button"
                 role="tab"
+                id="mobile-tab-rent"
                 aria-selected={mobileTopTab === 'rent'}
                 className={`${styles.mobileTab} ${styles.mobileTabCenter} ${mobileTopTab === 'rent' ? styles.mobileTabActive : ''}`}
                 onClick={() => handleMobileTopTabChange('rent')}
@@ -608,6 +658,7 @@ export default function PostPropertyPage() {
               <button
                 type="button"
                 role="tab"
+                id="mobile-tab-pg"
                 aria-selected={mobileTopTab === 'pg'}
                 className={`${styles.mobileTab} ${styles.mobileTabRight} ${mobileTopTab === 'pg' ? styles.mobileTabActive : ''}`}
                 onClick={() => handleMobileTopTabChange('pg')}
@@ -618,16 +669,22 @@ export default function PostPropertyPage() {
           </div>
 
           {/* White Form Container */}
-          <div className={styles.mobileFormCard}>
+          <form 
+            onSubmit={handleMobileSubmit} 
+            className={styles.mobileFormCard}
+            noValidate
+          >
             <h2 className={styles.mobileQuestionHeading}>
               What kind of property do you have?
             </h2>
 
             {/* Category Underline Tabs */}
             {mobileTopTab !== 'pg' ? (
-              <div className={styles.mobileCategoryNav}>
+              <div className={styles.mobileCategoryNav} role="tablist" aria-label="Property category">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={mobileCategory === 'residential'}
                   className={`${styles.mobileCategoryTab} ${mobileCategory === 'residential' ? styles.mobileCategoryActive : ''}`}
                   onClick={() => handleMobileCategoryChange('residential')}
                 >
@@ -635,6 +692,8 @@ export default function PostPropertyPage() {
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={mobileCategory === 'commercial'}
                   className={`${styles.mobileCategoryTab} ${mobileCategory === 'commercial' ? styles.mobileCategoryActive : ''}`}
                   onClick={() => handleMobileCategoryChange('commercial')}
                 >
@@ -642,21 +701,27 @@ export default function PostPropertyPage() {
                 </button>
               </div>
             ) : (
-              <div className={styles.mobileCategoryNav}>
-                <div className={`${styles.mobileCategoryTab} ${styles.mobileCategoryActive}`}>
+              <div className={styles.mobileCategoryNav} role="tablist" aria-label="Property category">
+                <div 
+                  role="tab" 
+                  aria-selected={true} 
+                  className={`${styles.mobileCategoryTab} ${styles.mobileCategoryActive}`}
+                >
                   Paying Guest / Co-Living
                 </div>
               </div>
             )}
 
             {/* Sub-category Pills */}
-            <div className={styles.mobilePillsWrapper}>
+            <div className={styles.mobilePillsWrapper} role="radiogroup" aria-label="Property sub-category">
               {getActiveMobilePills().map((pill) => (
                 <button
                   key={pill.id}
                   type="button"
+                  role="radio"
+                  aria-checked={selectedPillId === pill.id}
                   className={`${styles.mobilePill} ${selectedPillId === pill.id ? styles.mobilePillActive : ''}`}
-                  onClick={() => setSelectedPillId(pill.id)}
+                  onClick={() => handleSelectPill(pill.id)}
                 >
                   {pill.label}
                 </button>
@@ -665,30 +730,38 @@ export default function PostPropertyPage() {
 
             {/* Contact Details Section */}
             <div className={styles.mobileContactSection}>
-              <h3 className={styles.mobileContactHeading}>
+              <h3 id="mobile-contact-heading" className={styles.mobileContactHeading}>
                 Your contact details for the {mobileTopTab === 'sell' ? 'buyer' : 'tenant'} to reach you
               </h3>
 
               <div className={styles.mobileInputWrapper}>
                 <input
                   type="text"
+                  id="mobileContactInput"
+                  aria-labelledby="mobile-contact-heading"
                   className={styles.mobileContactInput}
                   placeholder="Phone number / Email / Username"
                   value={mobileContact}
-                  onChange={(e) => setMobileContact(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMobileContact(val);
+                    const digits = val.replace(/\D/g, '');
+                    if (digits.length >= 10) {
+                      setPhone(digits.slice(-10));
+                    }
+                  }}
                   autoComplete="tel"
                 />
               </div>
 
               <button
-                type="button"
+                type="submit"
                 className={styles.mobileCtaBtn}
-                onClick={handleMobileSubmit}
               >
                 Start now, it’s FREE
               </button>
             </div>
-          </div>
+          </form>
         </section>
 
         {/* 3 SIMPLE STEPS SECTION */}
@@ -738,7 +811,11 @@ export default function PostPropertyPage() {
               <Button 
                 onClick={() => {
                   const target = document.getElementById('sub-category');
-                  if (target) target.scrollIntoView({ behavior: 'smooth' });
+                  if (target && target.offsetParent !== null) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
                 }} 
                 variant="outline"
                 size="lg"
@@ -1099,14 +1176,14 @@ export default function PostPropertyPage() {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
-        initialPhone={phone}
-        redirectPath={`/dashboard/listings/new?type=${listingFor}&propertyType=${propertyType}`}
+        initialPhone={phone || (mobileContact.replace(/\D/g, '').length >= 10 ? mobileContact.replace(/\D/g, '').slice(-10) : '')}
+        redirectPath={`/dashboard/listings/new?type=${mobileTopTab === 'sell' ? 'sell' : listingFor}&propertyType=${propertyType}`}
       />
       <PhoneVerificationModal
         isOpen={verificationModalOpen}
         onClose={() => setVerificationModalOpen(false)}
         onSuccess={handleAuthSuccess}
-        initialPhone={phone}
+        initialPhone={phone || (mobileContact.replace(/\D/g, '').length >= 10 ? mobileContact.replace(/\D/g, '').slice(-10) : '')}
       />
     </div>
   );

@@ -492,6 +492,10 @@
     color: #ffffff;
   }
 
+  .ppHeader .ppLogo {
+    flex-shrink: 0;
+  }
+
   .ppMobileMenuBtn {
     display: flex;
     align-items: center;
@@ -504,10 +508,17 @@
     cursor: pointer;
     padding: 0;
     touch-action: manipulation;
+    flex-shrink: 0;
+  }
+
+  .ppMobileMenuBtn:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   .ppWhatsappBtn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.375rem;
     color: #ffffff;
@@ -515,15 +526,23 @@
     font-size: 0.8125rem;
     font-weight: 600;
     background: rgba(255, 255, 255, 0.15);
-    padding: 6px 12px;
+    padding: 0.5rem 0.875rem;
+    min-height: 40px;
     border-radius: 9999px;
     touch-action: manipulation;
+    white-space: nowrap;
+    flex-shrink: 0;
     transition: background-color var(--transition-fast);
   }
 
   .ppWhatsappBtn:hover,
   .ppWhatsappBtn:active {
     background: rgba(255, 255, 255, 0.25);
+  }
+
+  .ppWhatsappBtn:focus-visible {
+    outline: 2px solid #25D366;
+    outline-offset: 2px;
   }
 
   .ppWhatsappBadge {
@@ -540,6 +559,22 @@
 
   .ppDesktopControls {
     display: none !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .ppHeader {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .ppHeader .ppLogoText {
+    font-size: 1.25rem;
+  }
+
+  .ppWhatsappBtn {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -761,7 +796,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: calc(1.25rem + env(safe-area-inset-top, 0px)) 1.5rem 1.25rem 1.5rem;
   border-bottom: 1px solid var(--color-neutral-100);
   background-color: var(--color-neutral-50);
 }
