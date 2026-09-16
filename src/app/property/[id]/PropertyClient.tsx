@@ -119,8 +119,12 @@ function getEmbedUrl(rawUrl: string): { type: 'iframe' | 'video' | 'link' | 'inv
     };
   }
 
-  // 6. Direct video format (.mp4, .webm, .ogg, .mov)
-  if (/\.(mp4|webm|ogg|mov)($|\?)/i.test(trimmed)) {
+  // 6. Direct video format (.mp4, .webm, .ogg, .mov, .mkv) or Supabase video storage
+  if (
+    /\.(mp4|webm|ogg|mov|mkv)($|\?)/i.test(trimmed) ||
+    trimmed.includes('/listing-videos/') ||
+    trimmed.includes('/videos/')
+  ) {
     return {
       type: 'video',
       url: trimmed,

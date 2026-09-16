@@ -24,10 +24,13 @@ import {
   generateFileName,
   getListingDocPath,
   getListingImagePath,
+  getListingVideoPath,
   LISTING_DOCUMENTS_BUCKET,
   LISTING_IMAGES_BUCKET,
+  LISTING_VIDEOS_BUCKET,
   validateDocument,
   validateImage,
+  validateVideo,
   processImage,
 } from '@/lib/upload';
 import styles from '@/app/dashboard/listings/new/new.module.css';
@@ -94,6 +97,17 @@ export default function EditListing({ params }: EditListingProps) {
   const [selectedPhotos, setSelectedPhotos] = useState<any[]>([]);
   const [selectedDocs, setSelectedDocs] = useState<any[]>([]);
   const [initialVideoUrl, setInitialVideoUrl] = useState('');
+  const [selectedVideo, setSelectedVideo] = useState<{
+    id: string;
+    name: string;
+    size: number;
+    file: File;
+    progress: number;
+    uploaded?: boolean;
+    previewUrl?: string;
+  } | null>(null);
+  const [videoMode, setVideoMode] = useState<'upload' | 'link'>('upload');
+  const [deleteExistingVideo, setDeleteExistingVideo] = useState(false);
 
   // Fetch Cities, Amenities, and Existing Listing Details
   useEffect(() => {
@@ -124,6 +138,11 @@ export default function EditListing({ params }: EditListingProps) {
           // Map existing listing details to form state
           const listing = listingData.listing;
           const existingVideo = listing.videos?.[0]?.videoUrl || '';
+          setInitialVideoUrl(existingVideo);
+          if (existingVideo) {
+            const isEmbed = /youtube\.com|youtu\.be|vimeo\.com|streamable\.com|loom\.com/i.test(existingVideo);
+            setVideoMode(isEmbed ? 'link' : 'upload');
+          }
           
           setFormData({
             listingFor: listing.listingFor || 'SALE',
@@ -411,6 +430,40 @@ export default function EditListing({ params }: EditListingProps) {
     setSelectedDocs((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    const validation = validateVideo(file);
+    if (!validation.valid) {
+      showToast('Invalid Video', validation.error || 'Please select a valid video file', 'error');
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setSelectedVideo({
+      id: Math.random().toString(36).substring(2, 9),
+      name: file.name,
+      size: file.size,
+      file,
+      progress: 0,
+      uploaded: false,
+      previewUrl,
+    });
+    setDeleteExistingVideo(false);
+    setFormData((prev: any) => ({ ...prev, videoUrl: '' }));
+  };
+
+  const removeSelectedVideo = () => {
+    if (selectedVideo?.previewUrl) {
+      URL.revokeObjectURL(selectedVideo.previewUrl);
+    }
+    setSelectedVideo(null);
+  };
+
+  const removeExistingVideo = () => {
+    setDeleteExistingVideo(true);
+    setFormData((prev: any) => ({ ...prev, videoUrl: '' }));
+  };
+
   const uploadListingMedia = async (videoHasChanged = false, videoUrlToSave = '') => {
     const supabase = createClient();
 
@@ -483,19 +536,55 @@ export default function EditListing({ params }: EditListingProps) {
       });
     }
 
-    const videos = videoUrlToSave?.trim()
-      ? [{ videoUrl: videoUrlToSave.trim(), videoType: 'walkthrough' }]
+    let finalVideoUrl = '';
+    let shouldUpdateVideos = videoHasChanged;
+
+    if (selectedVideo) {
+      const fileName = generateFileName(selectedVideo.name);
+      const path = getListingVideoPath(listingId, fileName);
+
+      setSelectedVideo((prev) => (prev ? { ...prev, progress: 30 } : null));
+
+      const { error } = await supabase.storage
+        .from(LISTING_VIDEOS_BUCKET)
+        .upload(path, selectedVideo.file, {
+          contentType: selectedVideo.file.type || 'video/mp4',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('Video upload error:', error);
+        throw new Error(`Failed to upload video: ${error.message}`);
+      }
+
+      const { data } = supabase.storage.from(LISTING_VIDEOS_BUCKET).getPublicUrl(path);
+      finalVideoUrl = data.publicUrl;
+      shouldUpdateVideos = true;
+
+      setSelectedVideo((prev) => (prev ? { ...prev, progress: 100, uploaded: true } : null));
+    } else if (deleteExistingVideo) {
+      finalVideoUrl = '';
+      shouldUpdateVideos = true;
+    } else if (videoUrlToSave?.trim() && videoUrlToSave.trim() !== initialVideoUrl) {
+      finalVideoUrl = videoUrlToSave.trim();
+      shouldUpdateVideos = true;
+    } else if (!deleteExistingVideo && initialVideoUrl) {
+      finalVideoUrl = initialVideoUrl;
+    }
+
+    const videos = finalVideoUrl
+      ? [{ videoUrl: finalVideoUrl, videoType: 'walkthrough' }]
       : [];
 
-    if (images.length || documents.length || videoHasChanged) {
+    if (images.length || documents.length || shouldUpdateVideos) {
       const mediaResponse = await fetch(`/api/listings/${listingId}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           images,
           documents,
-          videos: videoHasChanged ? videos : undefined,
-          replaceVideos: videoHasChanged,
+          videos: shouldUpdateVideos ? videos : undefined,
+          replaceVideos: shouldUpdateVideos,
         }),
       });
 
@@ -639,7 +728,10 @@ export default function EditListing({ params }: EditListingProps) {
       }
     }
 
-    const videoChanged = normalizedVideo !== initialVideoUrl.trim();
+    const videoChanged =
+      Boolean(selectedVideo) ||
+      deleteExistingVideo ||
+      normalizedVideo !== initialVideoUrl.trim();
 
     setSubmitting(true);
     try {
@@ -648,7 +740,7 @@ export default function EditListing({ params }: EditListingProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          videoUrl: normalizedVideo,
+          videoUrl: deleteExistingVideo ? '' : (selectedVideo ? '' : normalizedVideo),
           amenities: formData.selectedAmenities,
         }),
       });
@@ -1363,21 +1455,182 @@ export default function EditListing({ params }: EditListingProps) {
 
             {/* Video walkthrough section */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>
-                <Video size={18} style={{ color: 'var(--color-secondary)' }} />
-                <span>Property Walkthrough Video (Optional)</span>
-              </label>
-              <Input
-                name="videoUrl"
-                value={formData.videoUrl}
-                onChange={handleInputChange}
-                placeholder="Paste YouTube, Vimeo, or direct video URL (e.g. https://www.youtube.com/watch?v=...)"
-                leftIcon={<Video size={16} />}
-                fullWidth
-              />
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
-                Embed a video tour of your property. Buyers love seeing walkthroughs! Supports YouTube, Vimeo, and direct video links.
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                <label className={styles.label} style={{ marginBottom: 0 }}>
+                  <Video size={18} style={{ color: 'var(--color-secondary)' }} />
+                  <span>Property Walkthrough Video (Optional)</span>
+                </label>
+                <div className={styles.videoModeToggle}>
+                  <button
+                    type="button"
+                    onClick={() => setVideoMode('upload')}
+                    className={`${styles.videoModeBtn} ${videoMode === 'upload' ? styles.videoModeBtnActive : ''}`}
+                  >
+                    <Upload size={14} />
+                    <span>Upload Video File</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoMode('link')}
+                    className={`${styles.videoModeBtn} ${videoMode === 'link' ? styles.videoModeBtnActive : ''}`}
+                  >
+                    <Video size={14} />
+                    <span>Paste Video Link</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Show existing video card if present and not deleted/replaced */}
+              {initialVideoUrl && !deleteExistingVideo && !selectedVideo && !formData.videoUrl ? (
+                <div className={styles.fileList} style={{ marginBottom: '8px' }}>
+                  <div className={styles.fileItem} style={{ background: '#f8fafc', border: '1px solid var(--color-neutral-200)' }}>
+                    <div className={styles.fileInfo}>
+                      <Video size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                      <div>
+                        <span className={styles.fileName} style={{ fontWeight: 600 }}>Current Walkthrough Video</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {initialVideoUrl}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span className={styles.successText}>
+                        <Check size={14} /> Active
+                      </span>
+                      {!submitting && (
+                        <button
+                          type="button"
+                          onClick={removeExistingVideo}
+                          aria-label="Remove existing video"
+                          title="Remove video"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--color-text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '6px',
+                            borderRadius: 'var(--radius-sm)',
+                            transition: 'color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-error)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                        >
+                          <X size={18} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {/* Video preview player if direct video format */}
+                  {/\.(mp4|webm|mov|mkv)($|\?)/i.test(initialVideoUrl) || initialVideoUrl.includes('/listing-videos/') ? (
+                    <div className={styles.videoPreviewBox}>
+                      <video
+                        src={initialVideoUrl}
+                        controls
+                        className={styles.videoPreviewPlayer}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : videoMode === 'upload' ? (
+                <>
+                  {!selectedVideo ? (
+                    <div className={styles.dropzone}>
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg,video/*"
+                        onChange={handleVideoSelect}
+                        className={styles.fileInput}
+                        id="video-upload-edit"
+                      />
+                      <label htmlFor="video-upload-edit" className={styles.dropzoneLabel} style={{ cursor: 'pointer' }}>
+                        <Upload size={32} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
+                        <span>Click to Upload or Drag &amp; Drop Property Video</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                          MP4, WebM, MOV formats (Max 50MB)
+                        </span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className={styles.fileList}>
+                      <div className={styles.fileItem} style={{ background: '#f8fafc', border: '1px solid var(--color-neutral-200)' }}>
+                        <div className={styles.fileInfo}>
+                          <Video size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                          <div>
+                            <span className={styles.fileName} style={{ fontWeight: 600 }}>{selectedVideo.name}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>
+                              {(selectedVideo.size / (1024 * 1024)).toFixed(1)} MB
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div className={styles.fileProgress}>
+                            {submitting && !selectedVideo.uploaded ? (
+                              <div className={styles.progressBar} style={{ width: `${selectedVideo.progress}%` }} />
+                            ) : (
+                              <span className={styles.successText}>
+                                <Check size={14} /> {selectedVideo.uploaded ? 'Uploaded' : 'Ready to upload'}
+                              </span>
+                            )}
+                          </div>
+                          {!submitting && (
+                            <button
+                              type="button"
+                              onClick={removeSelectedVideo}
+                              aria-label="Remove selected video"
+                              title="Remove video"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'var(--color-text-muted)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '6px',
+                                borderRadius: 'var(--radius-sm)',
+                                transition: 'color 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-error)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                            >
+                              <X size={18} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {selectedVideo.previewUrl && (
+                        <div className={styles.videoPreviewBox}>
+                          <video
+                            src={selectedVideo.previewUrl}
+                            controls
+                            className={styles.videoPreviewPlayer}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
+                    Upload a video tour recorded on your phone or camera to attract 3x more buyer inquiries.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Input
+                    name="videoUrl"
+                    value={formData.videoUrl}
+                    onChange={handleInputChange}
+                    placeholder="Paste YouTube, Vimeo, or direct video URL (e.g. https://www.youtube.com/watch?v=...)"
+                    leftIcon={<Video size={16} />}
+                    fullWidth
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
+                    Embed an existing video walkthrough. Supports YouTube, Vimeo, and direct video streaming links.
+                  </span>
+                </>
+              )}
             </div>
 
             <div className={styles.formGroup}>
