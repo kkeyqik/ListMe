@@ -70,7 +70,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
       
       <button 
         type="button"
-        onClick={openMenu} 
+        onClick={onMenuClick || openMenu} 
         className={`${styles.navItem} ${isMenuOpen ? styles.active : ''}`}
         aria-label="Open mobile category menu"
         aria-expanded={isMenuOpen}
