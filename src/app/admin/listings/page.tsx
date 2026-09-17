@@ -846,7 +846,10 @@ export default function AdminListings() {
               const isDropdownOpen = activeDropdownId === listing.id;
 
               return (
-                <div key={listing.id} className={styles.propertyCard}>
+                <div
+                  key={listing.id}
+                  className={`${styles.propertyCard} ${isDropdownOpen ? styles.propertyCardOpen : ''}`}
+                >
                   {/* Top Content Block */}
                   <div className={styles.cardTopBlock}>
                     {/* Left: Thumbnail + Action Icons directly underneath */}
@@ -885,6 +888,7 @@ export default function AdminListings() {
                           className={`${styles.thumbActionBtn} ${styles.thumbViewBtn}`}
                           aria-label={`View property details: ${listing.title}`}
                           title="View Property"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Eye size={15} aria-hidden="true" />
                         </Link>
@@ -893,6 +897,7 @@ export default function AdminListings() {
                           className={`${styles.thumbActionBtn} ${styles.thumbEditBtn}`}
                           aria-label={`Edit listing: ${listing.title}`}
                           title="Edit Listing"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Edit size={15} aria-hidden="true" />
                         </Link>
@@ -914,107 +919,106 @@ export default function AdminListings() {
 
                     {/* Right: Info Block */}
                     <div className={styles.cardInfoBlock}>
-                      <div className={styles.cardTitleRow}>
-                        <h3 className={styles.cardPropertyTitle} title={listing.title}>
-                          {formattedTitle}
-                        </h3>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveDropdownId(isDropdownOpen ? null : listing.id);
-                          }}
-                          className={styles.cardMoreBtn}
-                          aria-label="More options"
-                          aria-expanded={isDropdownOpen}
-                          aria-haspopup="true"
-                        >
-                          <MoreVertical size={16} />
-                        </button>
+                      <div className={styles.cardDetailsTop}>
+                        <div className={styles.cardTitleRow}>
+                          <h3 className={styles.cardPropertyTitle} title={listing.title}>
+                            {formattedTitle}
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownId(isDropdownOpen ? null : listing.id);
+                            }}
+                            className={styles.cardMoreBtn}
+                            aria-label="More options"
+                            aria-expanded={isDropdownOpen}
+                            aria-haspopup="true"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
 
-                        {/* 3-dots Dropdown Menu */}
-                        {isDropdownOpen && (
-                          <div className={styles.cardDropdownMenu} onClick={(e) => e.stopPropagation()}>
-                            {listing.status === 'PENDING_REVIEW' && (
-                              <>
-                                <button
-                                  type="button"
-                                  className={styles.cardDropdownItem}
-                                  style={{ color: '#10b981' }}
-                                  disabled={actionId === listing.id}
-                                  onClick={() => {
-                                    setActiveDropdownId(null);
-                                    handleModerate(listing.id, 'ACTIVE');
-                                  }}
-                                >
-                                  <Check size={14} /> Approve
-                                </button>
-                                <button
-                                  type="button"
-                                  className={styles.cardDropdownItem}
-                                  style={{ color: '#ef4444' }}
-                                  disabled={actionId === listing.id}
-                                  onClick={() => {
-                                    setActiveDropdownId(null);
-                                    setRejectListingId(listing.id);
-                                  }}
-                                >
-                                  <X size={14} /> Reject
-                                </button>
-                              </>
-                            )}
-                            <Link
-                              href={`/dashboard/listings/${listing.id}/edit`}
-                              className={styles.cardDropdownItem}
-                              onClick={() => setActiveDropdownId(null)}
-                            >
-                              <Edit size={14} /> Edit Details
-                            </Link>
-                            <button
-                              type="button"
-                              className={styles.cardDropdownItem}
-                              style={{ color: '#ef4444' }}
-                              onClick={() => {
-                                setActiveDropdownId(null);
-                                setDeleteListingId(listing.id);
-                              }}
-                            >
-                              <Trash2 size={14} /> Delete Listing
-                            </button>
-                          </div>
-                        )}
+                          {/* 3-dots Dropdown Menu */}
+                          {isDropdownOpen && (
+                            <div className={styles.cardDropdownMenu} onClick={(e) => e.stopPropagation()}>
+                              {listing.status === 'PENDING_REVIEW' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className={styles.cardDropdownItem}
+                                    style={{ color: '#10b981' }}
+                                    disabled={actionId === listing.id}
+                                    onClick={() => {
+                                      setActiveDropdownId(null);
+                                      handleModerate(listing.id, 'ACTIVE');
+                                    }}
+                                  >
+                                    <Check size={14} /> Approve
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.cardDropdownItem}
+                                    style={{ color: '#ef4444' }}
+                                    disabled={actionId === listing.id}
+                                    onClick={() => {
+                                      setActiveDropdownId(null);
+                                      setRejectListingId(listing.id);
+                                    }}
+                                  >
+                                    <X size={14} /> Reject
+                                  </button>
+                                </>
+                              )}
+                              <Link
+                                href={`/dashboard/listings/${listing.id}/edit`}
+                                className={styles.cardDropdownItem}
+                                onClick={() => setActiveDropdownId(null)}
+                              >
+                                <Edit size={14} /> Edit Details
+                              </Link>
+                              <button
+                                type="button"
+                                className={styles.cardDropdownItem}
+                                style={{ color: '#ef4444' }}
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setDeleteListingId(listing.id);
+                                }}
+                              >
+                                <Trash2 size={14} /> Delete Listing
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Price Row */}
+                        <div className={styles.cardPriceRow}>
+                          <span className={styles.cardPrice}>{formatPrice(listing.askingPrice)}</span>
+                          <span className={styles.cardTypeBadge}>
+                            {listing.listingFor} · {listing.propertyType.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        {/* Location */}
+                        <div className={styles.cardMetaLocation}>
+                          <MapPin size={11} />
+                          <span>{listing.locality ? `${listing.locality}, ${listing.city}` : listing.city}</span>
+                        </div>
+
+                        {/* ID */}
+                        <div className={styles.cardMetaId}>
+                          <FileText size={11} />
+                          <span>ID: {shortId}</span>
+                        </div>
                       </div>
 
-                      {/* Price Row */}
-                      <div className={styles.cardPriceRow}>
-                        <span className={styles.cardPrice}>{formatPrice(listing.askingPrice)}</span>
-                        <span className={styles.cardTypeBadge}>
-                          {listing.listingFor} · {listing.propertyType.replace('_', ' ')}
-                        </span>
-                      </div>
-
-                      {/* Location */}
-                      <div className={styles.cardMetaLocation}>
-                        <MapPin size={12} />
-                        <span>{listing.locality ? `${listing.locality}, ${listing.city}` : listing.city}</span>
-                      </div>
-
-                      {/* ID */}
-                      <div className={styles.cardMetaId}>
-                        <FileText size={12} />
-                        <span>ID: {shortId}</span>
-                      </div>
-
-                      {/* Divider */}
-                      <div className={styles.cardFooterDivider} />
-
-                      {/* Owner and Date */}
+                      {/* Owner and Date Row - sits on same horizontal line as action buttons */}
                       <div className={styles.cardOwnerDateRow}>
                         <div className={styles.cardMetaCol}>
                           <span className={styles.cardMetaSubLabel}>Owner</span>
                           <span className={styles.cardMetaSubVal}>{ownerName}</span>
                         </div>
-                        <div className={styles.cardMetaCol} style={{ textAlign: 'right' }}>
+                        <div className={styles.cardMetaColRight}>
                           <span className={styles.cardMetaSubLabel}>Listed Date</span>
                           <span className={styles.cardMetaSubVal}>{listedDate}</span>
                         </div>
