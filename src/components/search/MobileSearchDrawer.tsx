@@ -677,21 +677,6 @@ export const MobileSearchDrawer: React.FC = () => {
                     <span>
                       Popular Localities in <span className={styles.boldCity}>{selectedCity}</span>
                     </span>
-                    {ALL_CITIES.length > 1 && (
-                      <button 
-                        type="button" 
-                        className={styles.cityChangeBtn}
-                        onClick={() => {
-                          const nextIndex = (ALL_CITIES.indexOf(selectedCity) + 1) % ALL_CITIES.length;
-                          const nextCity = ALL_CITIES[nextIndex];
-                          setSelectedCity(nextCity);
-                          try { localStorage.setItem('listme_user_city', nextCity); } catch {}
-                        }}
-                        aria-label={`Change city, currently ${selectedCity}`}
-                      >
-                        Change City ⌵
-                      </button>
-                    )}
                   </div>
 
                   <div className={styles.localityGrid}>
