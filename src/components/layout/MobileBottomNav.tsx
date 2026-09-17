@@ -13,7 +13,7 @@ interface MobileBottomNavProps {
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick }) => {
   const pathname = usePathname();
-  const { isMenuOpen, openMenu, isSearchOpen, openSearch } = useMobileMenu();
+  const { isMenuOpen, openMenu, closeMenu, isSearchOpen, openSearch, closeSearch } = useMobileMenu();
 
   // Hide the consumer bottom nav on all admin portal routes and post-property page (which has its own top header hamburger menu)
   if (pathname?.startsWith('/admin') || pathname?.startsWith('/post-property')) {
@@ -33,6 +33,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
     <nav className={styles.bottomNav} aria-label="Mobile Bottom Navigation">
       <Link 
         href="/" 
+        onClick={() => {
+          closeSearch();
+          closeMenu();
+          if (pathname === '/') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
         className={`${styles.navItem} ${isActive('/') ? styles.active : ''}`}
         aria-current={isActive('/') ? 'page' : undefined}
       >
@@ -42,7 +49,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
       
       <button 
         type="button"
-        onClick={openSearch} 
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openSearch();
+        }} 
         className={`${styles.navItem} ${isSearchOpen || isActive('/listings') ? styles.active : ''}`}
         aria-label="Open property search"
         aria-expanded={isSearchOpen}

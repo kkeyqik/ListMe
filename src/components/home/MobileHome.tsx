@@ -199,7 +199,11 @@ export const MobileHome: React.FC = () => {
       <div className={`${styles.stickySearchContainer} ${isSticky ? styles.isSticky : ''}`}>
         <button 
           type="button"
-          onClick={openSearch}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openSearch();
+          }}
           className={styles.searchWrapper}
           aria-label="Open property search"
         >

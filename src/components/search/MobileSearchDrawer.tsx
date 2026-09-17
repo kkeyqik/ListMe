@@ -92,12 +92,14 @@ export const MobileSearchDrawer: React.FC = () => {
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Auto-close on route change
+  // Auto-close only when pathname actually changes (navigation occurred)
+  const prevPathname = useRef(pathname);
   useEffect(() => {
-    if (isSearchOpen) {
+    if (prevPathname.current !== pathname) {
+      prevPathname.current = pathname;
       closeSearch();
     }
-  }, [pathname, isSearchOpen, closeSearch]);
+  }, [pathname, closeSearch]);
 
   // Load recent searches from localStorage
   useEffect(() => {
