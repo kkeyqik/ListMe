@@ -52,7 +52,7 @@
 
 /* --- Top Header Bar --- */
 .headerBar {
-  background: #173f7d;
+  background: var(--color-navy, #0A1128);
   padding: calc(0.85rem + env(safe-area-inset-top, 0px)) 1rem 0.85rem;
   display: flex;
   align-items: center;
@@ -77,7 +77,7 @@
 }
 
 .segmentedTabs {
-  background: #0f2d5c;
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   padding: 3px;
   display: inline-flex;
@@ -107,7 +107,7 @@
 
 .tabBtn.activeTab {
   background: #ffffff;
-  color: #173f7d;
+  color: var(--color-navy, #0A1128);
   font-weight: 700;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
@@ -169,8 +169,8 @@
 }
 
 .searchBox:focus-within {
-  border-color: #0078db;
-  box-shadow: 0 0 0 3px rgba(0, 120, 219, 0.12);
+  border-color: var(--color-navy, #0A1128);
+  box-shadow: 0 0 0 3px rgba(10, 17, 40, 0.08);
 }
 
 .inputSearchIcon {
@@ -221,7 +221,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #173f7d;
+  color: var(--color-navy, #0A1128);
   cursor: pointer;
   min-width: 44px;
   min-height: 44px;
@@ -277,20 +277,28 @@
 
 .boldCity {
   font-weight: 700;
-  color: #0f172a;
+  color: var(--color-navy, #0A1128);
 }
 
 .cityChangeBtn {
-  font-size: 0.75rem;
-  color: #0078db;
+  font-size: 0.8125rem;
+  color: var(--color-sage, #607A66);
   font-weight: 600;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 6px;
-  min-height: 36px;
+  padding: 6px 10px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
+  border-radius: 6px;
+  transition: color 0.12s ease, background-color 0.12s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cityChangeBtn:active {
+  background-color: rgba(96, 122, 102, 0.12);
 }
 
 .localityGrid {
@@ -323,13 +331,13 @@
 
 .localityPill:active {
   background-color: #f1f5f9;
-  border-color: #0078db;
+  border-color: var(--color-navy, #0A1128);
   transform: scale(0.97);
 }
 
 .plusIcon {
-  color: #64748b;
-  font-size: 0.875rem;
+  color: var(--color-sage, #607A66);
+  font-size: 0.9375rem;
   font-weight: 600;
   line-height: 1;
   flex-shrink: 0;
@@ -357,6 +365,12 @@
 }
 
 .suggestionItem {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font: inherit;
+  outline: none;
   padding: 0.85rem 1rem;
   display: flex;
   align-items: center;
@@ -366,6 +380,7 @@
   min-height: 48px;
   transition: background-color 0.1s ease;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .suggestionItem:last-child {
@@ -461,11 +476,17 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 6px 10px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   border-radius: 4px;
   transition: color 0.12s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.recentClearBtn:hover {
+.recentClearBtn:hover,
+.recentClearBtn:active {
   color: #ef4444;
 }

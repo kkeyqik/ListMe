@@ -73,9 +73,104 @@ const POPULAR_LOCALITIES_BY_CITY: Record<string, string[]> = {
     'Banjara Hills',
     'Jubilee Hills',
   ],
+  Kolkata: [
+    'Salt Lake',
+    'New Town',
+    'Rajarhat',
+    'Ballygunge',
+    'Alipore',
+    'Garia',
+  ],
 };
 
 const ALL_CITIES = Object.keys(POPULAR_LOCALITIES_BY_CITY);
+
+const POPULAR_CITIES_INDIA = [
+  'Delhi NCR',
+  'Mumbai',
+  'Bangalore',
+  'Hyderabad',
+  'Pune',
+  'Kolkata',
+];
+
+function resolveCityFromCoords(latitude: number, longitude: number): string | null {
+  // Ghaziabad: approx lat 28.62 to 28.78, lon 77.32 to 77.60 (Indirapuram, Vaishali, Vasundhara, Raj Nagar Ext)
+  if (latitude >= 28.62 && latitude <= 28.78 && longitude >= 77.32 && longitude <= 77.60) {
+    return 'Ghaziabad';
+  }
+  // Noida: approx lat 28.40 to 28.62, lon 77.28 to 77.55
+  if (latitude >= 28.40 && latitude <= 28.62 && longitude >= 77.28 && longitude <= 77.55) {
+    return 'Noida';
+  }
+  // Gurgaon: approx lat 28.35 to 28.55, lon 76.90 to 77.15
+  if (latitude >= 28.35 && latitude <= 28.55 && longitude >= 76.90 && longitude <= 77.15) {
+    return 'Gurgaon';
+  }
+  // Delhi: approx lat 28.50 to 28.88, lon 76.85 to 77.32
+  if (latitude >= 28.50 && latitude <= 28.88 && longitude >= 76.85 && longitude <= 77.32) {
+    return 'Delhi';
+  }
+  // Mumbai: approx lat 18.88 to 19.32, lon 72.75 to 73.10
+  if (latitude >= 18.88 && latitude <= 19.32 && longitude >= 72.75 && longitude <= 73.10) {
+    return 'Mumbai';
+  }
+  // Bangalore: approx lat 12.80 to 13.15, lon 77.45 to 77.80
+  if (latitude >= 12.80 && latitude <= 13.15 && longitude >= 77.45 && longitude <= 77.80) {
+    return 'Bangalore';
+  }
+  // Pune: approx lat 18.40 to 18.70, lon 73.70 to 74.00
+  if (latitude >= 18.40 && latitude <= 18.70 && longitude >= 73.70 && longitude <= 74.00) {
+    return 'Pune';
+  }
+  // Hyderabad: approx lat 17.25 to 17.55, lon 78.25 to 78.60
+  if (latitude >= 17.25 && latitude <= 17.55 && longitude >= 78.25 && longitude <= 78.60) {
+    return 'Hyderabad';
+  }
+  // Kolkata: approx lat 22.45 to 22.70, lon 88.25 to 88.50
+  if (latitude >= 22.45 && latitude <= 22.70 && longitude >= 88.25 && longitude <= 88.50) {
+    return 'Kolkata';
+  }
+  return null;
+}
+
+function matchCitySynonym(rawText: string): string | null {
+  const lower = rawText.toLowerCase();
+  if (lower.includes('ghaziabad')) return 'Ghaziabad';
+  if (lower.includes('noida') || lower.includes('greater noida')) return 'Noida';
+  if (lower.includes('gurgaon') || lower.includes('gurugram')) return 'Gurgaon';
+  if (lower.includes('delhi')) return 'Delhi';
+  if (lower.includes('mumbai') || lower.includes('bombay') || lower.includes('thane') || lower.includes('navi mumbai')) return 'Mumbai';
+  if (lower.includes('bangalore') || lower.includes('bengaluru')) return 'Bangalore';
+  if (lower.includes('pune')) return 'Pune';
+  if (lower.includes('hyderabad') || lower.includes('secunderabad')) return 'Hyderabad';
+  if (lower.includes('kolkata') || lower.includes('calcutta')) return 'Kolkata';
+  return null;
+}
+
+async function detectCityFromCoords(latitude: number, longitude: number): Promise<string> {
+  const boundingMatch = resolveCityFromCoords(latitude, longitude);
+  if (boundingMatch) return boundingMatch;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      const combined = `${data.city || ''} ${data.locality || ''} ${data.principalSubdivision || ''}`;
+      const matched = matchCitySynonym(combined);
+      if (matched) return matched;
+    }
+  } catch {
+    // Ignore network or abort errors
+  }
+  return 'Ghaziabad';
+}
 
 export const MobileSearchDrawer: React.FC = () => {
   const router = useRouter();
@@ -85,6 +180,7 @@ export const MobileSearchDrawer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SearchTabType>('Buy');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState('Ghaziabad');
+  const [hasLocationAccess, setHasLocationAccess] = useState<boolean>(true);
   const [isLocating, setIsLocating] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
@@ -165,10 +261,128 @@ export const MobileSearchDrawer: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSearchOpen, closeSearch]);
 
+  // Check location permission & auto-detect user's confirmed city
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let isMounted = true;
+
+    // 1. Initialize from localStorage cache if available
+    try {
+      const cachedAccess = localStorage.getItem('listme_location_access');
+      const cachedCity = localStorage.getItem('listme_user_city');
+      if (cachedAccess === 'false') {
+        setHasLocationAccess(false);
+      } else if (cachedCity && POPULAR_LOCALITIES_BY_CITY[cachedCity]) {
+        setSelectedCity(cachedCity);
+        setHasLocationAccess(true);
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+
+    const nav = window.navigator;
+    if (!nav?.geolocation) {
+      setHasLocationAccess(false);
+      return;
+    }
+
+    const processCoords = async (latitude: number, longitude: number) => {
+      setHasLocationAccess(true);
+      try { localStorage.setItem('listme_location_access', 'true'); } catch {}
+
+      const finalCity = await detectCityFromCoords(latitude, longitude);
+      if (isMounted) {
+        setSelectedCity(finalCity);
+        try { localStorage.setItem('listme_user_city', finalCity); } catch {}
+      }
+    };
+
+    const requestPosition = () => {
+      nav.geolocation.getCurrentPosition(
+        (position: GeolocationPosition) => {
+          if (!isMounted) return;
+          processCoords(position.coords.latitude, position.coords.longitude);
+        },
+        (error: GeolocationPositionError) => {
+          if (!isMounted) return;
+          if (error.code === error.PERMISSION_DENIED) {
+            setHasLocationAccess(false);
+            try { localStorage.setItem('listme_location_access', 'false'); } catch {}
+          }
+        },
+        { timeout: 6000, maximumAge: 300000 }
+      );
+    };
+
+    let permissionStatus: PermissionStatus | null = null;
+    if ('permissions' in nav && typeof nav.permissions.query === 'function') {
+      nav.permissions.query({ name: 'geolocation' }).then((status) => {
+        if (!isMounted) return;
+        permissionStatus = status;
+        const evaluatePermission = () => {
+          if (!isMounted) return;
+          if (status.state === 'denied') {
+            setHasLocationAccess(false);
+            try { localStorage.setItem('listme_location_access', 'false'); } catch {}
+          } else if (status.state === 'granted') {
+            setHasLocationAccess(true);
+            try { localStorage.setItem('listme_location_access', 'true'); } catch {}
+            requestPosition();
+          } else {
+            requestPosition();
+          }
+        };
+
+        evaluatePermission();
+        status.onchange = evaluatePermission;
+      }).catch(() => {
+        requestPosition();
+      });
+    } else {
+      requestPosition();
+    }
+
+    return () => {
+      isMounted = false;
+      if (permissionStatus) {
+        permissionStatus.onchange = null;
+      }
+    };
+  }, []);
+
+  // Re-verify permission whenever search drawer opens
+  useEffect(() => {
+    if (!isSearchOpen || typeof window === 'undefined') return;
+    const nav = window.navigator;
+    if (!nav?.geolocation) {
+      setHasLocationAccess(false);
+      return;
+    }
+    if ('permissions' in nav && typeof nav.permissions.query === 'function') {
+      nav.permissions.query({ name: 'geolocation' }).then((status) => {
+        if (status.state === 'denied') {
+          setHasLocationAccess(false);
+          try { localStorage.setItem('listme_location_access', 'false'); } catch {}
+        } else if (status.state === 'granted') {
+          setHasLocationAccess(true);
+          try { localStorage.setItem('listme_location_access', 'true'); } catch {}
+        }
+      }).catch(() => {});
+    }
+  }, [isSearchOpen]);
+
   const getListingTypeParam = (tab: SearchTabType) => {
     if (tab === 'Rent/PG') return 'rent';
     if (tab === 'Commercial') return 'commercial';
     return 'sale';
+  };
+
+  const handleCityClick = (city: string) => {
+    const typeParam = getListingTypeParam(activeTab);
+    saveRecentSearch(city);
+    closeSearch();
+    router.push(`/listings?type=${typeParam}&city=${encodeURIComponent(city)}`);
   };
 
   const handleSearchSubmit = (e?: React.FormEvent) => {
@@ -218,51 +432,40 @@ export const MobileSearchDrawer: React.FC = () => {
         return;
       }
     }
+    if (ALL_CITIES.includes(term) || POPULAR_CITIES_INDIA.includes(term)) {
+      router.push(`/listings?type=${typeParam}&city=${encodeURIComponent(term)}`);
+      return;
+    }
     router.push(`/listings?type=${typeParam}&query=${encodeURIComponent(term)}`);
   };
 
   const handleGeolocation = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
+      setHasLocationAccess(false);
       return;
     }
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setIsLocating(false);
-        // NCR & Metro bounds heuristic
-        if (latitude > 28.3 && latitude < 28.9 && longitude > 76.8 && longitude < 77.6) {
-          if (longitude > 77.38 && latitude > 28.62) {
-            setSelectedCity('Ghaziabad');
-            setSearchQuery('Ghaziabad');
-          } else if (longitude > 77.30 && latitude < 28.62) {
-            setSelectedCity('Noida');
-            setSearchQuery('Noida');
-          } else if (longitude < 77.12) {
-            setSelectedCity('Gurgaon');
-            setSearchQuery('Gurgaon');
-          } else {
-            setSelectedCity('Delhi');
-            setSearchQuery('Delhi');
-          }
-        } else if (latitude > 18.8 && latitude < 19.3 && longitude > 72.7 && longitude < 73.2) {
-          setSelectedCity('Mumbai');
-          setSearchQuery('Mumbai');
-        } else if (latitude > 12.8 && latitude < 13.2 && longitude > 77.4 && longitude < 77.8) {
-          setSelectedCity('Bangalore');
-          setSearchQuery('Bangalore');
-        } else if (latitude > 17.2 && latitude < 17.6 && longitude > 78.2 && longitude < 78.6) {
-          setSelectedCity('Hyderabad');
-          setSearchQuery('Hyderabad');
-        } else if (latitude > 18.4 && latitude < 18.7 && longitude > 73.7 && longitude < 74.0) {
-          setSelectedCity('Pune');
-          setSearchQuery('Pune');
-        } else {
-          setSearchQuery('Current Location');
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          setHasLocationAccess(true);
+          try { localStorage.setItem('listme_location_access', 'true'); } catch {}
+
+          const finalCity = await detectCityFromCoords(latitude, longitude);
+          setSelectedCity(finalCity);
+          setSearchQuery('');
+          try { localStorage.setItem('listme_user_city', finalCity); } catch {}
+        } finally {
+          setIsLocating(false);
         }
       },
-      () => {
+      (error) => {
         setIsLocating(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setHasLocationAccess(false);
+          try { localStorage.setItem('listme_location_access', 'false'); } catch {}
+        }
       },
       { timeout: 8000 }
     );
@@ -298,10 +501,14 @@ export const MobileSearchDrawer: React.FC = () => {
 
   // Filtered suggestions when typing
   const queryLower = searchQuery.toLowerCase().trim();
+  const isDelhiNcrQuery = queryLower === 'delhi ncr' || queryLower === 'ncr';
   const matchedLocalities: { city: string; locality: string }[] = [];
   if (queryLower.length >= 2) {
     for (const [city, localities] of Object.entries(POPULAR_LOCALITIES_BY_CITY)) {
-      if (city.toLowerCase().includes(queryLower)) {
+      const cityMatches =
+        city.toLowerCase().includes(queryLower) ||
+        (city === 'Delhi' && (isDelhiNcrQuery || 'delhi ncr'.includes(queryLower)));
+      if (cityMatches) {
         matchedLocalities.push({ city, locality: `All in ${city}` });
       }
       for (const loc of localities) {
@@ -395,7 +602,7 @@ export const MobileSearchDrawer: React.FC = () => {
               enterKeyHint="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Try - Delhi"
+              placeholder={hasLocationAccess ? `Search in ${selectedCity}...` : "Try - Delhi NCR"}
               className={styles.searchInput}
               aria-label="Search city, locality, or project"
               autoComplete="off"
@@ -417,10 +624,11 @@ export const MobileSearchDrawer: React.FC = () => {
               type="button"
               className={`${styles.gpsBtn} ${isLocating ? styles.loading : ''}`}
               onClick={handleGeolocation}
-              aria-label="Use current location"
+              aria-label={isLocating ? 'Detecting your location...' : 'Use current location'}
+              aria-busy={isLocating}
               title="Detect my current location"
             >
-              <LocateFixed size={20} strokeWidth={2.2} />
+              <LocateFixed size={20} strokeWidth={2.2} aria-hidden="true" />
             </button>
           </form>
         </div>
@@ -431,8 +639,9 @@ export const MobileSearchDrawer: React.FC = () => {
           {queryLower.length >= 2 && matchedLocalities.length > 0 && (
             <div className={styles.suggestionsList} role="listbox" aria-label="Search suggestions">
               {matchedLocalities.slice(0, 6).map((item, idx) => (
-                <div
+                <button
                   key={`${item.city}-${item.locality}-${idx}`}
+                  type="button"
                   role="option"
                   aria-selected={false}
                   className={styles.suggestionItem}
@@ -448,53 +657,82 @@ export const MobileSearchDrawer: React.FC = () => {
                     }
                   }}
                 >
-                  <MapPin size={18} className={styles.suggestionIcon} />
+                  <MapPin size={18} className={styles.suggestionIcon} aria-hidden="true" />
                   <div className={styles.suggestionText}>
                     <span className={styles.suggestionPrimary}>{item.locality}</span>
                     <span className={styles.suggestionSecondary}>{item.city}</span>
                   </div>
-                  <ChevronRight size={16} className={styles.suggestionArrow} />
-                </div>
+                  <ChevronRight size={16} className={styles.suggestionArrow} aria-hidden="true" />
+                </button>
               ))}
             </div>
           )}
 
-          {/* Popular Localities in City */}
+          {/* Popular Section: Localities (if location accessible) OR Cities in India (if location blocked) */}
           {queryLower.length < 2 && (
             <div className={styles.popularCard}>
-              <div className={styles.popularTitle}>
-                <span>
-                  Popular Localities in <span className={styles.boldCity}>{selectedCity}</span>
-                </span>
-                {ALL_CITIES.length > 1 && (
-                  <button 
-                    type="button" 
-                    className={styles.cityChangeBtn}
-                    onClick={() => {
-                      const nextIndex = (ALL_CITIES.indexOf(selectedCity) + 1) % ALL_CITIES.length;
-                      setSelectedCity(ALL_CITIES[nextIndex]);
-                    }}
-                    aria-label={`Change city, currently ${selectedCity}`}
-                  >
-                    Change City ⌵
-                  </button>
-                )}
-              </div>
+              {hasLocationAccess ? (
+                <>
+                  <div className={styles.popularTitle}>
+                    <span>
+                      Popular Localities in <span className={styles.boldCity}>{selectedCity}</span>
+                    </span>
+                    {ALL_CITIES.length > 1 && (
+                      <button 
+                        type="button" 
+                        className={styles.cityChangeBtn}
+                        onClick={() => {
+                          const nextIndex = (ALL_CITIES.indexOf(selectedCity) + 1) % ALL_CITIES.length;
+                          const nextCity = ALL_CITIES[nextIndex];
+                          setSelectedCity(nextCity);
+                          try { localStorage.setItem('listme_user_city', nextCity); } catch {}
+                        }}
+                        aria-label={`Change city, currently ${selectedCity}`}
+                      >
+                        Change City ⌵
+                      </button>
+                    )}
+                  </div>
 
-              <div className={styles.localityGrid}>
-                {currentLocalities.map((locality) => (
-                  <button
-                    key={locality}
-                    type="button"
-                    className={styles.localityPill}
-                    onClick={() => handleLocalityClick(locality)}
-                    aria-label={`Explore properties in ${locality}`}
-                  >
-                    <span className={styles.plusIcon}>+</span>
-                    <span className={styles.localityLabel}>{locality}</span>
-                  </button>
-                ))}
-              </div>
+                  <div className={styles.localityGrid}>
+                    {currentLocalities.map((locality) => (
+                      <button
+                        key={locality}
+                        type="button"
+                        className={styles.localityPill}
+                        onClick={() => handleLocalityClick(locality)}
+                        aria-label={`Explore properties in ${locality}, ${selectedCity}`}
+                      >
+                        <span className={styles.plusIcon} aria-hidden="true">+</span>
+                        <span className={styles.localityLabel}>{locality}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={styles.popularTitle}>
+                    <span>
+                      Popular Cities in <span className={styles.boldCity}>India</span>
+                    </span>
+                  </div>
+
+                  <div className={styles.localityGrid}>
+                    {POPULAR_CITIES_INDIA.map((city) => (
+                      <button
+                        key={city}
+                        type="button"
+                        className={styles.localityPill}
+                        onClick={() => handleCityClick(city)}
+                        aria-label={`Explore properties in ${city}`}
+                      >
+                        <span className={styles.plusIcon} aria-hidden="true">+</span>
+                        <span className={styles.localityLabel}>{city}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
