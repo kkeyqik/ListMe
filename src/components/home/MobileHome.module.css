@@ -271,6 +271,9 @@
 .searchWrapper {
   position: relative;
   z-index: 2;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
   background: #ffffff;
   border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
@@ -284,6 +287,7 @@
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   text-decoration: none;
+  font-family: inherit;
   transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 0.12s cubic-bezier(0.4, 0, 0.2, 1),
               background-color 0.12s ease,

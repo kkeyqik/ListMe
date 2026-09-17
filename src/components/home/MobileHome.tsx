@@ -94,7 +94,7 @@ const formatPrice = (price: number | string | null | undefined, listingFor?: str
 };
 
 export const MobileHome: React.FC = () => {
-  const { openMenu } = useMobileMenu();
+  const { openMenu, openSearch } = useMobileMenu();
   const { settings } = useSettings();
   const { showToast } = useToast();
 
@@ -197,16 +197,17 @@ export const MobileHome: React.FC = () => {
 
       {/* Interactive Sticky Search Bar */}
       <div className={`${styles.stickySearchContainer} ${isSticky ? styles.isSticky : ''}`}>
-        <Link 
-          href="/listings" 
+        <button 
+          type="button"
+          onClick={openSearch}
           className={styles.searchWrapper}
-          aria-label="Search properties across top cities"
+          aria-label="Open property search"
         >
           <Search className={styles.searchIcon} size={20} aria-hidden="true" />
           <span className={styles.searchInputPlaceholder} aria-hidden="true">
             Search &quot;3 BHK flats for sale in Noida&quot;
           </span>
-        </Link>
+        </button>
       </div>
 
       {/* 2. Get Started Section */}

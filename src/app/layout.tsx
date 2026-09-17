@@ -4,6 +4,7 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorMonitor } from '@/components/ErrorMonitor';
 import { MobileMenuProvider } from '@/context/MobileMenuContext';
 import { MobileMenuDrawer } from '@/components/layout/MobileMenuDrawer';
+import { MobileSearchDrawer } from '@/components/search/MobileSearchDrawer';
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import "./globals.css";
@@ -85,6 +86,7 @@ export default function RootLayout({
                 <div className="mobileOnly">
                   <MobileBottomNav />
                   <MobileMenuDrawer />
+                  <MobileSearchDrawer />
                 </div>
               </MobileMenuProvider>
             </ToastProvider>
