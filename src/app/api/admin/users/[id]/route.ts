@@ -80,6 +80,14 @@ export async function PUT(
     const updatedProfile = await prisma.profile.update({
       where: { id },
       data: updateData,
+      include: {
+        _count: {
+          select: {
+            listings: true,
+            interests: true,
+          },
+        },
+      },
     });
 
     // Log the admin activity

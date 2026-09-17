@@ -1,11 +1,57 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Filter, Shield, User, Mail, Phone, Trash2, Download, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import Link from 'next/link';
+import { 
+  Users, Search, Filter, Shield, User, Mail, Phone, Trash2, Download, 
+  AlertTriangle, ArrowUpDown, UserPlus, MoreVertical, Check, Clock, 
+  CheckCircle, Eye, Edit, ChevronDown, ChevronLeft, ChevronRight, 
+  Calendar, X 
+} from 'lucide-react';
 import { useToast, Card, Badge, Input, Button, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
 import { downloadCSV } from '@/lib/export-utils';
+
+const AVATAR_THEMES = [
+  { bg: '#e0f2fe', color: '#0369a1' }, // Light Blue / Dark Blue
+  { bg: '#ede9fe', color: '#6d28d9' }, // Light Purple / Dark Purple
+  { bg: '#dcfce7', color: '#15803d' }, // Light Green / Dark Green
+  { bg: '#fef3c7', color: '#b45309' }, // Light Amber / Dark Amber
+  { bg: '#ffe4e6', color: '#be123c' }, // Light Rose / Dark Rose
+  { bg: '#e0e7ff', color: '#4338ca' }, // Light Indigo / Dark Indigo
+];
+
+const getAvatarColors = (input: string) => {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = input.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % AVATAR_THEMES.length;
+  return AVATAR_THEMES[index];
+};
+
+const getInitials = (name?: string) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
+const formatDate = (isoString?: string) => {
+  if (!isoString) return 'N/A';
+  try {
+    const d = new Date(isoString);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return 'N/A';
+  }
+};
 
 export default function AdminUsers() {
   const { showToast } = useToast();
@@ -20,8 +66,14 @@ export default function AdminUsers() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
+  // Sort state
+  const [sortOption, setSortOption] = useState('latest');
   const [sortField, setSortField] = useState('createdAt');
   const [sortAsc, setSortAsc] = useState(false);
+
+  // Pagination for mobile view
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -32,7 +84,31 @@ export default function AdminUsers() {
     }
   };
 
+  const handleSortOptionChange = (option: string) => {
+    setSortOption(option);
+    if (option === 'latest') {
+      setSortField('createdAt');
+      setSortAsc(false);
+    } else if (option === 'oldest') {
+      setSortField('createdAt');
+      setSortAsc(true);
+    } else if (option === 'name_asc') {
+      setSortField('name');
+      setSortAsc(true);
+    } else if (option === 'name_desc') {
+      setSortField('name');
+      setSortAsc(false);
+    } else if (option === 'properties') {
+      setSortField('properties');
+      setSortAsc(false);
+    } else if (option === 'leads') {
+      setSortField('responses');
+      setSortAsc(false);
+    }
+  };
+
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
 
   // Add User Modal State
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -43,10 +119,29 @@ export default function AdminUsers() {
   const [newStatus, setNewStatus] = useState('ACTIVE');
   const [createLoading, setCreateLoading] = useState(false);
 
+  // Edit User Modal State
+  const [userToEdit, setUserToEdit] = useState<any | null>(null);
+  const [editRole, setEditRole] = useState('USER');
+  const [editStatus, setEditStatus] = useState('ACTIVE');
+  const [editPhoneVerified, setEditPhoneVerified] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+
+  // User Details Modal State
+  const [selectedUserForDetails, setSelectedUserForDetails] = useState<any | null>(null);
+
   // Delete User Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Close card dropdown menus on click outside
+  useEffect(() => {
+    const handleOutsideClick = () => setActiveDropdownId(null);
+    if (activeDropdownId) {
+      window.addEventListener('click', handleOutsideClick);
+    }
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [activeDropdownId]);
 
   const fetchUsers = async () => {
     try {
@@ -127,6 +222,12 @@ export default function AdminUsers() {
         setUsers((prev) =>
           prev.map((u) => (u.id === id ? { ...u, ...data.profile } : u))
         );
+        if (selectedUserForDetails && selectedUserForDetails.id === id) {
+          setSelectedUserForDetails((prev: any) => ({ ...prev, ...data.profile }));
+        }
+        if (userToEdit && userToEdit.id === id) {
+          setUserToEdit(null);
+        }
       } else {
         showToast('Error', data.message || 'Failed to update user', 'error');
       }
@@ -136,6 +237,25 @@ export default function AdminUsers() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleOpenEdit = (userItem: any) => {
+    setUserToEdit(userItem);
+    setEditRole(userItem.role);
+    setEditStatus(userItem.status);
+    setEditPhoneVerified(!!userItem.phoneVerified);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToEdit) return;
+    setEditLoading(true);
+    await handleUpdateUser(userToEdit.id, {
+      role: editRole,
+      status: editStatus,
+      phoneVerified: editPhoneVerified
+    });
+    setEditLoading(false);
   };
 
   const handleDeleteUser = async () => {
@@ -151,6 +271,9 @@ export default function AdminUsers() {
         setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
         setDeleteModalOpen(false);
         setUserToDelete(null);
+        if (selectedUserForDetails?.id === userToDelete.id) {
+          setSelectedUserForDetails(null);
+        }
       } else {
         const data = await res.json();
         showToast('Error', data.message || 'Failed to delete user', 'error');
@@ -167,10 +290,10 @@ export default function AdminUsers() {
   const canDeleteUser = (targetUser: any) => {
     if (!profile || targetUser.id === profile.id) return false;
     if (profile.role === 'SUPER_ADMIN') {
-      return targetUser.role !== 'SUPER_ADMIN'; // Super Admins can delete anyone except other Super Admins
+      return targetUser.role !== 'SUPER_ADMIN';
     }
     if (profile.role === 'ADMIN') {
-      return targetUser.role === 'USER'; // Admins can only delete regular users
+      return targetUser.role === 'USER';
     }
     return false;
   };
@@ -228,6 +351,10 @@ export default function AdminUsers() {
     }
   });
 
+  // Mobile pagination slice
+  const totalPages = Math.ceil(sortedUsers.length / ITEMS_PER_PAGE) || 1;
+  const paginatedMobileUsers = sortedUsers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
   const handleExportCSV = () => {
     const exportData = sortedUsers.map(u => ({
       ID: u.id,
@@ -246,15 +373,23 @@ export default function AdminUsers() {
     showToast('Success', 'Report downloaded successfully', 'success');
   };
 
+  const hasActiveFilters = 
+    roleFilter !== 'ALL' || 
+    statusFilter !== 'ALL' || 
+    verificationFilter !== 'ALL' || 
+    startDate || 
+    endDate || 
+    searchQuery;
+
   return (
     <div>
       {/* Header */}
-      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
         <div>
           <h1 className={styles.title}>Registered Users Directory</h1>
           <p className={styles.subText}>Manage account details, verify statuses, and monitor active listings per user.</p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div className={styles.desktopOnly} style={{ display: 'flex', gap: '1rem' }}>
           <Button onClick={handleExportCSV} variant="outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Download size={18} />
             Export Report
@@ -266,60 +401,88 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      {/* Toolbar filters */}
-      <Card padding="md" style={{ marginBottom: '1.5rem' }}>
-        <div className={styles.filterContainer}>
-          {/* Top row: Search input + Clear filters */}
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1', minWidth: '260px' }}>
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search users by name, email, or phone number..."
-                aria-label="Search users by name, email, or phone number"
-                leftIcon={<Search size={18} />}
-                fullWidth
-              />
-            </div>
-            {(roleFilter !== 'ALL' || statusFilter !== 'ALL' || verificationFilter !== 'ALL' || startDate || endDate || searchQuery) && (
-              <button
-                type="button"
-                className={styles.clearFilterBtn}
-                onClick={() => {
-                  setSearchQuery('');
-                  setRoleFilter('ALL');
-                  setStatusFilter('ALL');
-                  setVerificationFilter('ALL');
-                  setStartDate('');
-                  setEndDate('');
-                }}
-                title="Reset all search queries and filters"
-                aria-label="Reset all search queries and filters"
-              >
-                Reset Filters
-              </button>
-            )}
-          </div>
+      {/* Mobile Action Buttons directly beneath header subtitle (Screens < 768px) */}
+      <div className={`${styles.userMobileHeaderActions} ${styles.mobileOnly}`}>
+        <button
+          type="button"
+          onClick={handleExportCSV}
+          disabled={loading || sortedUsers.length === 0}
+          className={styles.userExportReportBtn}
+          aria-label="Export users report"
+        >
+          <Download size={16} />
+          <span>Export Report</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setAddModalOpen(true)}
+          className={styles.userAddUserBtn}
+          aria-label="Add new user or admin"
+        >
+          <UserPlus size={16} />
+          <span>Add User / Admin</span>
+        </button>
+      </div>
 
-          <div className={styles.filterRow}>
+      {/* Mobile Toolbar (Screens < 768px) matching reference mockup */}
+      <div className={`${styles.mobileToolbarWrapper} ${styles.mobileOnly}`}>
+        {/* Search Input Box */}
+        <div className={styles.mobileSearchBox}>
+          <Search size={18} className={styles.mobileSearchIcon} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search users by name, email, or phone..."
+            className={styles.mobileSearchInput}
+            aria-label="Search users by name, email, or phone"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setPage(1);
+              }}
+              className={styles.mobileSearchClearBtn}
+              aria-label="Clear search input"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Filter Pill Row 1 */}
+        <div className={styles.filterPillRow1}>
+          <div className={styles.pillSelectWrapper}>
             <select
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className={styles.filterSelect}
-              title="Filter by Role"
+              onChange={(e) => {
+                setRoleFilter(e.target.value);
+                setPage(1);
+              }}
+              className={styles.pillSelect}
               aria-label="Filter by Role"
             >
               <option value="ALL">All Roles</option>
-              <option value="USER">Regular Users</option>
-              <option value="ADMIN">Administrators</option>
+              <option value="USER">Users</option>
+              <option value="ADMIN">Admins</option>
               <option value="SUPER_ADMIN">Super Admins</option>
             </select>
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
 
+          <div className={styles.pillSelectWrapper}>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={styles.filterSelect}
-              title="Filter by Status"
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className={styles.pillSelect}
               aria-label="Filter by Status"
             >
               <option value="ALL">All Statuses</option>
@@ -327,39 +490,216 @@ export default function AdminUsers() {
               <option value="SUSPENDED">Suspended</option>
               <option value="BANNED">Banned</option>
             </select>
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
 
+          <div className={styles.pillSelectWrapper}>
             <select
               value={verificationFilter}
-              onChange={(e) => setVerificationFilter(e.target.value)}
-              className={`${styles.filterSelect} ${styles.filterRowFull}`}
-              title="Filter by Verification"
+              onChange={(e) => {
+                setVerificationFilter(e.target.value);
+                setPage(1);
+              }}
+              className={styles.pillSelect}
               aria-label="Filter by Verification"
             >
               <option value="ALL">All Verification</option>
               <option value="VERIFIED">Verified</option>
               <option value="UNVERIFIED">Unverified</option>
             </select>
-
-            <div className={styles.dateFilterGroup}>
-              <input 
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                title="Joined After"
-                className={styles.dateInput}
-              />
-              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>to</span>
-              <input 
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                title="Joined Before"
-                className={styles.dateInput}
-              />
-            </div>
+            <ChevronDown size={14} className={styles.pillChevron} />
           </div>
         </div>
-      </Card>
+
+        {/* Filter Pill Row 2: Date Pickers */}
+        <div className={styles.filterPillRow2}>
+          <div className={styles.pillSelectWrapper}>
+            <Calendar size={14} className={styles.pillLeftIcon} />
+            <input
+              type={startDate ? 'date' : 'text'}
+              onFocus={(e) => (e.target.type = 'date')}
+              onBlur={(e) => {
+                if (!e.target.value) e.target.type = 'text';
+              }}
+              placeholder="From Date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setPage(1);
+              }}
+              className={`${styles.pillSelect} ${styles.pillSelectWithIcon} ${startDate ? styles.dateRangeActivePill : ''}`}
+              title="From Date"
+              aria-label="From Date"
+            />
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
+
+          <div className={styles.pillSelectWrapper}>
+            <Calendar size={14} className={styles.pillLeftIcon} />
+            <input
+              type={endDate ? 'date' : 'text'}
+              onFocus={(e) => (e.target.type = 'date')}
+              onBlur={(e) => {
+                if (!e.target.value) e.target.type = 'text';
+              }}
+              placeholder="To Date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setPage(1);
+              }}
+              className={`${styles.pillSelect} ${styles.pillSelectWithIcon} ${endDate ? styles.dateRangeActivePill : ''}`}
+              title="To Date"
+              aria-label="To Date"
+            />
+            <ChevronDown size={14} className={styles.pillChevron} />
+          </div>
+        </div>
+
+        {/* Clear Filters Button */}
+        {hasActiveFilters && (
+          <div style={{ marginBottom: '0.625rem' }}>
+            <button
+              type="button"
+              className={styles.clearFilterBtn}
+              onClick={() => {
+                setSearchQuery('');
+                setRoleFilter('ALL');
+                setStatusFilter('ALL');
+                setVerificationFilter('ALL');
+                setStartDate('');
+                setEndDate('');
+                setPage(1);
+              }}
+            >
+              Reset Filters
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Results Count and Sort Row (Screens < 768px) */}
+      <div className={`${styles.resultsSortRow} ${styles.mobileOnly}`}>
+        <div className={styles.resultsCount}>
+          <strong>{filteredUsers.length}</strong> Users
+        </div>
+        <div className={styles.sortWrapper}>
+          <span>Sort by</span>
+          <div className={styles.pillSelectWrapper} style={{ minWidth: '105px' }}>
+            <select
+              value={sortOption}
+              onChange={(e) => handleSortOptionChange(e.target.value)}
+              className={styles.sortPillSelect}
+              aria-label="Sort users by"
+            >
+              <option value="latest">Latest</option>
+              <option value="oldest">Oldest</option>
+              <option value="name_asc">Name (A-Z)</option>
+              <option value="name_desc">Name (Z-A)</option>
+              <option value="properties">Most Properties</option>
+              <option value="leads">Most Leads</option>
+            </select>
+            <ChevronDown size={13} className={styles.pillChevron} />
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Toolbar filters (Screens >= 768px) */}
+      <div className={styles.desktopOnly}>
+        <Card padding="md" style={{ marginBottom: '1.5rem' }}>
+          <div className={styles.filterContainer}>
+            {/* Top row: Search input + Clear filters */}
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1', minWidth: '260px' }}>
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search users by name, email, or phone number..."
+                  aria-label="Search users by name, email, or phone number"
+                  leftIcon={<Search size={18} />}
+                  fullWidth
+                />
+              </div>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className={styles.clearFilterBtn}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setRoleFilter('ALL');
+                    setStatusFilter('ALL');
+                    setVerificationFilter('ALL');
+                    setStartDate('');
+                    setEndDate('');
+                  }}
+                  title="Reset all search queries and filters"
+                  aria-label="Reset all search queries and filters"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+
+            <div className={styles.filterRow}>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className={styles.filterSelect}
+                title="Filter by Role"
+                aria-label="Filter by Role"
+              >
+                <option value="ALL">All Roles</option>
+                <option value="USER">Regular Users</option>
+                <option value="ADMIN">Administrators</option>
+                <option value="SUPER_ADMIN">Super Admins</option>
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className={styles.filterSelect}
+                title="Filter by Status"
+                aria-label="Filter by Status"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="SUSPENDED">Suspended</option>
+                <option value="BANNED">Banned</option>
+              </select>
+
+              <select
+                value={verificationFilter}
+                onChange={(e) => setVerificationFilter(e.target.value)}
+                className={`${styles.filterSelect} ${styles.filterRowFull}`}
+                title="Filter by Verification"
+                aria-label="Filter by Verification"
+              >
+                <option value="ALL">All Verification</option>
+                <option value="VERIFIED">Verified</option>
+                <option value="UNVERIFIED">Unverified</option>
+              </select>
+
+              <div className={styles.dateFilterGroup}>
+                <input 
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  title="Joined After"
+                  className={styles.dateInput}
+                />
+                <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>to</span>
+                <input 
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  title="Joined Before"
+                  className={styles.dateInput}
+                />
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Table List */}
       {loading ? (
@@ -369,6 +709,24 @@ export default function AdminUsers() {
           <Users size={48} style={{ opacity: 0.3 }} />
           <h3>No user profiles found</h3>
           <p>Try modifying your keyword search or role filter.</p>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className={styles.clearFilterBtn}
+              style={{ marginTop: '0.75rem' }}
+              onClick={() => {
+                setSearchQuery('');
+                setRoleFilter('ALL');
+                setStatusFilter('ALL');
+                setVerificationFilter('ALL');
+                setStartDate('');
+                setEndDate('');
+                setPage(1);
+              }}
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -421,7 +779,7 @@ export default function AdminUsers() {
                         </div>
                         <div>
                           <div className={styles.titleText}>{userItem.name || 'Anonymous User'}</div>
-                          <div className={styles.subTextInfo}>Registered: {new Date(userItem.createdAt).toLocaleDateString()}</div>
+                          <div className={styles.subTextInfo}>Registered: {formatDate(userItem.createdAt)}</div>
                         </div>
                       </div>
                     </td>
@@ -527,151 +885,487 @@ export default function AdminUsers() {
             </table>
           </div>
 
-          {/* Mobile Cards View (Screens < 768px) */}
+          {/* Mobile Cards View (Screens < 768px) matching reference mockup media_1789636392600.png */}
           <div className={`${styles.mobileCardsList} ${styles.mobileOnly}`}>
-            {sortedUsers.map((userItem) => (
-              <div key={userItem.id} className={styles.mobileCard}>
-                <div className={styles.mobileCardTop}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div 
-                      style={{ 
-                        width: '40px', 
-                        height: '40px', 
-                        borderRadius: 'var(--radius-full)', 
-                        background: userItem.role !== 'USER' ? 'var(--color-secondary-fade)' : 'var(--color-primary-fade)',
-                        color: userItem.role !== 'USER' ? 'var(--color-secondary)' : 'var(--color-primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}
-                    >
-                      {userItem.role !== 'USER' ? <Shield size={18} /> : <User size={18} />}
-                    </div>
-                    <div>
-                      <div className={styles.mobileCardTitle}>{userItem.name || 'Anonymous User'}</div>
-                      <div className={styles.mobileCardMeta}>
-                        <span>Registered: {new Date(userItem.createdAt).toLocaleDateString()}</span>
+            {paginatedMobileUsers.map((userItem) => {
+              const isDropdownOpen = activeDropdownId === userItem.id;
+              const initials = getInitials(userItem.name || userItem.email || 'User');
+              const avatarTheme = getAvatarColors(userItem.name || userItem.email || userItem.id);
+              const registeredDateStr = formatDate(userItem.createdAt);
+              
+              return (
+                <div key={userItem.id} className={`${styles.userCard} ${isDropdownOpen ? styles.userCardOpen : ''}`}>
+                  {/* Top Row: Avatar + Name/Date + Badge + 3-Dots */}
+                  <div className={styles.userCardTop}>
+                    <div className={styles.userCardLeft}>
+                      <div 
+                        className={styles.userAvatarCircle}
+                        style={{ backgroundColor: avatarTheme.bg, color: avatarTheme.color }}
+                      >
+                        {initials}
+                      </div>
+                      <div className={styles.userInfoCol}>
+                        <h3 className={styles.userName} title={userItem.name || 'Anonymous User'}>
+                          {userItem.name || 'Anonymous User'}
+                        </h3>
+                        <span className={styles.userRegisteredDate}>
+                          Registered: {registeredDateStr}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                  <Badge variant={userItem.phoneVerified ? 'success' : 'warning'} size="sm">
-                    {userItem.phoneVerified ? 'Verified' : 'Unverified'}
-                  </Badge>
-                </div>
 
-                <div className={styles.mobileCardDetails}>
-                  <div className={styles.mobileCardField}>
-                    <span className={styles.mobileCardFieldLabel}>Phone Number</span>
-                    {userItem.phone ? (
-                      <a href={`tel:${userItem.phone}`} onClick={(e) => e.stopPropagation()} className={styles.mobileCardFieldValue} style={{ color: 'var(--color-secondary)', textDecoration: 'underline' }}>
-                        {userItem.phone}
-                      </a>
-                    ) : (
-                      <span className={styles.mobileCardFieldValue} style={{ color: 'var(--color-text-muted)' }}>No phone</span>
-                    )}
-                  </div>
-                  <div className={styles.mobileCardField}>
-                    <span className={styles.mobileCardFieldLabel}>Email Address</span>
-                    {userItem.email ? (
-                      <a href={`mailto:${userItem.email}`} onClick={(e) => e.stopPropagation()} className={styles.mobileCardFieldValue} style={{ color: 'var(--color-secondary)', textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                        {userItem.email}
-                      </a>
-                    ) : (
-                      <span className={styles.mobileCardFieldValue} style={{ color: 'var(--color-text-muted)' }}>No email</span>
-                    )}
-                  </div>
-                  <div className={styles.mobileCardField}>
-                    <span className={styles.mobileCardFieldLabel}>Properties</span>
-                    <span className={styles.mobileCardFieldValue}>{userItem._count?.listings || 0} listed</span>
-                  </div>
-                  <div className={styles.mobileCardField}>
-                    <span className={styles.mobileCardFieldLabel}>Responses</span>
-                    <span className={styles.mobileCardFieldValue}>{userItem._count?.interests || 0} leads</span>
-                  </div>
-                </div>
+                    <div className={styles.userCardTopRight}>
+                      {/* Verification / Status Badge */}
+                      {userItem.status === 'BANNED' ? (
+                        <span className={styles.userStatusBadgeBanned}>
+                          Banned
+                        </span>
+                      ) : userItem.status === 'SUSPENDED' ? (
+                        <span className={styles.userStatusBadgeSuspended}>
+                          Suspended
+                        </span>
+                      ) : userItem.phoneVerified ? (
+                        <span className={styles.userStatusBadgeVerified}>
+                          <Check size={12} strokeWidth={2.5} /> Verified
+                        </span>
+                      ) : userItem.status === 'ACTIVE' ? (
+                        <span className={styles.userStatusBadgeActive}>
+                          <span className={styles.userStatusDot} /> Active
+                        </span>
+                      ) : (
+                        <span className={styles.userStatusBadgePending}>
+                          <Clock size={12} /> Pending
+                        </span>
+                      )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem', padding: '0.25rem 0' }}>
-                  <div>
-                    <label style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                      Role
-                    </label>
-                    <select
-                      value={userItem.role}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleUpdateUser(userItem.id, { role: e.target.value });
-                      }}
-                      disabled={updatingId === userItem.id || (userItem.role === 'SUPER_ADMIN' && profile?.role !== 'SUPER_ADMIN') || userItem.id === profile?.id}
-                      className={styles.filterSelect}
-                      aria-label="Select role"
-                      style={{ cursor: (userItem.role === 'SUPER_ADMIN' && profile?.role !== 'SUPER_ADMIN') || userItem.id === profile?.id ? 'not-allowed' : 'pointer' }}
+                      {/* 3-Dots Menu Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveDropdownId(isDropdownOpen ? null : userItem.id);
+                        }}
+                        className={styles.cardMoreBtn}
+                        aria-label={`More options for ${userItem.name || 'User'}`}
+                        aria-expanded={isDropdownOpen}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+
+                      {/* Floating Dropdown Menu */}
+                      {isDropdownOpen && (
+                        <div className={styles.cardDropdownMenu} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className={styles.cardDropdownItem}
+                            onClick={() => {
+                              setActiveDropdownId(null);
+                              handleUpdateUser(userItem.id, { phoneVerified: !userItem.phoneVerified });
+                            }}
+                          >
+                            <CheckCircle size={14} />
+                            {userItem.phoneVerified ? 'Revoke Verification' : 'Verify Phone'}
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.cardDropdownItem}
+                            onClick={() => {
+                              setActiveDropdownId(null);
+                              handleOpenEdit(userItem);
+                            }}
+                          >
+                            <Edit size={14} /> Edit User
+                          </button>
+                          {canDeleteUser(userItem) && (
+                            <button
+                              type="button"
+                              className={styles.cardDropdownItem}
+                              style={{ color: '#ef4444' }}
+                              onClick={() => {
+                                setActiveDropdownId(null);
+                                setUserToDelete(userItem);
+                                setDeleteModalOpen(true);
+                              }}
+                            >
+                              <Trash2 size={14} /> Delete User
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contact Row: Phone and Email */}
+                  <div className={styles.userContactRow}>
+                    <a
+                      href={userItem.phone ? `tel:${userItem.phone}` : undefined}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`${styles.userContactLink} ${!userItem.phone ? styles.userContactDisabled : ''}`}
+                      aria-label={userItem.phone ? `Call ${userItem.phone}` : 'No phone number available'}
                     >
-                      <option value="USER">USER</option>
-                      <option value="ADMIN">ADMIN</option>
-                      {(userItem.role === 'SUPER_ADMIN' || profile?.role === 'SUPER_ADMIN') && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                      Status
-                    </label>
-                    <select
-                      value={userItem.status}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleUpdateUser(userItem.id, { status: e.target.value });
-                      }}
-                      disabled={updatingId === userItem.id || userItem.id === profile?.id}
-                      className={styles.filterSelect}
-                      aria-label="Select status"
-                      style={{ cursor: userItem.id === profile?.id ? 'not-allowed' : 'pointer' }}
+                      <Phone size={13} style={{ flexShrink: 0 }} />
+                      <span>{userItem.phone || 'No phone'}</span>
+                    </a>
+                    <a
+                      href={userItem.email ? `mailto:${userItem.email}` : undefined}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`${styles.userContactLink} ${!userItem.email ? styles.userContactDisabled : ''}`}
+                      aria-label={userItem.email ? `Email ${userItem.email}` : 'No email address available'}
                     >
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="SUSPENDED">SUSPENDED</option>
-                      <option value="BANNED">BANNED</option>
-                    </select>
+                      <Mail size={13} style={{ flexShrink: 0 }} />
+                      <span>{userItem.email || 'No email'}</span>
+                    </a>
                   </div>
-                </div>
 
-                <div className={styles.mobileCardActions} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleUpdateUser(userItem.id, { phoneVerified: !userItem.phoneVerified });
-                    }}
-                    disabled={updatingId === userItem.id}
-                    variant="outline"
-                    size="sm"
-                    style={{ minHeight: '44px', flex: 1, fontSize: '0.8125rem' }}
-                    aria-label={userItem.phoneVerified ? 'Revoke phone verification' : 'Verify phone number'}
-                  >
-                    {userItem.phoneVerified ? 'Revoke Phone Verification' : 'Verify Phone Number'}
-                  </Button>
+                  {/* 4-Column Stats Grid: Properties, Leads, Role, Status */}
+                  <div className={styles.userStatsGrid}>
+                    <div className={styles.userStatCol}>
+                      <span className={styles.userStatVal}>{userItem._count?.listings || 0}</span>
+                      <span className={styles.userStatLabel}>Properties</span>
+                    </div>
+                    <div className={styles.userStatCol}>
+                      <span className={styles.userStatVal}>{userItem._count?.interests || 0}</span>
+                      <span className={styles.userStatLabel}>Leads</span>
+                    </div>
+                    <div className={styles.userStatCol}>
+                      <span className={styles.userStatVal}>{userItem.role}</span>
+                      <span className={styles.userStatLabel}>Role</span>
+                    </div>
+                    <div className={styles.userStatCol}>
+                      <span className={`${styles.userStatVal} ${
+                        userItem.status === 'ACTIVE' ? styles.statusTextActive :
+                        userItem.status === 'SUSPENDED' ? styles.statusTextSuspended :
+                        userItem.status === 'BANNED' ? styles.statusTextError :
+                        styles.statusTextPending
+                      }`}>
+                        {userItem.status}
+                      </span>
+                      <span className={styles.userStatLabel}>Status</span>
+                    </div>
+                  </div>
 
-                  {canDeleteUser(userItem) && (
+                  {/* Action Buttons Row: View Details, Edit, Delete */}
+                  <div className={styles.userActionsRow}>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setUserToDelete(userItem);
-                        setDeleteModalOpen(true);
+                        setSelectedUserForDetails(userItem);
                       }}
-                      className={styles.mobileTouchIconBtn}
-                      style={{ color: 'var(--color-error)' }}
-                      title="Delete User"
-                      aria-label="Delete User"
+                      className={styles.userViewDetailsBtn}
+                      aria-label={`View details for ${userItem.name || 'User'}`}
+                    >
+                      <Eye size={16} />
+                      <span>View Details</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEdit(userItem);
+                      }}
+                      className={styles.userEditSquareBtn}
+                      title="Edit User"
+                      aria-label={`Edit ${userItem.name || 'User'}`}
+                    >
+                      <Edit size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (canDeleteUser(userItem)) {
+                          setUserToDelete(userItem);
+                          setDeleteModalOpen(true);
+                        }
+                      }}
+                      className={styles.userDeleteSquareBtn}
+                      title={canDeleteUser(userItem) ? "Delete User" : "Cannot delete this user"}
+                      aria-label={`Delete ${userItem.name || 'User'}`}
+                      disabled={!canDeleteUser(userItem)}
+                      style={!canDeleteUser(userItem) ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
                     >
                       <Trash2 size={16} />
                     </button>
-                  )}
+                  </div>
                 </div>
+              );
+            })}
+
+            {/* Mobile Pagination */}
+            {totalPages > 1 && (
+              <div className={styles.mobilePaginationWrapper}>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className={styles.mobilePageBtn}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft size={16} /> Prev
+                </button>
+                <span className={styles.mobilePageIndicator}>
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className={styles.mobilePageBtn}
+                  aria-label="Next page"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
               </div>
-            ))}
+            )}
           </div>
         </>
       )}
-      
+
+      {/* User Details Inspection Modal */}
+      <Modal
+        isOpen={!!selectedUserForDetails}
+        onClose={() => setSelectedUserForDetails(null)}
+        title="User Account Details"
+        size="md"
+      >
+        {selectedUserForDetails && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.25rem' }}>
+            {/* Header / Avatar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 800,
+                  fontSize: '1.1rem',
+                  backgroundColor: getAvatarColors(selectedUserForDetails.name || selectedUserForDetails.email || '').bg,
+                  color: getAvatarColors(selectedUserForDetails.name || selectedUserForDetails.email || '').color,
+                  flexShrink: 0
+                }}
+              >
+                {getInitials(selectedUserForDetails.name || selectedUserForDetails.email)}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
+                  {selectedUserForDetails.name || 'Anonymous User'}
+                </h3>
+                <div style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '2px' }}>
+                  Registered on {formatDate(selectedUserForDetails.createdAt)}
+                </div>
+              </div>
+              <Badge variant={selectedUserForDetails.phoneVerified ? 'success' : 'warning'} size="sm">
+                {selectedUserForDetails.phoneVerified ? 'Verified' : 'Unverified'}
+              </Badge>
+            </div>
+
+            {/* Quick Contact & IDs */}
+            <div style={{ background: '#f8fafc', padding: '0.875rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b' }}>Phone:</span>
+                {selectedUserForDetails.phone ? (
+                  <a href={`tel:${selectedUserForDetails.phone}`} style={{ color: '#0078db', fontWeight: 600 }}>
+                    {selectedUserForDetails.phone}
+                  </a>
+                ) : (
+                  <span style={{ color: '#94a3b8' }}>None</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b' }}>Email:</span>
+                {selectedUserForDetails.email ? (
+                  <a href={`mailto:${selectedUserForDetails.email}`} style={{ color: '#0078db', fontWeight: 600 }}>
+                    {selectedUserForDetails.email}
+                  </a>
+                ) : (
+                  <span style={{ color: '#94a3b8' }}>None</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b' }}>Role:</span>
+                <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                  {selectedUserForDetails.role}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b' }}>Status:</span>
+                <span style={{
+                  fontWeight: 700,
+                  color: selectedUserForDetails.status === 'ACTIVE' ? '#16a34a' :
+                         selectedUserForDetails.status === 'SUSPENDED' ? '#d97706' :
+                         selectedUserForDetails.status === 'BANNED' ? '#dc2626' : '#ea580c'
+                }}>
+                  {selectedUserForDetails.status}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b' }}>User ID:</span>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#334155' }}>
+                  {selectedUserForDetails.id}
+                </span>
+              </div>
+            </div>
+
+            {/* Activity Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
+                  {selectedUserForDetails._count?.listings || 0}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
+                  Properties Listed
+                </div>
+              </div>
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', fontFamily: 'var(--font-heading)' }}>
+                  {selectedUserForDetails._count?.interests || 0}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
+                  Leads / Inquiries
+                </div>
+              </div>
+            </div>
+
+            {/* View properties link if has listings */}
+            {selectedUserForDetails._count?.listings > 0 && (
+              <Link
+                href={`/admin/listings?search=${encodeURIComponent(selectedUserForDetails.name || selectedUserForDetails.phone || '')}`}
+                onClick={() => setSelectedUserForDetails(null)}
+                className={styles.userViewDetailsBtn}
+                style={{ width: '100%', textDecoration: 'none' }}
+              >
+                <Eye size={16} />
+                <span>View User&apos;s Properties ({selectedUserForDetails._count?.listings})</span>
+              </Link>
+            )}
+
+            {/* Close / Action Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <Button type="button" variant="outline" onClick={() => setSelectedUserForDetails(null)}>
+                Close
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  const u = selectedUserForDetails;
+                  setSelectedUserForDetails(null);
+                  handleOpenEdit(u);
+                }}
+              >
+                Edit Account
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal isOpen={!!userToEdit} onClose={() => setUserToEdit(null)} title="Edit User Account" size="md">
+        {userToEdit && (
+          <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '10px' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  backgroundColor: getAvatarColors(userToEdit.name || userToEdit.email || '').bg,
+                  color: getAvatarColors(userToEdit.name || userToEdit.email || '').color
+                }}
+              >
+                {getInitials(userToEdit.name || userToEdit.email)}
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, color: '#0f172a' }}>{userToEdit.name || 'Anonymous'}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{userToEdit.email} · {userToEdit.phone}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-neutral-700)', fontFamily: 'var(--font-heading)' }}>
+                  User Role
+                </label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  disabled={editLoading || (userToEdit.role === 'SUPER_ADMIN' && profile?.role !== 'SUPER_ADMIN') || userToEdit.id === profile?.id}
+                  className={styles.filterSelect}
+                  style={{ minHeight: '44px' }}
+                >
+                  <option value="USER">USER</option>
+                  <option value="ADMIN">ADMIN</option>
+                  {(userToEdit.role === 'SUPER_ADMIN' || profile?.role === 'SUPER_ADMIN') && (
+                    <option value="SUPER_ADMIN">SUPER ADMIN</option>
+                  )}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-neutral-700)', fontFamily: 'var(--font-heading)' }}>
+                  Account Status
+                </label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  disabled={editLoading || userToEdit.id === profile?.id}
+                  className={styles.filterSelect}
+                  style={{ minHeight: '44px' }}
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
+                  <option value="BANNED">BANNED</option>
+                </select>
+              </div>
+            </div>
+
+            {userToEdit.id === profile?.id && (
+              <div style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', background: '#f1f5f9', padding: '0.5rem 0.75rem', borderRadius: '6px' }}>
+                Note: You cannot modify your own role or account status.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: '#f8fafc', borderRadius: '10px' }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>Phone Verification</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Toggle verified status for user profile</div>
+              </div>
+              <Button
+                type="button"
+                variant={editPhoneVerified ? 'primary' : 'outline'}
+                size="sm"
+                style={editPhoneVerified ? { backgroundColor: '#10b981', borderColor: '#10b981' } : undefined}
+                onClick={() => setEditPhoneVerified(!editPhoneVerified)}
+              >
+                {editPhoneVerified ? 'Verified' : 'Unverified'}
+              </Button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <Button type="button" variant="outline" onClick={() => setUserToEdit(null)} disabled={editLoading}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" loading={editLoading}>
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       {/* Add User Modal */}
       <Modal isOpen={addModalOpen} onClose={() => setAddModalOpen(false)} title="Add User / Admin Account" size="md">
         <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.25rem' }}>
@@ -731,7 +1425,7 @@ export default function AdminUsers() {
               >
                 <option value="USER">USER</option>
                 <option value="ADMIN">ADMIN</option>
-                <option value="SUPER_ADMIN">SUPER ADMIN</option>
+                {profile?.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">SUPER ADMIN</option>}
               </select>
             </div>
 
