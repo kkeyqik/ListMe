@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import styles from './MobileMenuDrawer.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import { useSettings } from '@/context/SettingsContext';
@@ -216,9 +216,19 @@ export const MobileMenuDrawer: React.FC = () => {
   const [activeTab, setActiveTab] = useState('sell_rent');
   const [avatarError, setAvatarError] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const { settings } = useSettings();
   const { showToast } = useToast();
   const { user, profile, signOut } = useAuth();
+
+  // Auto-close only when pathname actually changes (navigation occurred)
+  const prevPathname = useRef(pathname);
+  useEffect(() => {
+    if (prevPathname.current !== pathname) {
+      prevPathname.current = pathname;
+      closeMenu();
+    }
+  }, [pathname, closeMenu]);
 
   // Reset avatar error fallback if profile image updates
   useEffect(() => {

@@ -65,6 +65,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
       
       <Link 
         href="/post-property" 
+        onClick={() => {
+          closeSearch();
+          closeMenu();
+        }}
         className={`${styles.navItem} ${styles.centerItem} ${isActive('/post-property') ? styles.active : ''}`}
         aria-current={isActive('/post-property') ? 'page' : undefined}
       >
@@ -75,6 +79,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onMenuClick })
       
       <Link 
         href="/dashboard/interests" 
+        onClick={() => {
+          closeSearch();
+          closeMenu();
+        }}
         className={`${styles.navItem} ${isActive('/dashboard/interests') ? styles.active : ''}`}
         aria-current={isActive('/dashboard/interests') ? 'page' : undefined}
       >

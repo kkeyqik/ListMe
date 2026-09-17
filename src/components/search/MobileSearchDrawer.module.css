@@ -43,6 +43,7 @@
   transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.2);
   touch-action: manipulation;
+  overscroll-behavior: contain;
 }
 
 .overlay.open .drawer {
@@ -250,6 +251,7 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 6px 16px calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 

@@ -144,12 +144,12 @@ export const MobileSearchDrawer: React.FC = () => {
       document.body.style.overflow = 'hidden';
       setSearchQuery('');
       const timer = setTimeout(() => {
-        inputRef.current?.focus();
+        inputRef.current?.focus({ preventScroll: true });
       }, 150);
       return () => {
         clearTimeout(timer);
         document.body.style.overflow = originalOverflow;
-        previousActiveElement.current?.focus();
+        previousActiveElement.current?.focus({ preventScroll: true });
       };
     }
   }, [isSearchOpen]);
@@ -333,6 +333,7 @@ export const MobileSearchDrawer: React.FC = () => {
           className={styles.headerBar}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={() => { touchStartY.current = null; }}
         >
           <div className={styles.dragHandle} aria-hidden="true" />
           

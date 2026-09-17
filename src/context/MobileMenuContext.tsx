@@ -17,27 +17,29 @@ export const MobileMenuProvider: React.FC<{ children: ReactNode }> = ({ children
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const openMenu = () => {
+  const openMenu = React.useCallback(() => {
     setIsSearchOpen(false);
     setIsMenuOpen(true);
-  };
-  const closeMenu = () => setIsMenuOpen(false);
+  }, []);
+  const closeMenu = React.useCallback(() => setIsMenuOpen(false), []);
 
-  const openSearch = () => {
+  const openSearch = React.useCallback(() => {
     setIsMenuOpen(false);
     setIsSearchOpen(true);
-  };
-  const closeSearch = () => setIsSearchOpen(false);
+  }, []);
+  const closeSearch = React.useCallback(() => setIsSearchOpen(false), []);
+
+  const value = React.useMemo(() => ({ 
+    isMenuOpen, 
+    openMenu, 
+    closeMenu,
+    isSearchOpen,
+    openSearch,
+    closeSearch
+  }), [isMenuOpen, openMenu, closeMenu, isSearchOpen, openSearch, closeSearch]);
 
   return (
-    <MobileMenuContext.Provider value={{ 
-      isMenuOpen, 
-      openMenu, 
-      closeMenu,
-      isSearchOpen,
-      openSearch,
-      closeSearch
-    }}>
+    <MobileMenuContext.Provider value={value}>
       {children}
     </MobileMenuContext.Provider>
   );
