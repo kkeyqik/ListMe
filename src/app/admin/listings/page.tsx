@@ -849,32 +849,67 @@ export default function AdminListings() {
                 <div key={listing.id} className={styles.propertyCard}>
                   {/* Top Content Block */}
                   <div className={styles.cardTopBlock}>
-                    {/* Left: Thumbnail with status and photo counter */}
-                    <div className={styles.thumbnailWrapper}>
-                      <img
-                        src={primaryImage}
-                        alt={listing.title}
-                        className={styles.thumbnailImg}
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&auto=format&fit=crop&q=80';
-                        }}
-                      />
-                      <span className={`${styles.statusBadgeTop} ${
-                        listing.status === 'ACTIVE' ? styles.statusActive :
-                        listing.status === 'PENDING_REVIEW' ? styles.statusPending :
-                        listing.status === 'REJECTED' ? styles.statusRejected :
-                        styles.statusInactive
-                      }`}>
-                        {listing.status === 'ACTIVE' ? 'ACTIVE' :
-                         listing.status === 'PENDING_REVIEW' ? 'PENDING' :
-                         listing.status === 'REJECTED' ? 'REJECTED' : 'INACTIVE'}
-                      </span>
-                      {photoCount > 0 && (
-                        <span className={styles.photoCountBadge}>
-                          <ImageIcon size={11} /> {photoCount}
+                    {/* Left: Thumbnail + Action Icons directly underneath */}
+                    <div className={styles.thumbnailCol}>
+                      <div className={styles.thumbnailWrapper}>
+                        <img
+                          src={primaryImage}
+                          alt={listing.title}
+                          className={styles.thumbnailImg}
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&auto=format&fit=crop&q=80';
+                          }}
+                        />
+                        <span className={`${styles.statusBadgeTop} ${
+                          listing.status === 'ACTIVE' ? styles.statusActive :
+                          listing.status === 'PENDING_REVIEW' ? styles.statusPending :
+                          listing.status === 'REJECTED' ? styles.statusRejected :
+                          styles.statusInactive
+                        }`}>
+                          {listing.status === 'ACTIVE' ? 'ACTIVE' :
+                           listing.status === 'PENDING_REVIEW' ? 'PENDING' :
+                           listing.status === 'REJECTED' ? 'REJECTED' : 'INACTIVE'}
                         </span>
-                      )}
+                        {photoCount > 0 && (
+                          <span className={styles.photoCountBadge}>
+                            <ImageIcon size={11} /> {photoCount}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 3 Action Icon Buttons directly under the image */}
+                      <div className={styles.thumbnailActionRow}>
+                        <Link
+                          href={`/property/${listing.id}`}
+                          className={`${styles.thumbActionBtn} ${styles.thumbViewBtn}`}
+                          aria-label={`View property details: ${listing.title}`}
+                          title="View Property"
+                        >
+                          <Eye size={15} aria-hidden="true" />
+                        </Link>
+                        <Link
+                          href={`/dashboard/listings/${listing.id}/edit`}
+                          className={`${styles.thumbActionBtn} ${styles.thumbEditBtn}`}
+                          aria-label={`Edit listing: ${listing.title}`}
+                          title="Edit Listing"
+                        >
+                          <Edit size={15} aria-hidden="true" />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdownId(null);
+                            setDeleteListingId(listing.id);
+                          }}
+                          className={`${styles.thumbActionBtn} ${styles.thumbDeleteBtn}`}
+                          title="Delete Listing"
+                          aria-label={`Delete listing: ${listing.title}`}
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Right: Info Block */}
@@ -994,36 +1029,6 @@ export default function AdminListings() {
                     </div>
                   )}
 
-                  {/* Card Action Buttons */}
-                  <div className={styles.cardActionRow}>
-                    <Link
-                      href={`/property/${listing.id}`}
-                      className={styles.viewPropertyBtn}
-                      aria-label="View property details"
-                    >
-                      <Eye size={16} /> View Property
-                    </Link>
-                    <Link
-                      href={`/dashboard/listings/${listing.id}/edit`}
-                      className={styles.editActionBtn}
-                      aria-label="Edit listing"
-                      title="Edit Listing"
-                    >
-                      <Edit size={16} />
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteListingId(listing.id);
-                      }}
-                      className={styles.deleteActionBtn}
-                      title="Delete Listing"
-                      aria-label="Delete Listing"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
                 </div>
               );
             })}

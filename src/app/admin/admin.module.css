@@ -998,16 +998,23 @@
   box-sizing: border-box;
 }
 
-.thumbnailWrapper {
-  position: relative;
+.thumbnailCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
   width: 105px;
-  height: 105px;
   min-width: 105px;
   max-width: 105px;
+  flex-shrink: 0;
+}
+
+.thumbnailWrapper {
+  position: relative;
+  width: 100%;
+  height: 98px;
   border-radius: 12px;
   overflow: hidden;
   background-color: #f1f5f9;
-  flex-shrink: 0;
 }
 
 .thumbnailImg {
@@ -1275,88 +1282,112 @@
   text-overflow: ellipsis;
 }
 
-.cardActionRow {
+/* Action Icon Buttons directly under Thumbnail */
+.thumbnailActionRow {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
-  margin-top: 0.75rem;
+  gap: 0.35rem;
   width: 100%;
   box-sizing: border-box;
-  min-width: 0;
 }
 
-.viewPropertyBtn {
+.thumbActionBtn {
   flex: 1 1 0;
-  height: 40px;
-  min-height: 40px;
-  border-radius: 10px;
-  border: 1.5px solid #0078db;
-  background-color: #ffffff;
-  color: #0078db;
-  font-family: var(--font-heading);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  touch-action: manipulation;
-  box-sizing: border-box;
-}
-
-.viewPropertyBtn:active {
-  background-color: #eaf4ff;
-  transform: scale(0.98);
-}
-
-.editActionBtn {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  border-radius: 10px;
-  border: 1.5px solid #e2e8f0;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
   background-color: #ffffff;
   color: #334155;
   display: flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  transition: all 0.2s ease;
+  cursor: pointer;
+  transition: all 0.15s ease;
   touch-action: manipulation;
-  flex-shrink: 0;
   box-sizing: border-box;
+  padding: 0;
+  position: relative;
 }
 
-.editActionBtn:active {
+.thumbActionBtn svg {
+  flex-shrink: 0;
+}
+
+/* Ergonomic 44px vertical touch target on mobile without overlapping adjacent siblings */
+.thumbActionBtn::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+}
+
+.thumbActionBtn:hover {
   background-color: #f8fafc;
-  transform: scale(0.96);
+  border-color: #cbd5e1;
 }
 
-.deleteActionBtn {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  border-radius: 10px;
-  border: 1.5px solid #fee2e2;
+.thumbActionBtn:active {
+  transform: scale(0.92);
+}
+
+.thumbActionBtn:focus-visible {
+  outline: none;
+  border-color: #0078db;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #0078db;
+  z-index: 2;
+}
+
+.thumbViewBtn {
+  color: #0078db;
+}
+
+.thumbViewBtn:hover {
+  background-color: #eaf4ff;
+  border-color: #0078db;
+}
+
+.thumbViewBtn:active {
+  background-color: #d8ebff;
+}
+
+.thumbEditBtn {
+  color: #334155;
+}
+
+.thumbEditBtn:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.thumbEditBtn:active {
+  background-color: #e2e8f0;
+}
+
+.thumbDeleteBtn {
+  border-color: #fee2e2;
   background-color: #fff5f5;
   color: #ef4444;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  touch-action: manipulation;
-  flex-shrink: 0;
-  box-sizing: border-box;
 }
 
-.deleteActionBtn:active {
+.thumbDeleteBtn:hover {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.thumbDeleteBtn:active {
   background-color: #fecaca;
-  transform: scale(0.96);
+}
+
+.thumbDeleteBtn:focus-visible {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #ef4444;
+  z-index: 2;
 }
 
 .mobilePaginationWrapper {
