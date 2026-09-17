@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
@@ -100,6 +100,44 @@ export const MobileHome: React.FC = () => {
 
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loadingListings, setLoadingListings] = useState(true);
+  const [isSticky, setIsSticky] = useState(false);
+  const heroRef = useRef<HTMLElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Monitor sticky status accurately for safe-area elevation, solid/glass backdrop, and zero scroll clashes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const sentinel = sentinelRef.current;
+    let observer: IntersectionObserver | null = null;
+
+    if ('IntersectionObserver' in window && sentinel) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          setIsSticky(!entry.isIntersecting);
+        },
+        { root: null, threshold: 0 }
+      );
+      observer.observe(sentinel);
+    }
+
+    const handleScroll = () => {
+      if (!heroRef.current) return;
+      const heroRect = heroRef.current.getBoundingClientRect();
+      // Hero overlaps search bar by 24px; hits top: 0 when heroRect.bottom <= 24
+      setIsSticky(heroRect.bottom <= 24);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, []);
 
   // Fetch live properties from database
   useEffect(() => {
@@ -144,7 +182,7 @@ export const MobileHome: React.FC = () => {
       </header>
 
       {/* 1. Hero Search Area */}
-      <section className={styles.heroSection}>
+      <section className={styles.heroSection} ref={heroRef}>
         <Image 
           src={heroImage} 
           alt="ListMe Hero Property" 
@@ -154,18 +192,20 @@ export const MobileHome: React.FC = () => {
           priority
         />
         <div className={styles.heroOverlay} />
+        <div ref={sentinelRef} className={styles.stickySentinel} aria-hidden="true" />
       </section>
 
       {/* Interactive Sticky Search Bar */}
-      <div className={styles.stickySearchContainer}>
-        <Link href="/listings" className={styles.searchWrapper}>
-          <Search className={styles.searchIcon} size={20} />
-          <input 
-            type="text" 
-            placeholder='Search "3 BHK flats for sale in Noida"'
-            className={styles.searchInput}
-            readOnly 
-          />
+      <div className={`${styles.stickySearchContainer} ${isSticky ? styles.isSticky : ''}`}>
+        <Link 
+          href="/listings" 
+          className={styles.searchWrapper}
+          aria-label="Search properties across top cities"
+        >
+          <Search className={styles.searchIcon} size={20} aria-hidden="true" />
+          <span className={styles.searchInputPlaceholder} aria-hidden="true">
+            Search &quot;3 BHK flats for sale in Noida&quot;
+          </span>
         </Link>
       </div>
 
