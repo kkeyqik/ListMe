@@ -133,7 +133,10 @@ export const MobileHome: React.FC = () => {
       {/* 0. Mobile Header */}
       <header className={styles.mobileHeader}>
         <div className={styles.mobileHeaderTop}>
-          <div className={styles.mobileLogo}>ListMe</div>
+          <Link href="/" className={styles.mobileLogo} aria-label="ListMe Home">
+            <Home className={styles.mobileLogoIcon} size={26} strokeWidth={2.2} aria-hidden="true" />
+            <span className={styles.mobileLogoText}>ListMe</span>
+          </Link>
           <Link href="/post-property" className={styles.mobilePostPropertyBtn}>
             Post Property <span className={styles.freeBadge}>FREE</span>
           </Link>
