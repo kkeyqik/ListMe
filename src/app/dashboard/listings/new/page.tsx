@@ -23,15 +23,8 @@ import {
 import { useToast, Button, Input, Card, Select, Combobox } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
-import { createClient } from '@/lib/supabase/client';
 import {
-  generateFileName,
-  getListingDocPath,
-  getListingImagePath,
-  getListingVideoPath,
-  LISTING_DOCUMENTS_BUCKET,
-  LISTING_IMAGES_BUCKET,
-  LISTING_VIDEOS_BUCKET,
+  uploadListingFile,
   validateDocument,
   validateImage,
   validateVideo,
@@ -470,31 +463,17 @@ export default function NewListing() {
   }, []);
 
   const uploadListingMedia = async (listingId: string, videoUrlToSave = '') => {
-    const supabase = createClient();
-
     const images = [];
     for (let index = 0; index < selectedPhotos.length; index++) {
       const photo = selectedPhotos[index];
       
       // Process, compress, and strip EXIF from image
       const processedFile = await processImage(photo.file);
-      const fileName = generateFileName(processedFile.name);
-      const path = getListingImagePath(listingId, fileName);
-
       setSelectedPhotos((prev) =>
         prev.map((item) => (item.id === photo.id ? { ...item, progress: 25 } : item))
       );
 
-      const { error } = await supabase.storage
-        .from(LISTING_IMAGES_BUCKET)
-        .upload(path, processedFile, {
-          contentType: processedFile.type,
-          upsert: false,
-        });
-
-      if (error) throw error;
-
-      const { data } = supabase.storage.from(LISTING_IMAGES_BUCKET).getPublicUrl(path);
+      const { publicUrl } = await uploadListingFile(listingId, 'images', processedFile);
 
       setSelectedPhotos((prev) =>
         prev.map((item) =>
@@ -503,7 +482,7 @@ export default function NewListing() {
       );
 
       images.push({
-        imageUrl: data.publicUrl,
+        imageUrl: publicUrl,
         imageType: 'photo',
         displayOrder: index,
         isPrimary: index === 0,
@@ -512,21 +491,11 @@ export default function NewListing() {
 
     const documents = [];
     for (const doc of selectedDocs) {
-      const fileName = generateFileName(doc.name);
-      const path = getListingDocPath(listingId, fileName);
-
       setSelectedDocs((prev) =>
         prev.map((item) => (item.id === doc.id ? { ...item, progress: 25 } : item))
       );
 
-      const { error } = await supabase.storage
-        .from(LISTING_DOCUMENTS_BUCKET)
-        .upload(path, doc.file, {
-          contentType: doc.file.type,
-          upsert: false,
-        });
-
-      if (error) throw error;
+      const { path } = await uploadListingFile(listingId, 'documents', doc.file);
 
       setSelectedDocs((prev) =>
         prev.map((item) =>
@@ -545,25 +514,20 @@ export default function NewListing() {
 
     // Upload video file if user selected a direct video file
     if (selectedVideo) {
-      const fileName = generateFileName(selectedVideo.name);
-      const path = getListingVideoPath(listingId, fileName);
-
       setSelectedVideo((prev) => (prev ? { ...prev, progress: 30 } : null));
 
-      const { error } = await supabase.storage
-        .from(LISTING_VIDEOS_BUCKET)
-        .upload(path, selectedVideo.file, {
-          contentType: selectedVideo.file.type || 'video/mp4',
-          upsert: false,
-        });
-
-      if (error) {
-        console.error('Video upload error:', error);
-        throw new Error(`Failed to upload video: ${error.message}`);
+      try {
+        const { publicUrl } = await uploadListingFile(
+          listingId,
+          'videos',
+          selectedVideo.file,
+          selectedVideo.file.type || 'video/mp4'
+        );
+        finalVideoUrl = publicUrl;
+      } catch (err) {
+        console.error('Video upload error:', err);
+        throw new Error(`Failed to upload video: ${err instanceof Error ? err.message : 'unknown error'}`);
       }
-
-      const { data } = supabase.storage.from(LISTING_VIDEOS_BUCKET).getPublicUrl(path);
-      finalVideoUrl = data.publicUrl;
 
       setSelectedVideo((prev) => (prev ? { ...prev, progress: 100, uploaded: true } : null));
     } else if (videoUrlToSave?.trim()) {

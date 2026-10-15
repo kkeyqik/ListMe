@@ -19,15 +19,9 @@ import {
   Video
 } from 'lucide-react';
 import { useToast, Button, Input, Card, Select, Combobox } from '@/components/ui';
-import { createClient } from '@/lib/supabase/client';
 import {
-  generateFileName,
-  getListingDocPath,
-  getListingImagePath,
-  getListingVideoPath,
-  LISTING_DOCUMENTS_BUCKET,
-  LISTING_IMAGES_BUCKET,
-  LISTING_VIDEOS_BUCKET,
+  deleteListingFile,
+  uploadListingFile,
   validateDocument,
   validateImage,
   validateVideo,
@@ -473,11 +467,10 @@ export default function EditListing({ params }: EditListingProps) {
     // S8: Delete the Storage binary when removing an existing Supabase-hosted video
     if (initialVideoUrl && initialVideoUrl.includes('/listing-videos/')) {
       try {
-        const supabase = createClient();
         // Extract the storage path from the public URL
         const match = initialVideoUrl.match(/\/listing-videos\/(.+)/);
         if (match && match[1]) {
-          await supabase.storage.from(LISTING_VIDEOS_BUCKET).remove([match[1]]);
+          await deleteListingFile(listingId, 'videos', decodeURIComponent(match[1]));
         }
       } catch (err) {
         console.warn('Could not delete video from storage:', err);
@@ -489,31 +482,17 @@ export default function EditListing({ params }: EditListingProps) {
   };
 
   const uploadListingMedia = async (videoHasChanged = false, videoUrlToSave = '') => {
-    const supabase = createClient();
-
     const images = [];
     for (let index = 0; index < selectedPhotos.length; index++) {
       const photo = selectedPhotos[index];
       
       // Process, compress, and strip EXIF from image
       const processedFile = await processImage(photo.file);
-      const fileName = generateFileName(processedFile.name);
-      const path = getListingImagePath(listingId, fileName);
-
       setSelectedPhotos((prev) =>
         prev.map((item) => (item.id === photo.id ? { ...item, progress: 25 } : item))
       );
 
-      const { error } = await supabase.storage
-        .from(LISTING_IMAGES_BUCKET)
-        .upload(path, processedFile, {
-          contentType: processedFile.type,
-          upsert: false,
-        });
-
-      if (error) throw error;
-
-      const { data } = supabase.storage.from(LISTING_IMAGES_BUCKET).getPublicUrl(path);
+      const { publicUrl } = await uploadListingFile(listingId, 'images', processedFile);
 
       setSelectedPhotos((prev) =>
         prev.map((item) =>
@@ -522,7 +501,7 @@ export default function EditListing({ params }: EditListingProps) {
       );
 
       images.push({
-        imageUrl: data.publicUrl,
+        imageUrl: publicUrl,
         imageType: 'photo',
         displayOrder: currentPhotos.length + index,
         isPrimary: currentPhotos.length === 0 && index === 0,
@@ -531,21 +510,11 @@ export default function EditListing({ params }: EditListingProps) {
 
     const documents = [];
     for (const doc of selectedDocs) {
-      const fileName = generateFileName(doc.name);
-      const path = getListingDocPath(listingId, fileName);
-
       setSelectedDocs((prev) =>
         prev.map((item) => (item.id === doc.id ? { ...item, progress: 25 } : item))
       );
 
-      const { error } = await supabase.storage
-        .from(LISTING_DOCUMENTS_BUCKET)
-        .upload(path, doc.file, {
-          contentType: doc.file.type,
-          upsert: false,
-        });
-
-      if (error) throw error;
+      const { path } = await uploadListingFile(listingId, 'documents', doc.file);
 
       setSelectedDocs((prev) =>
         prev.map((item) =>
@@ -564,25 +533,20 @@ export default function EditListing({ params }: EditListingProps) {
     let shouldUpdateVideos = videoHasChanged;
 
     if (selectedVideo) {
-      const fileName = generateFileName(selectedVideo.name);
-      const path = getListingVideoPath(listingId, fileName);
-
       setSelectedVideo((prev) => (prev ? { ...prev, progress: 30 } : null));
 
-      const { error } = await supabase.storage
-        .from(LISTING_VIDEOS_BUCKET)
-        .upload(path, selectedVideo.file, {
-          contentType: selectedVideo.file.type || 'video/mp4',
-          upsert: false,
-        });
-
-      if (error) {
-        console.error('Video upload error:', error);
-        throw new Error(`Failed to upload video: ${error.message}`);
+      try {
+        const { publicUrl } = await uploadListingFile(
+          listingId,
+          'videos',
+          selectedVideo.file,
+          selectedVideo.file.type || 'video/mp4'
+        );
+        finalVideoUrl = publicUrl;
+      } catch (err) {
+        console.error('Video upload error:', err);
+        throw new Error(`Failed to upload video: ${err instanceof Error ? err.message : 'unknown error'}`);
       }
-
-      const { data } = supabase.storage.from(LISTING_VIDEOS_BUCKET).getPublicUrl(path);
-      finalVideoUrl = data.publicUrl;
       shouldUpdateVideos = true;
 
       setSelectedVideo((prev) => (prev ? { ...prev, progress: 100, uploaded: true } : null));
