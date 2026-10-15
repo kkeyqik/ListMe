@@ -5,6 +5,7 @@ import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { createPasswordResetSessionToken } from '@/lib/session';
 import { validateEmail } from '@/lib/validation';
 import { logUserActivity } from '@/lib/activity-logger';
+import { verifyFirebasePhoneToken } from '@/lib/firebase/verify-id-token';
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
@@ -70,22 +71,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Fallback: direct target match if profile lookup was inconclusive
-    if (!matchingToken) {
-      const cleanDigits = trimmed.replace(/\D/g, '').slice(-10);
-      matchingToken = await prisma.passwordResetToken.findFirst({
-        where: {
-          channel: channelUpper,
-          usedAt: null,
-          expiresAt: { gt: now },
-          OR: channelUpper === 'EMAIL'
-            ? [{ target: { equals: trimmed, mode: 'insensitive' } }]
-            : [{ target: { contains: cleanDigits } }],
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
-
     if (!matchingToken) {
       return NextResponse.json(
         { message: 'OTP has expired or does not exist. Please request a new code.' },
@@ -106,28 +91,10 @@ export async function POST(request: NextRequest) {
     let isVerified = false;
 
     if (firebaseIdToken && channelUpper === 'SMS') {
-      const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-      if (apiKey) {
-        try {
-          const googleRes = await fetch(
-            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ idToken: firebaseIdToken }),
-            }
-          );
-          if (googleRes.ok) {
-            const googleData = await googleRes.json();
-            const verifiedPhone = googleData.users?.[0]?.phoneNumber?.replace(/\D/g, '').slice(-10);
-            const tokenPhone = matchingToken.target.replace(/\D/g, '').slice(-10);
-            if (verifiedPhone && tokenPhone && verifiedPhone === tokenPhone) {
-              isVerified = true;
-            }
-          }
-        } catch (fbErr) {
-          console.warn('[verify-otp] Firebase token verification error:', fbErr);
-        }
+      const verifiedPhone = await verifyFirebasePhoneToken(firebaseIdToken);
+      const tokenPhone = matchingToken.target.replace(/\D/g, '').slice(-10);
+      if (verifiedPhone && tokenPhone && verifiedPhone.slice(-10) === tokenPhone) {
+        isVerified = true;
       }
     }
 

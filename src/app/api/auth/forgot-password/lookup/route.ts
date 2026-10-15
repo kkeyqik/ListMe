@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       exists: true,
-      name: profile.name,
+      // First name only: this endpoint is unauthenticated.
+      name: profile.name?.trim().split(/\s+/)[0] || null,
       hasEmail,
       maskedEmail: profile.email ? maskEmail(profile.email) : null,
       hasPhone,

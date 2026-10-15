@@ -48,16 +48,14 @@ export async function POST(request: NextRequest) {
     const { userId, tokenId } = tokenPayload;
 
     // Single-use token verification: ensure token is active and not already consumed
-    if (tokenId) {
-      const tokenRecord = await prisma.passwordResetToken.findUnique({
-        where: { id: tokenId },
-      });
-      if (!tokenRecord || tokenRecord.userId !== userId) {
-        return NextResponse.json(
-          { message: 'This password reset session is invalid or has already been used.' },
-          { status: 401 }
-        );
-      }
+    const tokenRecord = await prisma.passwordResetToken.findUnique({
+      where: { id: tokenId },
+    });
+    if (!tokenRecord || tokenRecord.userId !== userId) {
+      return NextResponse.json(
+        { message: 'This password reset session is invalid or has already been used.' },
+        { status: 401 }
+      );
     }
 
     // Fetch user profile

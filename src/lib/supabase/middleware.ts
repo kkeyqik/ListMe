@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifySessionToken } from '@/lib/session';
+import { isMockAuthEnabled } from '@/lib/mock-auth';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -29,7 +30,7 @@ export async function updateSession(request: NextRequest) {
   );
 
   // 1. Resolve active user session — check Supabase first
-  let user: any = null;
+  let user: { id: string; app_metadata?: Record<string, unknown> } | null = null;
 
   try {
     const { data } = await supabase.auth.getUser();
@@ -55,7 +56,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 3. Dev-only: Check mock user ID cookie (ONLY in development with explicit opt-in)
-  if (!user && process.env.ENABLE_MOCK_AUTH === 'true') {
+  if (!user && isMockAuthEnabled()) {
     const mockUserIdCookie = request.cookies.get('sb-mock-user-id')?.value;
     if (mockUserIdCookie) {
       const mockAdminId = process.env.MOCK_ADMIN_ID;
@@ -81,7 +82,9 @@ export async function updateSession(request: NextRequest) {
 
   // 5. Authenticated user checks — role from database/session metadata only, no hardcoded values
   if (user) {
-    const userRole = user.app_metadata?.role || user.user_metadata?.role || sessionRole || 'USER';
+    // user_metadata is writable by the user themselves via the Supabase client,
+    // so it must never decide access. app_metadata and the signed session are server-set.
+    const userRole = (user.app_metadata?.role as string | undefined) || sessionRole || 'USER';
     const isAdminUser = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' || sessionRole === 'ADMIN' || sessionRole === 'SUPER_ADMIN';
 
     // Admin route protection: Require ADMIN or SUPER_ADMIN role

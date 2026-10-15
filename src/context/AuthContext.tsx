@@ -40,7 +40,7 @@ const PENDING_SIGNUP_KEY = 'listme_pending_signup';
 const formatIndiaPhone = (phone: string) => (phone.startsWith('+') ? phone : `+91${phone}`);
 
 // Check if mock auth is enabled (build-time flag)
-const IS_MOCK_AUTH_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true';
+const IS_MOCK_AUTH_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true' && process.env.NODE_ENV !== 'production';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

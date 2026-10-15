@@ -6,9 +6,10 @@ import { cookies } from 'next/headers';
 import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { validatePhone, sanitizeInput } from '@/lib/validation';
+import { verifyFirebasePhoneToken } from '@/lib/firebase/verify-id-token';
+import { isMockAuthEnabled } from '@/lib/mock-auth';
+import { createClient } from '@/lib/supabase/server';
 import { logUserActivity } from '@/lib/activity-logger';
-
-const formatIndiaPhone = (phone: string) => (phone.startsWith('+') ? phone : `+91${phone}`);
 
 export async function POST(request: NextRequest) {
   // Rate limiting: 5 attempts per 15 minutes per IP
@@ -22,39 +23,65 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { phone, name, email } = await request.json();
-
-    if (!phone) {
-      return NextResponse.json({ message: 'Phone number is required' }, { status: 400 });
-    }
-
-    // Validate and normalize phone
-    const phoneValidation = validatePhone(phone);
-    if (!phoneValidation.valid) {
-      return NextResponse.json({ message: phoneValidation.error }, { status: 400 });
-    }
-
-    const formattedPhone = phoneValidation.normalized;
-    const sanitizedName = name ? sanitizeInput(name) : null;
+    const { idToken, phone: claimedPhone, name } = await request.json();
 
     const isPlaceholder =
       process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
       !process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    // The phone number must come from a source the server can verify, never from
+    // the request body: a Firebase ID token issued after SMS OTP, or an existing
+    // Supabase session whose phone Supabase itself confirmed.
+    let formattedPhone: string | null = null;
+    let verifiedEmail: string | null = null;
+
+    if (idToken) {
+      formattedPhone = await verifyFirebasePhoneToken(idToken);
+      if (!formattedPhone) {
+        return NextResponse.json({ message: 'Phone verification failed. Please request a new OTP.' }, { status: 401 });
+      }
+    } else if (!isPlaceholder) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.phone && user.phone_confirmed_at) {
+        const result = validatePhone(user.phone);
+        if (result.valid) formattedPhone = result.normalized;
+        verifiedEmail = user.email_confirmed_at ? user.email ?? null : null;
+      }
+    }
+
+    if (!formattedPhone && isMockAuthEnabled() && isPlaceholder && typeof claimedPhone === 'string') {
+      // Local development only: trust the claimed test number.
+      const result = validatePhone(claimedPhone);
+      if (result.valid) formattedPhone = result.normalized;
+    }
+
+    if (!formattedPhone) {
+      return NextResponse.json({ message: 'Phone verification is required' }, { status: 401 });
+    }
+
+    const sanitizedName = typeof name === 'string' && name.trim() ? sanitizeInput(name) : null;
+
     let suUserId: string | null = null;
     let existingProfile = null;
 
-    const resolvedEmail = email || `phone_${formattedPhone.replace(/\D/g, '')}@listme.com`;
+    const resolvedEmail = verifiedEmail || `phone_${formattedPhone.replace(/\D/g, '')}@listme.com`;
 
     // 1. DB-First: Try to find existing profile in Prisma database
-    existingProfile = await prisma.profile.findFirst({
-      where: {
-        OR: [
-          { phone: formattedPhone },
-          ...(email ? [{ email }] : []),
-        ],
-      },
+    existingProfile = await prisma.profile.findUnique({
+      where: { phone: formattedPhone },
     });
+
+    // A profile that merely typed this number in (never verified it) must not
+    // capture the real owner's login. Release the number and treat the
+    // verified caller as a new user.
+    if (existingProfile && !existingProfile.phoneVerified) {
+      await prisma.profile.update({
+        where: { id: existingProfile.id },
+        data: { phone: null },
+      });
+      existingProfile = null;
+    }
 
     if (existingProfile) {
       suUserId = existingProfile.id;
@@ -75,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Dev-only: Mock test accounts (gated behind ENABLE_MOCK_AUTH)
-    if (process.env.ENABLE_MOCK_AUTH === 'true' && isPlaceholder) {
+    if (isMockAuthEnabled() && isPlaceholder) {
       if (!suUserId) {
         suUserId = crypto.randomUUID();
       }
@@ -159,8 +186,9 @@ export async function POST(request: NextRequest) {
 
         if (createError) {
           if (createError.message?.includes('already registered') || createError.status === 422) {
-            const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
-            const matchedUser = listData?.users.find((u) => u.phone === formattedPhone || u.email === resolvedEmail);
+            const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+            const phoneDigits = formattedPhone.replace(/\D/g, '');
+            const matchedUser = listData?.users.find((u) => (u.phone || '').replace(/\D/g, '') === phoneDigits);
             if (matchedUser) {
               suUserId = matchedUser.id;
             }

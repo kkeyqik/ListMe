@@ -232,7 +232,6 @@ export default function Profile() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 phone: finalPhone,
-                phoneVerified: true,
               }),
             });
             if (res.ok) {

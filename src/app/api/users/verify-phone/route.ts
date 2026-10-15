@@ -1,29 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
-import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { validatePhone } from '@/lib/validation';
-import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
-import { cookies } from 'next/headers';
+import { verifyFirebasePhoneToken } from '@/lib/firebase/verify-id-token';
+import { isMockAuthEnabled } from '@/lib/mock-auth';
 
 export async function POST(request: NextRequest) {
   try {
-    let userId = await getAuthenticatedUserId();
-    if (!userId) {
-      try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-        if (sessionCookie) {
-          const sessionData = verifySessionToken(sessionCookie);
-          if (sessionData) {
-            userId = sessionData.userId;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
+    const userId = await getAuthenticatedUserId();
 
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -38,35 +23,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { phone, otp } = await request.json();
+    const { idToken, phone } = await request.json();
 
-    if (!phone) {
-      return NextResponse.json({ message: 'Phone number is required' }, { status: 400 });
+    // The verified number comes from Firebase, never from the request body.
+    let formattedPhone = await verifyFirebasePhoneToken(idToken);
+
+    if (!formattedPhone && isMockAuthEnabled()) {
+      const result = typeof phone === 'string' ? validatePhone(phone) : null;
+      formattedPhone = result?.valid ? result.normalized : null;
     }
 
-    if (!otp || typeof otp !== 'string' || otp.trim().length !== 6) {
-      return NextResponse.json({ message: 'A valid 6-digit verification code is required' }, { status: 400 });
+    if (!formattedPhone) {
+      return NextResponse.json({ message: 'Phone verification failed. Please request a new OTP.' }, { status: 401 });
     }
-
-    // Validate and normalize phone
-    const phoneValidation = validatePhone(phone);
-    if (!phoneValidation.valid) {
-      return NextResponse.json({ message: phoneValidation.error }, { status: 400 });
-    }
-
-    const formattedPhone = phoneValidation.normalized;
 
     // Check if phone is already owned by another user
     const existingOwner = await prisma.profile.findUnique({
       where: { phone: formattedPhone },
-      select: { id: true },
+      select: { id: true, phoneVerified: true },
     });
 
     if (existingOwner && existingOwner.id !== userId) {
-      return NextResponse.json(
-        { message: 'This phone number is already registered to another account' },
-        { status: 400 }
-      );
+      if (existingOwner.phoneVerified) {
+        return NextResponse.json(
+          { message: 'This phone number is already registered to another account' },
+          { status: 400 }
+        );
+      }
+      // Another account only typed this number in; the verified owner takes it.
+      await prisma.profile.update({
+        where: { id: existingOwner.id },
+        data: { phone: null },
+      });
     }
 
     // Update the profile in the database
