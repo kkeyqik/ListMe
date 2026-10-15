@@ -898,6 +898,8 @@ export default function PostPropertyPage() {
 
   // Ref to track whether form submission originated from desktop card or mobile section
   const submitSourceRef = useRef<'desktop' | 'mobile'>('mobile');
+  // Mirrors submitSourceRef for render-time use (refs must not be read during render)
+  const [submitSource, setSubmitSource] = useState<'desktop' | 'mobile'>('mobile');
 
   // Drawer context for menu state awareness
   const { isMenuOpen } = useMobileMenu();
@@ -1002,6 +1004,7 @@ export default function PostPropertyPage() {
   const handleStickyCtaClick = (e: React.MouseEvent) => {
     e.preventDefault();
     submitSourceRef.current = 'mobile';
+    setSubmitSource('mobile');
     const inputEl = document.getElementById('mobileContactInput') as HTMLInputElement | null;
     const currentVal = inputEl?.value || mobileContact;
     const contact = currentVal.trim() || (profile?.phone || '');
@@ -1061,8 +1064,8 @@ export default function PostPropertyPage() {
     return 'Your contact details for the buyer to reach you';
   };
 
-  const getNewListingUrl = (source?: 'desktop' | 'mobile') => {
-    const isDesktop = (source || submitSourceRef.current) === 'desktop';
+  const getNewListingUrl = (source: 'desktop' | 'mobile') => {
+    const isDesktop = source === 'desktop';
     if (isDesktop) {
       return `/dashboard/listings/new?type=${listingFor}&propertyType=${propertyType}`;
     }
@@ -1161,6 +1164,7 @@ export default function PostPropertyPage() {
   const handleMobileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     submitSourceRef.current = 'mobile';
+    setSubmitSource('mobile');
     const inputEl = document.getElementById('mobileContactInput') as HTMLInputElement | null;
     const currentVal = inputEl?.value || mobileContact;
     const contact = currentVal.trim() || (profile?.phone || '');
@@ -1316,13 +1320,14 @@ export default function PostPropertyPage() {
         window.sessionStorage.removeItem('onboarding_pg_subproperty');
       }
     }
-    const targetUrl = getNewListingUrl();
+    const targetUrl = getNewListingUrl(submitSourceRef.current);
     router.push(targetUrl);
   };
 
   const handleBeginPosting = (e: React.FormEvent) => {
     e.preventDefault();
     submitSourceRef.current = 'desktop';
+    setSubmitSource('desktop');
     if (!phone || phone.length < 10) {
       showToast('Error', 'Please enter a valid 10-digit contact number', 'error');
       return;
@@ -2445,7 +2450,7 @@ export default function PostPropertyPage() {
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
         initialPhone={phone || (mobileContact.replace(/\D/g, '').length >= 10 ? mobileContact.replace(/\D/g, '').slice(-10) : '')}
-        redirectPath={getNewListingUrl()}
+        redirectPath={getNewListingUrl(submitSource)}
       />
       <PhoneVerificationModal
         isOpen={verificationModalOpen}

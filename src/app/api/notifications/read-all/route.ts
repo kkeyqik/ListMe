@@ -25,8 +25,9 @@ export async function PUT(request: NextRequest) {
       message: 'All notifications marked as read successfully',
     });
   } catch (error: any) {
+    console.error('[notifications/read-all] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

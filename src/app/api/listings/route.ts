@@ -5,14 +5,20 @@ import { prisma } from '@/lib/prisma';
 import { ListingStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
 import { logUserActivity } from '@/lib/activity-logger';
 
+function asEnum<T extends Record<string, string>>(enumObj: T, value: string | null | undefined): T[keyof T] | undefined {
+  if (!value) return undefined;
+  const upper = value.toUpperCase();
+  return (Object.values(enumObj) as string[]).includes(upper) ? (upper as T[keyof T]) : undefined;
+}
+
 // 1. GET - Fetch / Search Listings
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
     // Pagination
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '12', 10);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '12', 10) || 12));
     const skip = (page - 1) * limit;
 
     // Filters
@@ -46,9 +52,9 @@ export async function GET(request: NextRequest) {
       where.ownerId = userId;
       
       // Optional status filter in owner mode
-      const statusFilter = searchParams.get('status');
+      const statusFilter = asEnum(ListingStatus, searchParams.get('status'));
       if (statusFilter) {
-        where.status = statusFilter.toUpperCase() as ListingStatus;
+        where.status = statusFilter;
       }
     } else {
       if (adminOnly) {
@@ -65,9 +71,9 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
         }
 
-        const statusFilter = searchParams.get('status');
-        if (statusFilter && statusFilter !== 'ALL') {
-          where.status = statusFilter.toUpperCase() as ListingStatus;
+        const statusFilter = asEnum(ListingStatus, searchParams.get('status'));
+        if (statusFilter) {
+          where.status = statusFilter;
         }
       } else {
         // By default, public search only shows ACTIVE listings
@@ -105,8 +111,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by specific property type
-    if (propertyType) {
-      where.propertyType = propertyType.toUpperCase() as PropertyType;
+    const propertyTypeFilter = asEnum(PropertyType, propertyType);
+    if (propertyTypeFilter) {
+      where.propertyType = propertyTypeFilter;
     }
 
     if (city) {
@@ -147,11 +154,13 @@ export async function GET(request: NextRequest) {
     // Pricing filters
     if (minPrice || maxPrice) {
       where.askingPrice = {};
-      if (minPrice) {
-        where.askingPrice.gte = parseFloat(minPrice);
+      const min = minPrice ? parseFloat(minPrice) : NaN;
+      const max = maxPrice ? parseFloat(maxPrice) : NaN;
+      if (Number.isFinite(min)) {
+        where.askingPrice.gte = min;
       }
-      if (maxPrice) {
-        where.askingPrice.lte = parseFloat(maxPrice);
+      if (Number.isFinite(max)) {
+        where.askingPrice.lte = max;
       }
     }
 
@@ -160,14 +169,15 @@ export async function GET(request: NextRequest) {
       const bhkVal = parseInt(bhk, 10);
       if (bhkVal >= 5) {
         where.bedrooms = { gte: 5 };
-      } else {
+      } else if (Number.isFinite(bhkVal)) {
         where.bedrooms = bhkVal;
       }
     }
 
     // Furnishing status
-    if (furnishing) {
-      where.furnishing = furnishing.toUpperCase() as Furnishing;
+    const furnishingFilter = asEnum(Furnishing, furnishing);
+    if (furnishingFilter) {
+      where.furnishing = furnishingFilter;
     }
 
     // Text search query (across title, description, city, locality)
@@ -246,6 +256,9 @@ export async function GET(request: NextRequest) {
         orderBy,
         skip,
         take: limit,
+        // The exact address and map pin are private until the seeker expresses
+        // interest (see /api/listings/[id]); only owners and admins get them here.
+        omit: ownerOnly || adminOnly ? undefined : { fullAddress: true, latitude: true, longitude: true },
         include: {
           images: {
             orderBy: { displayOrder: 'asc' },

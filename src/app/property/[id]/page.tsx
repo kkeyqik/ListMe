@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import PropertyClient from './PropertyClient';
 import { Breadcrumbs } from '@/components/ui';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
+import { serializeJsonLd } from '@/lib/json-ld';
 
 interface PropertyPageProps {
   params: Promise<{ id: string }>;
@@ -23,7 +25,7 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     }
   });
 
-  if (!listing) {
+  if (!listing || listing.status !== 'ACTIVE') {
     return {
       title: 'Property Not Found — ListMe',
       description: 'The property listing you are looking for is no longer active or does not exist.',
@@ -94,6 +96,19 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     notFound();
   }
 
+  // Pending, rejected and deactivated listings are visible only to their owner and admins
+  if (listing.status !== 'ACTIVE') {
+    const viewerId = await getAuthenticatedUserId();
+    let canPreview = !!viewerId && viewerId === listing.ownerId;
+    if (viewerId && !canPreview) {
+      const viewer = await prisma.profile.findUnique({ where: { id: viewerId }, select: { role: true } });
+      canPreview = viewer?.role === 'ADMIN' || viewer?.role === 'SUPER_ADMIN';
+    }
+    if (!canPreview) {
+      notFound();
+    }
+  }
+
   // Obfuscate owner contact details and documents for the initial server render
   const sanitizedListing = {
     ...listing,
@@ -104,6 +119,8 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
       email: '[Hidden — Click Interested to Contact]',
     },
     fullAddress: '[Hidden — Click Interested to Contact]',
+    latitude: null,
+    longitude: null,
     documents: [],
   };
 
@@ -138,7 +155,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
       {/* Inject JSON-LD Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         <Breadcrumbs items={breadcrumbs} />

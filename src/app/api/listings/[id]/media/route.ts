@@ -62,12 +62,29 @@ export async function POST(
     const rawVideos = Array.isArray(body.videos) ? (body.videos as VideoPayload[]) : [];
 
     // Filter valid images and documents
+    // Images must be absolute http(s) URLs (no javascript:/data: URLs).
+    const isHttpUrl = (value: string) => {
+      try {
+        const url = new URL(value);
+        return url.protocol === 'https:' || url.protocol === 'http:';
+      } catch {
+        return false;
+      }
+    };
     const images = rawImages.filter(
-      (img) => typeof img?.imageUrl === 'string' && img.imageUrl.trim().length > 0
+      (img) => typeof img?.imageUrl === 'string' && isHttpUrl(img.imageUrl.trim())
     );
+    // Documents are private storage paths, and must live under this listing's folder.
+    const docPrefix = `properties/${id}/documents/`;
     const documents = rawDocuments.filter(
-      (doc) => typeof doc?.docUrl === 'string' && doc.docUrl.trim().length > 0
+      (doc) =>
+        typeof doc?.docUrl === 'string' &&
+        doc.docUrl.trim().startsWith(docPrefix) &&
+        !doc.docUrl.includes('..')
     );
+    if (images.length !== rawImages.length || documents.length !== rawDocuments.length) {
+      return NextResponse.json({ message: 'Invalid image or document reference' }, { status: 400 });
+    }
 
     // Validate and sanitize videos
     const validVideos: VideoPayload[] = [];
@@ -111,8 +128,10 @@ export async function POST(
       ? await prisma.listingDocument.createManyAndReturn({
           data: documents.map((document) => ({
             listingId: id,
-            docType: (document.docType || 'OTHER').toUpperCase() as DocType,
-            docName: document.docName || 'Document',
+            docType: (Object.values(DocType) as string[]).includes((document.docType || '').toUpperCase())
+              ? ((document.docType as string).toUpperCase() as DocType)
+              : DocType.OTHER,
+            docName: String(document.docName || 'Document').slice(0, 255),
             docUrl: document.docUrl.trim(),
           })),
         })
@@ -146,7 +165,7 @@ export async function POST(
       videos: createdVideos,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ message }, { status: 500 });
+    console.error('[listings/id/media POST] Error:', error);
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }

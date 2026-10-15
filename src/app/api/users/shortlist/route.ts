@@ -15,8 +15,10 @@ export async function GET() {
       where: { userId },
       include: {
         listing: {
+          // Same privacy as public search: no exact address or map pin
+          omit: { fullAddress: true, latitude: true, longitude: true },
           include: {
-            images: true,
+            images: { orderBy: { displayOrder: 'asc' } },
           },
         },
       },

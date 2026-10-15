@@ -73,8 +73,9 @@ export async function GET(request: NextRequest) {
       emailLogs,
     });
   } catch (error: any) {
+    console.error('[admin/activity] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

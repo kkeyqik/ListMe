@@ -67,8 +67,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ pincodes: result });
   } catch (error: any) {
+    console.error('[admin/pincodes] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

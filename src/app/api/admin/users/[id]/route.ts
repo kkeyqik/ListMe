@@ -44,12 +44,23 @@ export async function PUT(
     const body = await request.json();
     const { role, phoneVerified, status } = body;
 
-    // Privilege escalation protection: Only SUPER_ADMIN can promote to SUPER_ADMIN
-    if (role === 'SUPER_ADMIN' && requesterProfile.role !== 'SUPER_ADMIN') {
+    // Privilege escalation protection: role changes are Super Admin only, and a
+    // regular Admin may only moderate regular users (not other admins).
+    const isSuperAdmin = requesterProfile.role === 'SUPER_ADMIN';
+    if (role !== undefined && role !== targetProfile.role && !isSuperAdmin) {
       return NextResponse.json(
-        { message: 'Only a Super Admin can grant Super Admin role' },
+        { message: 'Only a Super Admin can change user roles' },
         { status: 403 }
       );
+    }
+    if (!isSuperAdmin && targetProfile.role !== 'USER') {
+      return NextResponse.json(
+        { message: 'Only a Super Admin can modify admin accounts' },
+        { status: 403 }
+      );
+    }
+    if (id === userId && (status !== undefined && status !== 'ACTIVE')) {
+      return NextResponse.json({ message: 'You cannot suspend your own account' }, { status: 400 });
     }
 
     // Validate and build update payload

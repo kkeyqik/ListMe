@@ -18,8 +18,9 @@ export async function GET() {
       },
     });
   } catch (error: any) {
+    console.error('[settings] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -45,11 +46,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid settings body' }, { status: 400 });
     }
 
-    // Update settings in database
-    const updates = Object.entries(body).map(([key, value]) => {
-      if (typeof value !== 'string') {
-        throw new Error(`Setting value for key "${key}" must be a string`);
+    for (const [key, value] of Object.entries(body)) {
+      if (typeof value !== 'string' || key.length > 100 || value.length > 10000) {
+        return NextResponse.json({ message: `Invalid value for setting "${key.slice(0, 100)}"` }, { status: 400 });
       }
+    }
+
+    // Update settings in database
+    const updates = Object.entries(body as Record<string, string>).map(([key, value]) => {
       return prisma.systemSetting.upsert({
         where: { key },
         update: { value },
@@ -79,8 +83,9 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(settingsObj);
   } catch (error: any) {
+    console.error('[settings] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

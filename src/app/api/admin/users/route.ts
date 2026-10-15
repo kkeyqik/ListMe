@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { getSecurePassword } from '@/lib/auth-helpers';
+import { Role, UserStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,10 +66,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Name, phone, email, and role are required' }, { status: 400 });
     }
 
-    // Role escalation protection: Only SUPER_ADMIN can create another SUPER_ADMIN
-    if (role === 'SUPER_ADMIN' && requesterProfile.role !== 'SUPER_ADMIN') {
+    if (!Object.values(Role).includes(role) || (status !== undefined && !Object.values(UserStatus).includes(status))) {
+      return NextResponse.json({ message: 'Invalid role or status' }, { status: 400 });
+    }
+
+    // Role escalation protection: Only SUPER_ADMIN can create admin accounts
+    if (role !== 'USER' && requesterProfile.role !== 'SUPER_ADMIN') {
       return NextResponse.json(
-        { message: 'Only a Super Admin can create Super Admin accounts' },
+        { message: 'Only a Super Admin can create admin accounts' },
         { status: 403 }
       );
     }
@@ -125,7 +130,7 @@ export async function POST(request: NextRequest) {
       } catch (err: any) {
         console.error('Supabase admin create user error:', err);
         return NextResponse.json(
-          { message: err.message || 'Failed to create user in auth system' },
+          { message: 'Failed to create user in auth system' },
           { status: 500 }
         );
       }
@@ -142,8 +147,8 @@ export async function POST(request: NextRequest) {
         name,
         phone: formattedPhone,
         email,
-        role: role as any,
-        status: (status as any) || 'ACTIVE',
+        role: role as Role,
+        status: (status as UserStatus) || 'ACTIVE',
         phoneVerified: true,
       },
     });

@@ -14,6 +14,11 @@ export function GoogleAnalytics() {
 
   const cleanGaId = gaId.trim();
 
+  // The ID is interpolated into an inline script, so accept only real GA/GTM IDs.
+  if (!/^(G|UA|GT|AW)-[A-Z0-9-]{4,20}$/i.test(cleanGaId)) {
+    return null;
+  }
+
   return (
     <>
       <Script

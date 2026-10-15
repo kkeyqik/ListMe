@@ -50,7 +50,10 @@ export async function PUT(
     const updateData: any = {};
 
     if (status) {
-      const parsedStatus = status.toUpperCase() as InterestStatus;
+      const parsedStatus = String(status).toUpperCase() as InterestStatus;
+      if (!(Object.values(InterestStatus) as string[]).includes(parsedStatus)) {
+        return NextResponse.json({ message: 'Invalid status' }, { status: 400 });
+      }
 
       // Permission check:
       // Admins and listing owners can set any status. Seekers can set CLOSED.
@@ -103,13 +106,19 @@ export async function PUT(
       data: updateData,
     });
 
+    let interestBody: Partial<typeof updatedInterest> = updatedInterest;
+    if (!isAdmin) {
+      const { adminNotes: _notes, commissionAmount: _commission, ...rest } = updatedInterest;
+      interestBody = rest;
+    }
     return NextResponse.json({
       message: 'Interest record updated successfully',
-      interest: updatedInterest,
+      interest: interestBody,
     });
   } catch (error: any) {
+    console.error('[interests/[id]] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

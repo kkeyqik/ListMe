@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import { InterestStatus } from '@prisma/client';
 import { logUserActivity } from '@/lib/activity-logger';
 
+// Admin notes and commission are internal; owners and seekers never see them.
+const PUBLIC_INTEREST_FIELDS = { adminNotes: true, commissionAmount: true } as const;
+
 // 1. GET - Fetch user's expressed/received interests
 export async function GET(request: NextRequest) {
   try {
@@ -58,6 +61,7 @@ export async function GET(request: NextRequest) {
             ownerId: userId,
           },
         },
+        omit: PUBLIC_INTEREST_FIELDS,
         include: {
           listing: {
             select: {
@@ -88,6 +92,7 @@ export async function GET(request: NextRequest) {
         where: {
           userId: userId,
         },
+        omit: PUBLIC_INTEREST_FIELDS,
         include: {
           listing: {
             select: {
@@ -107,8 +112,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ interests: expressed });
     }
   } catch (error: any) {
+    console.error('[interests] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -125,7 +131,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { listingId, connectionStatus = 'Call Initiated' } = body;
 
-    if (!listingId) {
+    if (!listingId || typeof listingId !== 'string') {
       return NextResponse.json({ message: 'Listing ID is required' }, { status: 400 });
     }
 
@@ -217,13 +223,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const { adminNotes: _notes, commissionAmount: _commission, ...interest } = newInterest;
     return NextResponse.json({
       message: 'Interest expressed successfully',
-      interest: newInterest,
+      interest,
     });
   } catch (error: any) {
+    console.error('[interests] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

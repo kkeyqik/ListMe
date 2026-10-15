@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
-import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
+import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -19,30 +17,8 @@ import { prisma } from '@/lib/prisma';
  */
 export async function GET() {
   try {
-    let userId: string | null = null;
-
-    // 1. Try Supabase session first.
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      userId = user.id;
-    }
-
-    // 2. Fall back to the signed session cookie.
-    if (!userId) {
-      const cookieStore = await cookies();
-      const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
-
-      if (sessionCookie?.value) {
-        const session = verifySessionToken(sessionCookie.value);
-        if (session) {
-          userId = session.userId;
-        }
-      }
-    }
+    // Resolves Supabase session or signed cookie, and treats suspended users as signed out
+    const userId = await getAuthenticatedUserId();
 
     // No valid session from either source.
     if (!userId) {

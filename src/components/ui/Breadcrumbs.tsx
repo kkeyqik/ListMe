@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronRight, Home } from 'lucide-react';
+import { serializeJsonLd } from '@/lib/json-ld';
 
 interface BreadcrumbItem {
   label: string;
@@ -36,7 +37,7 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ items }) => {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <nav aria-label="Breadcrumb" className="py-3 overflow-x-auto whitespace-nowrap">
         <ol className="flex items-center text-sm text-gray-500">
