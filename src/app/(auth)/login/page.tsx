@@ -875,7 +875,7 @@ function LoginContent() {
               <div className={styles.header}>
                 <h1 className={styles.title}>Verify Phone</h1>
                 <p className={styles.subtitle}>
-                  Enter the 6-digit code sent to +91 {phone}
+                  Enter the 6-digit code sent to +91 {phone.replace(/\D/g, '').slice(-10)}
                 </p>
               </div>
 
@@ -1108,7 +1108,7 @@ function LoginContent() {
               <div className={styles.header}>
                 <h1 className={styles.title}>Verify Phone</h1>
                 <p className={styles.subtitle}>
-                  Enter the 6-digit code sent to +91 {phone}
+                  Enter the 6-digit code sent to +91 {phone.replace(/\D/g, '').slice(-10)}
                 </p>
               </div>
 
