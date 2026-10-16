@@ -38,8 +38,9 @@ export async function PUT(
       notification: updated,
     });
   } catch (error: any) {
+    console.error('[notifications/[id]] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

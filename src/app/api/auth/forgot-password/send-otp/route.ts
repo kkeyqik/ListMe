@@ -5,6 +5,7 @@ import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { validatePhone, validateEmail } from '@/lib/validation';
 import { sendEmail } from '@/lib/email';
 import { logUserActivity } from '@/lib/activity-logger';
+import { isMockAuthEnabled } from '@/lib/mock-auth';
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate cryptographically secure 6-digit OTP
-    const isMockEnabled = process.env.ENABLE_MOCK_AUTH === 'true' || process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true';
+    const isMockEnabled = isMockAuthEnabled();
     const otp = isMockEnabled ? '123456' : crypto.randomInt(100000, 1000000).toString();
     const tokenHash = crypto.createHash('sha256').update(otp).digest('hex');
 
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // SMS channel — never log plain text OTPs in production
-      if (process.env.NODE_ENV !== 'production' || isMockEnabled) {
+      if (isMockEnabled) {
         console.log(`[Password Reset SMS OTP] Generated for ${target}: ${otp}`);
       }
     }

@@ -5,26 +5,29 @@
  */
 import imageCompression from 'browser-image-compression';
 
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-export const ALLOWED_DOC_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
-export const ALLOWED_VIDEO_TYPES = [
-  'video/mp4',
-  'video/webm',
-  'video/quicktime',
-  'video/x-matroska',
-  'video/ogg',
-];
+import {
+  ALLOWED_IMAGE_TYPES,
+  ALLOWED_DOC_TYPES,
+  ALLOWED_VIDEO_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_DOC_SIZE,
+  MAX_VIDEO_SIZE,
+  LISTING_IMAGES_BUCKET,
+  LISTING_DOCUMENTS_BUCKET,
+  LISTING_VIDEOS_BUCKET,
+} from './upload-rules';
 
-export const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-export const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
-export const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
-
-export const LISTING_IMAGES_BUCKET =
-  process.env.NEXT_PUBLIC_SUPABASE_LISTING_IMAGES_BUCKET || 'listing-images';
-export const LISTING_DOCUMENTS_BUCKET =
-  process.env.NEXT_PUBLIC_SUPABASE_LISTING_DOCUMENTS_BUCKET || 'listing-documents';
-export const LISTING_VIDEOS_BUCKET =
-  process.env.NEXT_PUBLIC_SUPABASE_LISTING_VIDEOS_BUCKET || 'listing-videos';
+export {
+  ALLOWED_IMAGE_TYPES,
+  ALLOWED_DOC_TYPES,
+  ALLOWED_VIDEO_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_DOC_SIZE,
+  MAX_VIDEO_SIZE,
+  LISTING_IMAGES_BUCKET,
+  LISTING_DOCUMENTS_BUCKET,
+  LISTING_VIDEOS_BUCKET,
+};
 
 /**
  * Validates an image file before upload
@@ -122,5 +125,56 @@ export const processImage = async (file: File): Promise<File> => {
   } catch (error) {
     console.error('Image compression failed:', error);
     return file; // Fallback to original file on failure
+  }
+};
+
+export type ListingUploadKind = 'images' | 'documents' | 'videos';
+
+/**
+ * Uploads a listing file through a server-issued signed upload URL, so the
+ * server checks listing ownership before anything reaches Storage.
+ * Returns the storage path and, for public buckets, the public URL.
+ */
+export const uploadListingFile = async (
+  listingId: string,
+  kind: ListingUploadKind,
+  file: File,
+  contentType: string = file.type
+): Promise<{ path: string; publicUrl: string }> => {
+  const res = await fetch(`/api/listings/${listingId}/upload-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, contentType, size: file.size }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.message || 'Could not prepare upload');
+  }
+
+  const { bucket, path, token } = body as { bucket: string; path: string; token: string };
+  const { createClient } = await import('@/lib/supabase/client');
+  const storage = createClient().storage.from(bucket);
+  const { error } = await storage.uploadToSignedUrl(path, token, file, { contentType });
+  if (error) throw error;
+
+  return { path, publicUrl: storage.getPublicUrl(path).data.publicUrl };
+};
+
+/**
+ * Deletes one file from a listing's folder through the server.
+ */
+export const deleteListingFile = async (
+  listingId: string,
+  kind: ListingUploadKind,
+  path: string
+): Promise<void> => {
+  const res = await fetch(`/api/listings/${listingId}/upload-url`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, path }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.message || 'Could not delete file');
   }
 };

@@ -1,10 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { isMockAuthEnabled } from '@/lib/mock-auth';
 
 export async function createClient() {
-  // Dev-only: Mock auth fallback (gated behind explicit opt-in flag)
-  if (process.env.ENABLE_MOCK_AUTH === 'true') {
+  // Dev-only: Mock auth fallback (explicit opt-in, never in production)
+  if (isMockAuthEnabled()) {
     let mockUserId: string | null = null;
 
     try {

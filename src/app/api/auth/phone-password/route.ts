@@ -83,6 +83,13 @@ export async function POST(request: NextRequest) {
     }
 
 
+    if (profile.status === 'SUSPENDED' || profile.status === 'BANNED') {
+      return NextResponse.json(
+        { message: 'Your account has been suspended. Please contact support.' },
+        { status: 403 }
+      );
+    }
+
     // 3. Set our hybrid session token
     const sessionToken = createSessionToken(profile.id, profile.role);
     

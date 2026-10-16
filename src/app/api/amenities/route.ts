@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ amenities });
   } catch (error: any) {
+    console.error('[amenities] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

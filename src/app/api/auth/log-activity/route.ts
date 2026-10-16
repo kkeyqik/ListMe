@@ -1,36 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { logUserActivity } from '@/lib/activity-logger';
-import { createClient } from '@/lib/supabase/server';
-import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
-import { cookies } from 'next/headers';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 
 export async function POST(request: NextRequest) {
   try {
     const { action, entityId, metadata } = await request.json();
 
-    // Try session
-    let userId = await getAuthenticatedUserId();
-    // Fallback: signed session cookie
+    const userId = await getAuthenticatedUserId();
     if (!userId) {
-      try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-        if (sessionCookie) {
-          const sessionData = verifySessionToken(sessionCookie);
-          if (sessionData) {
-            userId = sessionData.userId;
-          }
-        }
-      } catch {
-        // ignore
-      }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (typeof action !== 'string' || !/^[A-Z_]{1,40}$/.test(action)) {
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
     // Rate limiting: 30 requests per minute per user (or IP for anonymous)
-    const rateLimitKey = userId || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const rateLimitResult = rateLimit(`log-activity:${rateLimitKey}`, 30, 60 * 1000);
+    const rateLimitResult = rateLimit(`log-activity:${userId}`, 30, 60 * 1000);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: 'Too many requests' },
@@ -41,9 +28,9 @@ export async function POST(request: NextRequest) {
     await logUserActivity({
       userId,
       action,
-      entityId,
+      entityId: typeof entityId === 'string' ? entityId.slice(0, 200) : undefined,
       request,
-      metadata,
+      metadata: metadata && typeof metadata === 'object' && JSON.stringify(metadata).length <= 4000 ? metadata : undefined,
     });
 
     return NextResponse.json({ success: true });

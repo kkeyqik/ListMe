@@ -119,8 +119,9 @@ export async function GET(request: NextRequest) {
       priceTrends
     });
   } catch (error: any) {
+    console.error('[cities/trends] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

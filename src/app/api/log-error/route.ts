@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,12 +12,23 @@ export async function POST(request: NextRequest) {
       // User might be unauthenticated when error occurred
     }
 
+    const ipKey = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const limit = rateLimit(`log-error:${userId || ipKey}`, 20, 60 * 1000);
+    if (!limit.allowed) {
+      return NextResponse.json({ success: false }, { status: 429, headers: getRateLimitHeaders(limit, 20) });
+    }
+
     const body = await request.json();
     const { message, stack, source = 'frontend', url, metadata } = body;
 
-    if (!message) {
+    if (!message || typeof message !== 'string') {
       return NextResponse.json({ message: 'Error message is required' }, { status: 400 });
     }
+
+    // Unauthenticated endpoint: cap sizes so it cannot be used to fill the database
+    const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : null);
+    const safeMetadata =
+      metadata && typeof metadata === 'object' && JSON.stringify(metadata).length <= 4000 ? metadata : {};
 
     const ipAddress =
       request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
@@ -31,16 +42,16 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         action: 'SYSTEM_ERROR',
-        entityId: url || null,
+        entityId: clip(url, 500),
         ipAddress,
         userAgent,
         metadata: {
-          errorMessage: message,
-          errorStack: stack || null,
-          errorSource: source,
-          pageUrl: url || null,
+          ...safeMetadata,
+          errorMessage: clip(message, 2000),
+          errorStack: clip(stack, 8000),
+          errorSource: clip(source, 50),
+          pageUrl: clip(url, 500),
           timestamp: new Date().toISOString(),
-          ...(metadata || {}),
         },
       },
     });
@@ -48,6 +59,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, logId: errorLog.id });
   } catch (error: any) {
     console.error('[ErrorLogger API] Failed to log error:', error);
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { requireSecret } from '@/lib/mock-auth';
 
 /**
  * HMAC-SHA256 signed session token system.
@@ -9,8 +10,9 @@ import crypto from 'crypto';
  * Uses 'lax' sameSite so OAuth redirects (e.g. Google) can send cookies back.
  */
 
-const SESSION_SECRET =
-  process.env.SESSION_SECRET || 'dev-secret-do-not-use-in-production';
+function getSessionSecret(): string {
+  return requireSecret('SESSION_SECRET', 'dev-secret-do-not-use-in-production');
+}
 
 /** Session lifetime in seconds — 7 days. */
 const SESSION_DURATION = 604800;
@@ -24,7 +26,7 @@ export const SESSION_COOKIE_NAME = 'listme-session';
 
 function sign(payload: string): string {
   return crypto
-    .createHmac('sha256', SESSION_SECRET)
+    .createHmac('sha256', getSessionSecret())
     .update(payload)
     .digest('hex');
 }
@@ -107,40 +109,36 @@ const RESET_TOKEN_DURATION = 900;
  * Issued ONLY after OTP has been verified.
  * Optionally binds to a specific DB PasswordResetToken ID for single-use enforcement.
  */
-export function createPasswordResetSessionToken(userId: string, tokenId?: string): string {
+export function createPasswordResetSessionToken(userId: string, tokenId: string): string {
   const expiry = Math.floor(Date.now() / 1000) + RESET_TOKEN_DURATION;
-  const payload = tokenId ? `RESET:${userId}:${tokenId}:${expiry}` : `RESET:${userId}:${expiry}`;
+  const payload = `RESET:${userId}:${tokenId}:${expiry}`;
   const signature = sign(payload);
   return `${payload}:${signature}`;
 }
 
 /**
  * Verify a password reset token.
- * Returns the userId and optional tokenId if valid and unexpired, null otherwise.
+ * Returns the userId and tokenId if valid and unexpired, null otherwise.
  */
 export function verifyPasswordResetSessionToken(
   token: string
-): { userId: string; tokenId?: string } | null {
+): { userId: string; tokenId: string } | null {
   const parts = token.split(':');
   if (parts[0] !== 'RESET') return null;
 
   let userId = '';
-  let tokenId: string | undefined = undefined;
+  let tokenId = '';
   let expiryStr = '';
   let signature = '';
   let payload = '';
 
-  if (parts.length === 5) {
-    // Format: RESET:userId:tokenId:expiry:signature
-    [, userId, tokenId, expiryStr, signature] = parts;
-    payload = `RESET:${userId}:${tokenId}:${expiryStr}`;
-  } else if (parts.length === 4) {
-    // Format: RESET:userId:expiry:signature (legacy fallback)
-    [, userId, expiryStr, signature] = parts;
-    payload = `RESET:${userId}:${expiryStr}`;
-  } else {
+  // Format: RESET:userId:tokenId:expiry:signature. The tokenId binds the reset
+  // to a single-use PasswordResetToken row, so tokens without one are rejected.
+  if (parts.length !== 5) {
     return null;
   }
+  [, userId, tokenId, expiryStr, signature] = parts;
+  payload = `RESET:${userId}:${tokenId}:${expiryStr}`;
 
   const expected = sign(payload);
   const sigBuf = Buffer.from(signature, 'utf8');

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
-import { ListingStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
+import { Prisma, ListingStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
 import { logUserActivity, logAdminActivity } from '@/lib/activity-logger';
 
 // 1. GET - Fetch Individual Listing Detail
@@ -78,7 +78,9 @@ export async function GET(
             },
             select: { id: true },
           });
-          canViewPrivateDetails = !!interest;
+          // Interested seekers may see the address and owner contact of a live
+          // listing, but never its ownership documents.
+          canViewPrivateDetails = !!interest && listing.status === ListingStatus.ACTIVE;
         }
       }
     }
@@ -106,11 +108,14 @@ export async function GET(
         listing.owner.phone = '[Hidden - Click Interested to Contact]';
       }
       
-      // 3. Clear document list URLs (only show names or hide entirely)
-      listing.documents = listing.documents.map((doc) => ({
-        ...doc,
-        docUrl: '#', // Hide direct PDF link
-      }));
+      // 3. Hide the exact map pin
+      listing.latitude = null;
+      listing.longitude = null;
+    }
+
+    // Ownership documents are for the owner and admins only
+    if (!isOwnerOrAdmin) {
+      listing.documents = listing.documents.map((doc) => ({ ...doc, docUrl: '#' }));
     }
 
     return NextResponse.json({ listing, isOwnerOrAdmin });
@@ -217,41 +222,66 @@ export async function PUT(
       amenities, // array of amenity IDs
     } = body;
 
-    // Compile update payload
-    const updateData: any = {
-      title,
-      description,
-      keyHighlights,
-      subLocality,
-      landmark,
-      latitude: latitude ? parseFloat(latitude) : null,
-      longitude: longitude ? parseFloat(longitude) : null,
-      bedrooms: bedrooms ? parseInt(bedrooms, 10) : null,
-      bathrooms: bathrooms ? parseInt(bathrooms, 10) : null,
-      balconies: balconies ? parseInt(balconies, 10) : null,
-      carpetArea: carpetArea ? parseFloat(carpetArea) : null,
-      builtUpArea: builtUpArea ? parseFloat(builtUpArea) : null,
-      superBuiltUpArea: superBuiltUpArea ? parseFloat(superBuiltUpArea) : null,
-      plotArea: plotArea ? parseFloat(plotArea) : null,
-      priceNegotiable: !!priceNegotiable,
-      furnishing: furnishing ? (furnishing.toUpperCase() as Furnishing) : null,
-      facing,
-      floorNumber: floorNumber ? parseInt(floorNumber, 10) : null,
-      totalFloors: totalFloors ? parseInt(totalFloors, 10) : null,
-      possession: possession ? (possession.toUpperCase() as Possession) : null,
-      possessionDate,
-      ageOfProperty,
-      ownership: ownership ? (ownership.toUpperCase() === 'POWER_OF_ATTORNEY' ? 'POA' : ownership.toUpperCase() as Ownership) : null,
-      parking: parking ? (parking.toUpperCase() as Parking) : null,
-      parkingCount: parkingCount ? parseInt(parkingCount, 10) : null,
-      waterSupply,
-      powerBackup,
-      reraNumber,
+    // Only touch fields the caller actually sent. Moderation calls send just
+    // { status, rejectionReason }, and must not wipe the rest of the listing.
+    const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
+    const toFloat = (v: unknown) => (v === null || v === '' || v === undefined ? null : Number.isFinite(parseFloat(String(v))) ? parseFloat(String(v)) : null);
+    const toInt = (v: unknown) => (v === null || v === '' || v === undefined ? null : Number.isFinite(parseInt(String(v), 10)) ? parseInt(String(v), 10) : null);
+    const toEnum = <T extends Record<string, string>>(enumObj: T, v: unknown): T[keyof T] | null => {
+      if (typeof v !== 'string' || !v) return null;
+      const upper = v.toUpperCase() === 'POWER_OF_ATTORNEY' ? 'POA' : v.toUpperCase();
+      return (Object.values(enumObj) as string[]).includes(upper) ? (upper as T[keyof T]) : null;
     };
 
-    if (body.rejectionReason !== undefined) {
+    const updateData: Prisma.ListingUpdateInput = {};
+    if (has('title') && title) updateData.title = String(title);
+    if (has('description')) updateData.description = description ?? '';
+    if (has('keyHighlights') && Array.isArray(keyHighlights)) updateData.keyHighlights = keyHighlights.map(String);
+    if (has('subLocality')) updateData.subLocality = subLocality;
+    if (has('landmark')) updateData.landmark = landmark;
+    if (has('latitude')) updateData.latitude = toFloat(latitude);
+    if (has('longitude')) updateData.longitude = toFloat(longitude);
+    if (has('bedrooms')) updateData.bedrooms = toInt(bedrooms);
+    if (has('bathrooms')) updateData.bathrooms = toInt(bathrooms);
+    if (has('balconies')) updateData.balconies = toInt(balconies);
+    if (has('carpetArea')) updateData.carpetArea = toFloat(carpetArea);
+    if (has('builtUpArea')) updateData.builtUpArea = toFloat(builtUpArea);
+    if (has('superBuiltUpArea')) updateData.superBuiltUpArea = toFloat(superBuiltUpArea);
+    if (has('plotArea')) updateData.plotArea = toFloat(plotArea);
+    if (has('priceNegotiable')) updateData.priceNegotiable = !!priceNegotiable;
+    if (has('furnishing')) updateData.furnishing = toEnum(Furnishing, furnishing);
+    if (has('facing')) updateData.facing = facing;
+    if (has('floorNumber')) updateData.floorNumber = toInt(floorNumber);
+    if (has('totalFloors')) updateData.totalFloors = toInt(totalFloors);
+    if (has('possession')) updateData.possession = toEnum(Possession, possession);
+    if (has('possessionDate')) updateData.possessionDate = possessionDate;
+    if (has('ageOfProperty')) updateData.ageOfProperty = ageOfProperty;
+    if (has('ownership')) updateData.ownership = toEnum(Ownership, ownership);
+    if (has('parking')) updateData.parking = toEnum(Parking, parking);
+    if (has('parkingCount')) updateData.parkingCount = toInt(parkingCount);
+    if (has('waterSupply')) updateData.waterSupply = waterSupply;
+    if (has('powerBackup')) updateData.powerBackup = powerBackup;
+    if (has('reraNumber')) updateData.reraNumber = reraNumber;
+
+    if (isAdmin && body.rejectionReason !== undefined) {
       updateData.rejectionReason = body.rejectionReason;
     }
+
+    const applyCoreFields = () => {
+      const listingForValue = toEnum(ListingFor, listingFor);
+      const propertyTypeValue = toEnum(PropertyType, propertyType);
+      if (listingForValue) updateData.listingFor = listingForValue;
+      if (propertyTypeValue) updateData.propertyType = propertyTypeValue;
+      const price = toFloat(askingPrice);
+      if (price !== null && price > 0) updateData.askingPrice = price;
+      if (has('pricePerSqft')) updateData.pricePerSqft = toFloat(pricePerSqft);
+      if (has('maintenanceCharges')) updateData.maintenanceCharges = toFloat(maintenanceCharges);
+      if (has('securityDeposit')) updateData.securityDeposit = toFloat(securityDeposit);
+      if (city) updateData.city = city;
+      if (locality) updateData.locality = locality;
+      if (pinCode) updateData.pinCode = pinCode;
+      if (fullAddress) updateData.fullAddress = fullAddress;
+    };
 
     // If core details change, reset status back to PENDING_REVIEW (unless updated by admin)
     if (!isAdmin) {
@@ -268,20 +298,14 @@ export async function PUT(
         updateData.status = ListingStatus.PENDING_REVIEW;
       }
       
-      if (listingFor) updateData.listingFor = listingFor.toUpperCase() as ListingFor;
-      if (propertyType) updateData.propertyType = propertyType.toUpperCase() as PropertyType;
-      if (askingPrice) updateData.askingPrice = parseFloat(askingPrice);
-      if (pricePerSqft) updateData.pricePerSqft = parseFloat(pricePerSqft);
-      if (maintenanceCharges) updateData.maintenanceCharges = parseFloat(maintenanceCharges);
-      if (securityDeposit) updateData.securityDeposit = parseFloat(securityDeposit);
-      if (city) updateData.city = city;
-      if (locality) updateData.locality = locality;
-      if (pinCode) updateData.pinCode = pinCode;
-      if (fullAddress) updateData.fullAddress = fullAddress;
+      applyCoreFields();
     } else {
       // Admins can update status and core values without review resets
-      if (body.status) {
-        const newStatus = body.status.toUpperCase() as ListingStatus;
+      const newStatus = toEnum(ListingStatus, body.status);
+      if (has('status') && !newStatus) {
+        return NextResponse.json({ message: 'Invalid status' }, { status: 400 });
+      }
+      if (newStatus) {
         updateData.status = newStatus;
         if (newStatus !== listing.status) {
           const adminName = requesterProfile?.name || 'Admin';
@@ -302,20 +326,11 @@ export async function PUT(
           });
         }
       }
-      if (listingFor) updateData.listingFor = listingFor.toUpperCase() as ListingFor;
-      if (propertyType) updateData.propertyType = propertyType.toUpperCase() as PropertyType;
-      if (askingPrice) updateData.askingPrice = parseFloat(askingPrice);
-      if (pricePerSqft) updateData.pricePerSqft = parseFloat(pricePerSqft);
-      if (maintenanceCharges) updateData.maintenanceCharges = parseFloat(maintenanceCharges);
-      if (securityDeposit) updateData.securityDeposit = parseFloat(securityDeposit);
-      if (city) updateData.city = city;
-      if (locality) updateData.locality = locality;
-      if (pinCode) updateData.pinCode = pinCode;
-      if (fullAddress) updateData.fullAddress = fullAddress;
+      applyCoreFields();
     }
 
     // Sync amenities if provided
-    if (amenities) {
+    if (Array.isArray(amenities)) {
       // Remove old amenities
       await prisma.listingAmenity.deleteMany({
         where: { listingId: id },

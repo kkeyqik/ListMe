@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20));
 
     const notifications = await prisma.notification.findMany({
       where: { userId: userId },
@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ notifications });
   } catch (error: any) {
+    console.error('[notifications] Error:', error);
     return NextResponse.json(
-      { message: error.message || 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

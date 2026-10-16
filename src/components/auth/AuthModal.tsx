@@ -501,6 +501,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setLoading(true);
     let verifySuccess = false;
+    let firebaseIdToken: string | undefined;
 
     if (identifierType === 'email') {
       const res = await verifyEmailOtp(email, activeOtp);
@@ -511,7 +512,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } else if (isFirebaseConfigured && confirmationResult) {
       try {
-        await confirmationResult.confirm(activeOtp);
+        const credential = await confirmationResult.confirm(activeOtp);
+        firebaseIdToken = await credential.user.getIdToken();
 
         verifySuccess = true;
 
@@ -522,7 +524,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         showToast('Failed', msg, 'error');
 
       }
-    } else if (process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true') {
+    } else if (process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true' && process.env.NODE_ENV !== 'production') {
       // Dev-only: Mock validation (gated behind build-time flag)
       if (activeOtp === '123456') {
         verifySuccess = true;
@@ -541,6 +543,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            idToken: firebaseIdToken,
             phone: phone.startsWith('+') ? phone : `+91${phone}`,
           }),
         });

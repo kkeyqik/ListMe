@@ -71,15 +71,16 @@ export async function POST(request: NextRequest) {
 
     const existingProfile = await prisma.profile.findUnique({
       where: { id: userId },
-      select: { id: true },
+      select: { id: true, email: true, phone: true },
     });
 
     const profile = await prisma.profile.upsert({
       where: { id: userId },
       update: {
         name: sanitizedName,
-        email,
-        phone: normalizedPhone,
+        // An existing email is changed only through the auth provider, never here
+        ...(existingProfile?.email ? {} : { email }),
+        ...(existingProfile?.phone === normalizedPhone ? {} : { phone: normalizedPhone, phoneVerified: false }),
         city: city || null,
       },
       create: {
@@ -136,7 +137,14 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, address, phone, phoneVerified } = body;
+    // phoneVerified is deliberately ignored: only /api/users/verify-phone and
+    // admins may mark a number as verified.
+    const { name, address, phone } = body;
+
+    const currentProfile = await prisma.profile.findUnique({
+      where: { id: userId },
+      select: { phone: true },
+    });
 
     // Build update data with validation
     const updateData: any = {};
@@ -147,7 +155,7 @@ export async function PUT(request: NextRequest) {
       }
       updateData.name = nameResult.sanitized;
     }
-    if (address !== undefined) updateData.address = typeof address === 'string' ? address.trim() : address;
+    if (address !== undefined) updateData.address = typeof address === 'string' ? address.trim().slice(0, 500) : null;
     if (phone !== undefined && phone !== null && phone !== '') {
       const phoneResult = validatePhone(phone);
       if (!phoneResult.valid) {
@@ -163,10 +171,10 @@ export async function PUT(request: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.phone = phoneResult.normalized;
-    }
-    if (phoneVerified !== undefined) {
-      updateData.phoneVerified = Boolean(phoneVerified);
+      if (phoneResult.normalized !== currentProfile?.phone) {
+        updateData.phone = phoneResult.normalized;
+        updateData.phoneVerified = false;
+      }
     }
 
     // Update public profiles table

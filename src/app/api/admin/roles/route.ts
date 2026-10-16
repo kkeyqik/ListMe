@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
+import { Role, UserStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,6 +84,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Target user ID is required' }, { status: 400 });
     }
 
+    if ((role !== undefined && !Object.values(Role).includes(role)) || (status !== undefined && !Object.values(UserStatus).includes(status))) {
+      return NextResponse.json({ message: 'Invalid role or status' }, { status: 400 });
+    }
+
     // Don't let a super admin demote themselves directly through this endpoint to avoid accidental lockouts
     if (targetUserId === userId && role !== 'SUPER_ADMIN') {
       return NextResponse.json({ message: 'You cannot demote yourself' }, { status: 400 });
@@ -91,8 +96,8 @@ export async function PUT(request: NextRequest) {
     const updatedProfile = await prisma.profile.update({
       where: { id: targetUserId },
       data: {
-        role: role as any,
-        status: status as any,
+        role: role as Role | undefined,
+        status: status as UserStatus | undefined,
         roleMetadata: {
           permissions: permissions || {},
         },
