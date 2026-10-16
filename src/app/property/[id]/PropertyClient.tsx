@@ -25,10 +25,10 @@ import {
   Play
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, isAccountVerified } from '@/context/AuthContext';
 import { Header, Footer } from '@/components/layout';
 import { useToast, Card, Button, Badge } from '@/components/ui';
-import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
+import { EmailVerificationModal } from '@/components/auth/EmailVerificationModal';
 import styles from '../property.module.css';
 
 interface PropertyClientProps {
@@ -313,7 +313,7 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
       return;
     }
 
-    if (!profile?.phoneVerified) {
+    if (!isAccountVerified(profile)) {
       setVerificationModalOpen(true);
       return;
     }
@@ -774,11 +774,11 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
         </div>
       </main>
 
-      <PhoneVerificationModal
+      <EmailVerificationModal
         isOpen={verificationModalOpen}
         onClose={() => setVerificationModalOpen(false)}
         onSuccess={async () => {
-          showToast('Verified', 'Phone verified! Retrying express interest...', 'success');
+          showToast('Verified', 'Email confirmed! Sending your interest...', 'success');
           await handleExpressInterest();
         }}
       />

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedUserId } from '@/lib/server-auth';
+import { getAuthenticatedUserId, isContactVerified } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { InterestStatus } from '@prisma/client';
@@ -145,9 +145,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'User profile not found' }, { status: 404 });
     }
 
-    if (!profile.phoneVerified) {
+    if (!profile.phoneVerified && !(await isContactVerified(userId))) {
       return NextResponse.json(
-        { message: 'Your phone number must be verified to express interest' },
+        { code: 'verify_email', message: 'Please verify your email to contact owners' },
         { status: 400 }
       );
     }

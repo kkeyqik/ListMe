@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limiting: 5 profile creations per hour per user
-    const rateLimitResult = rateLimit(`profile-create:${userId}`, 5, 60 * 60 * 1000);
+    const rateLimitResult = await rateLimit(`profile-create:${userId}`, 5, 60 * 60 * 1000);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { message: 'Too many requests. Please try again later.' },
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Rate limiting: 10 profile updates per hour per user
-    const rateLimitResult = rateLimit(`profile-update:${userId}`, 10, 60 * 60 * 1000);
+    const rateLimitResult = await rateLimit(`profile-update:${userId}`, 10, 60 * 60 * 1000);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { message: 'Too many requests. Please try again later.' },

@@ -1,45 +1,27 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { SESSION_COOKIE_NAME } from '@/lib/session';
+import { createClient } from '@/lib/supabase/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { logUserActivity } from '@/lib/activity-logger';
 
 /**
  * POST /api/auth/logout
  *
- * Destroys the current session by clearing all auth-related cookies:
- *  - listme-session    (our signed session cookie)
- *  - sb-mock-user-id   (dev/test cleanup)
- *  - any sb-* cookies  (Supabase auth tokens)
+ * Revokes this device's Supabase refresh token (so a copied token cannot be
+ * reused) and clears the session cookies.
  */
 export async function POST(request: NextRequest) {
   try {
     const userId = await getAuthenticatedUserId();
+
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) console.warn('[POST /api/auth/logout] Supabase signOut:', error.message);
+
     const cookieStore = await cookies();
-
-    // Clear our session cookie.
-    cookieStore.set(SESSION_COOKIE_NAME, '', {
-      path: '/',
-      maxAge: 0,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
-    });
-
-    // Clear the mock user cookie used in dev/test.
-    cookieStore.set('sb-mock-user-id', '', {
-      path: '/',
-      maxAge: 0,
-    });
-
-    // Clear any Supabase-related cookies (sb-* prefix).
-    const allCookies = cookieStore.getAll();
-    for (const cookie of allCookies) {
-      if (cookie.name.startsWith('sb-')) {
-        cookieStore.set(cookie.name, '', {
-          path: '/',
-          maxAge: 0,
-        });
+    for (const cookie of cookieStore.getAll()) {
+      if (cookie.name.startsWith('sb-') || cookie.name === 'listme-session') {
+        cookieStore.set(cookie.name, '', { path: '/', maxAge: 0 });
       }
     }
 

@@ -686,3 +686,23 @@
   padding: 4px 0;
   animation: slideInSelector var(--transition-fast);
 }
+
+/* Standalone auth pages without the hero panel (e.g. /reset-password) */
+.centeredPage {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  background: var(--color-bg);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.centeredPage .formPanel {
+  width: 100%;
+}
+
+/* Keep the last link clear of the mobile bottom navigation bar */
+@media (max-width: 1023px) {
+  .formPanel {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+}

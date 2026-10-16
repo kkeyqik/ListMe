@@ -1,17 +1,25 @@
 import { createServerClient } from '@supabase/ssr';
+import type { EmailOtpType, User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session';
+import { ensureProfile } from '@/lib/server-auth';
+import { safeRedirectPath } from '@/lib/safe-redirect';
+import { logUserActivity } from '@/lib/activity-logger';
 
+/**
+ * Lands every emailed link and the Google sign-in:
+ *  - `?code=`                 Google OAuth and PKCE email links
+ *  - `?token_hash=&type=`     email links using the token-hash template
+ * and turns them into a Supabase session cookie.
+ */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
-  const rawRedirect = searchParams.get('redirect') || '/dashboard';
-  // Prevent open redirect: only allow relative paths, block protocol-relative URLs
-  const redirect = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')) ? rawRedirect : '/dashboard';
+  const tokenHash = searchParams.get('token_hash');
+  const otpType = searchParams.get('type') as EmailOtpType | null;
+  const redirect = safeRedirectPath(searchParams.get('redirect'));
 
-  if (!code) {
+  if (!code && !(tokenHash && otpType)) {
     return NextResponse.redirect(new URL('/login?error=no_code', request.url));
   }
 
@@ -35,63 +43,40 @@ export async function GET(request: NextRequest) {
   );
 
   try {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (error || !data.user) {
-      console.error('[OAuth Callback] Auth error:', error);
-      return NextResponse.redirect(new URL('/login?error=auth_failed', request.url));
+    let user: User | null = null;
+    if (code) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) console.error('[Auth Callback] Code exchange failed:', error.message);
+      user = data.user;
+    } else if (tokenHash && otpType) {
+      const { data, error } = await supabase.auth.verifyOtp({ type: otpType, token_hash: tokenHash });
+      if (error) console.error('[Auth Callback] Link verification failed:', error.message);
+      user = data.user;
     }
 
-    const user = data.user;
-
-    // Sync with database — find existing profile or create new one
-    let profile = await prisma.profile.findFirst({
-      where: {
-        OR: [
-          { id: user.id },
-          ...(user.email ? [{ email: user.email }] : []),
-        ]
-      }
-    });
-
-    if (!profile) {
-      profile = await prisma.profile.create({
-        data: {
-          id: user.id,
-          email: user.email || null,
-          name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-          avatarUrl: user.user_metadata?.avatar_url || null,
-          role: 'USER',
-          status: 'ACTIVE',
-        }
-      });
+    if (!user) {
+      return NextResponse.redirect(new URL('/login?error=link_expired', request.url));
     }
 
-    // Set signed session cookie
-    const sessionToken = createSessionToken(profile.id, profile.role);
-    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, getSessionCookieOptions());
+    const profile = await ensureProfile(user);
 
-    // Log activity
-    try {
-      await prisma.userActivityLog.create({
-        data: {
-          userId: profile.id,
-          action: 'LOGIN',
-          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-          userAgent: request.headers.get('user-agent') || 'unknown',
-          metadata: {
-            method: 'google_oauth',
-            email: user.email,
-          },
-        },
-      });
-    } catch (logErr) {
-      console.warn('[OAuth Callback] Activity log error:', logErr);
+    if (profile.status === 'SUSPENDED' || profile.status === 'BANNED') {
+      await supabase.auth.signOut({ scope: 'local' });
+      const blocked = NextResponse.redirect(new URL('/login?error=suspended', request.url));
+      response.cookies.getAll().forEach((cookie) => blocked.cookies.set(cookie));
+      return blocked;
     }
+
+    await logUserActivity({
+      userId: profile.id,
+      action: 'LOGIN',
+      request,
+      metadata: { method: code ? (user.app_metadata?.provider === 'google' ? 'google_oauth' : 'email_link') : `email_${otpType}` },
+    }).catch(() => {});
 
     return response;
   } catch (err) {
-    console.error('[OAuth Callback] Unexpected error:', err);
+    console.error('[Auth Callback] Unexpected error:', err);
     return NextResponse.redirect(new URL('/login?error=auth_failed', request.url));
   }
 }

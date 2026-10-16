@@ -1,0 +1,232 @@
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--color-neutral-900);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.compact .title {
+  font-size: 1.375rem;
+}
+
+.subtitle {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.subtitle strong {
+  color: var(--color-neutral-800);
+  word-break: break-all;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.googleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-neutral-200);
+  background: var(--color-card, #ffffff);
+  color: var(--color-neutral-800);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.googleBtn:hover:not(:disabled) {
+  background-color: var(--color-neutral-50);
+  border-color: var(--color-neutral-300);
+}
+
+.googleBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background-color: var(--color-neutral-200);
+}
+
+.dividerText {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.passwordToggle {
+  /* The input's icon slot ignores clicks; this button opts back in. */
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.passwordToggle:hover {
+  color: var(--color-neutral-700);
+}
+
+.textLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+}
+
+.linkButton:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.linkButton:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.mutedLink {
+  composes: linkButton;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.footer {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.footer .linkButton {
+  display: inline;
+  min-height: 0;
+}
+
+.notice {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.noticeError {
+  composes: notice;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--color-error);
+}
+
+.noticeInfo {
+  composes: notice;
+  background: var(--color-primary-fade);
+  border: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-800);
+}
+
+.noticeIcon {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.noticeTitle {
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.noticeText {
+  margin: 0;
+}
+
+.otpWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.resendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.backButton {
+  composes: linkButton;
+  align-self: flex-start;
+  gap: 0.375rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.hint {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: -0.5rem 0 0;
+}
+
+.recaptcha {
+  display: none;
+}

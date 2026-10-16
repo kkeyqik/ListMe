@@ -1,0 +1,8 @@
+<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#0A1128">
+  <h2 style="font-family:Outfit,Arial,sans-serif;margin:0 0 16px">Confirm your email</h2>
+  <p style="margin:0 0 16px;line-height:1.5">Welcome to ListMe. Enter this code to confirm your email address:</p>
+  <p style="font-size:32px;font-weight:700;letter-spacing:8px;margin:0 0 16px">{{ .Token }}</p>
+  <p style="margin:0 0 24px;line-height:1.5">Or open this link on the device you want to use:</p>
+  <p style="margin:0 0 24px"><a href="{{ .SiteURL }}/callback?token_hash={{ .TokenHash }}&type=email" style="background:#0A1128;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Confirm email</a></p>
+  <p style="margin:0;font-size:13px;color:#607A66;line-height:1.5">The code and link expire in 10 minutes. If you didn't ask for this, you can ignore this email.</p>
+</div>

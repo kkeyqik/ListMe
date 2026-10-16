@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header, Footer } from '@/components/layout';
 import { Input, Button, Badge, Select, useToast } from '@/components/ui';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, isAccountVerified } from '@/context/AuthContext';
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
+import { EmailVerificationModal } from '@/components/auth/EmailVerificationModal';
 import { 
   Check, 
   ShieldCheck, 
@@ -1237,7 +1237,7 @@ export default function PostPropertyPage() {
 
     if (!user) {
       setAuthModalOpen(true);
-    } else if (!profile?.phoneVerified && isPhone) {
+    } else if (!isAccountVerified(profile)) {
       setVerificationModalOpen(true);
     } else {
       router.push(targetUrl);
@@ -1348,8 +1348,8 @@ export default function PostPropertyPage() {
     if (!user) {
       // Open inline authentication modal popup instead of sending the user to /login
       setAuthModalOpen(true);
-    } else if (!profile?.phoneVerified) {
-      // User is logged in (e.g. via Google) but their phone is not verified yet. Require verification.
+    } else if (!isAccountVerified(profile)) {
+      // Signed in but the email is not confirmed yet.
       setVerificationModalOpen(true);
     } else {
       // Redirect directly to the new listing creation page.
@@ -2452,7 +2452,7 @@ export default function PostPropertyPage() {
         initialPhone={phone || (mobileContact.replace(/\D/g, '').length >= 10 ? mobileContact.replace(/\D/g, '').slice(-10) : '')}
         redirectPath={getNewListingUrl(submitSource)}
       />
-      <PhoneVerificationModal
+      <EmailVerificationModal
         isOpen={verificationModalOpen}
         onClose={() => setVerificationModalOpen(false)}
         onSuccess={handleAuthSuccess}
