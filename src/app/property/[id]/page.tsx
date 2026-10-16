@@ -6,6 +6,7 @@ import PropertyClient from './PropertyClient';
 import { Breadcrumbs } from '@/components/ui';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { serializeJsonLd } from '@/lib/json-ld';
+import styles from './page.module.css';
 
 interface PropertyPageProps {
   params: Promise<{ id: string }>;
@@ -25,10 +26,19 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     }
   });
 
-  if (!listing || listing.status !== 'ACTIVE') {
+  if (!listing) {
     return {
       title: 'Property Not Found — ListMe',
       description: 'The property listing you are looking for is no longer active or does not exist.',
+    };
+  }
+
+  // Pending, rejected and deactivated listings are only previewed by their owner
+  // and admins, so give them a neutral title and keep them out of search engines.
+  if (listing.status !== 'ACTIVE') {
+    return {
+      title: 'Listing Preview — ListMe',
+      robots: { index: false, follow: false },
     };
   }
 
@@ -157,7 +167,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <div className={styles.breadcrumbBar}>
         <Breadcrumbs items={breadcrumbs} />
       </div>
       <PropertyClient listingId={id} initialListing={sanitizedListing} />
