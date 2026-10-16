@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedUserId } from '@/lib/server-auth';
-import { createClient } from '@/lib/supabase/server';
+import { ensureProfile, getAuthenticatedUserId, getSessionUser } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(
@@ -31,41 +30,8 @@ export async function GET(
     });
     
     if (!profile && isSelf) {
-      // Auto-create profile using Supabase user details
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const metaName = user?.user_metadata?.name || user?.user_metadata?.full_name || 'User';
-      const metaEmail = user?.email || null;
-      const metaPhone = user?.phone || user?.user_metadata?.phone || null;
-
-      // All new auto-created profiles start as USER.
-      // Admin roles must be assigned manually via the admin panel.
-      profile = await prisma.profile.create({
-        data: {
-          id: userId,
-          name: metaName,
-          email: metaEmail,
-          phone: metaPhone,
-          phoneVerified: !!user?.phone,
-          role: 'USER',
-          city: user?.user_metadata?.city || null,
-        },
-      });
-
-      if (metaEmail) {
-        const { sendEmail } = await import('@/lib/email');
-        try {
-          await sendEmail({
-            to: metaEmail,
-            subject: `Welcome to ${process.env.SMTP_FROM?.split('<')[0]?.trim() || 'ListMe'}!`,
-            text: `Hi ${metaName},\n\nWelcome to ListMe! Your account has been successfully created.\n\nNow you can explore properties, list yours for free, and connect directly with verified owners with no middlemen and no brokerage fees.\n\nHappy searching,\nThe ListMe Team`,
-            metadata: { type: 'WELCOME_EMAIL', trigger: 'OAUTH_AUTO_CREATE' },
-          });
-        } catch (emailErr) {
-          console.error('Failed to send welcome email upon OAuth signup:', emailErr);
-        }
-      }
+      const sessionUser = await getSessionUser();
+      if (sessionUser?.id === userId) profile = await ensureProfile(sessionUser);
     }
 
     if (!profile) {

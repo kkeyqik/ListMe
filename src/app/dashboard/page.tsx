@@ -12,7 +12,7 @@ import {
   Edit,
   Phone
 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, isAccountVerified } from '@/context/AuthContext';
 import { useToast, Card, Button, Badge } from '@/components/ui';
 import styles from './dashboard.module.css';
 
@@ -111,12 +111,12 @@ export default function DashboardHome() {
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ backgroundColor: profile?.phoneVerified ? 'rgba(16, 185, 129, 0.1)' : 'var(--color-secondary-fade)', color: profile?.phoneVerified ? 'var(--color-success)' : 'var(--color-secondary)' }}>
+          <div className={styles.statIcon} style={{ backgroundColor: isAccountVerified(profile) ? 'rgba(16, 185, 129, 0.1)' : 'var(--color-secondary-fade)', color: isAccountVerified(profile) ? 'var(--color-success)' : 'var(--color-secondary)' }}>
             <ShieldCheck size={24} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statVal}>{profile?.phoneVerified ? 'Verified' : 'Unverified'}</span>
-            <span className={styles.statLabel}>Mobile Account Status</span>
+            <span className={styles.statVal}>{isAccountVerified(profile) ? 'Verified' : 'Unverified'}</span>
+            <span className={styles.statLabel}>Account Status</span>
           </div>
         </div>
       </div>

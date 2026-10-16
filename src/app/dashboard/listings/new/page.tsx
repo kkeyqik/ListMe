@@ -21,8 +21,8 @@ import {
   Video
 } from 'lucide-react';
 import { useToast, Button, Input, Card, Select, Combobox } from '@/components/ui';
-import { useAuth } from '@/context/AuthContext';
-import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
+import { useAuth, isAccountVerified } from '@/context/AuthContext';
+import { EmailVerificationModal } from '@/components/auth/EmailVerificationModal';
 import {
   uploadListingFile,
   validateDocument,
@@ -36,7 +36,7 @@ export default function NewListing() {
   const router = useRouter();
   const { showToast } = useToast();
   const { profile, loading: authLoading, refreshProfile } = useAuth();
-  const isPhoneVerified = Boolean(profile?.phoneVerified || profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN');
+  const isVerified = isAccountVerified(profile) || profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN';
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   
   // Data lists from backend APIs
@@ -727,10 +727,10 @@ export default function NewListing() {
   const nextStep = () => {
     // Basic validation per step
     if (step === 1) {
-      if (!isPhoneVerified) {
+      if (!isVerified) {
         showToast(
-          'Phone Verification Required',
-          'Please verify your mobile phone number before proceeding to Step 2.',
+          'Confirm your email',
+          'Please confirm your email before continuing to Step 2.',
           'warning'
         );
         setVerifyModalOpen(true);
@@ -795,13 +795,13 @@ export default function NewListing() {
         {step === 1 && (
           /* STEP 1: Basic Info */
           <div className={styles.stepContainer}>
-            {!authLoading && profile && !isPhoneVerified && (
+            {!authLoading && profile && !isVerified && (
               <div className={styles.warningBanner}>
                 <ShieldAlert size={24} className={styles.warningIcon} />
                 <div className={styles.warningContent}>
-                  <h4 className={styles.warningTitle}>Phone Verification Required</h4>
+                  <h4 className={styles.warningTitle}>Confirm your email</h4>
                   <p className={styles.warningText}>
-                    To prevent spam and ensure real, verified property owners on ListMe, your mobile phone number must be verified before you can list a property.
+                    To keep listings genuine, please confirm your email before you list a property. It takes a few seconds.
                   </p>
                   <div className={styles.warningActions}>
                     <Button
@@ -811,7 +811,7 @@ export default function NewListing() {
                       onClick={() => setVerifyModalOpen(true)}
                       style={{ padding: '0.4rem 0.85rem' }}
                     >
-                      Verify Phone via OTP &rarr;
+                      Confirm email &rarr;
                     </Button>
                     <Link href="/dashboard/profile" className={styles.verifyLink}>
                       Or edit in Profile
@@ -1637,13 +1637,13 @@ export default function NewListing() {
         </div>
       </Card>
 
-      <PhoneVerificationModal
+      <EmailVerificationModal
         isOpen={verifyModalOpen}
         onClose={() => setVerifyModalOpen(false)}
         onSuccess={async () => {
           await refreshProfile();
           setVerifyModalOpen(false);
-          showToast('Success', 'Your phone number has been verified! You can now proceed with your listing.', 'success');
+          showToast('Success', 'Your email is confirmed. You can now continue with your listing.', 'success');
         }}
         initialPhone={typeof window !== 'undefined' ? window.sessionStorage.getItem('onboarding_phone') || profile?.phone || '' : profile?.phone || ''}
       />

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limiting: 30 requests per minute per user (or IP for anonymous)
-    const rateLimitResult = rateLimit(`log-activity:${userId}`, 30, 60 * 1000);
+    const rateLimitResult = await rateLimit(`log-activity:${userId}`, 30, 60 * 1000);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: 'Too many requests' },

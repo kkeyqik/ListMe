@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Phone, Mail, MapPin, ShieldCheck, ShieldAlert, Save } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, isAccountVerified } from '@/context/AuthContext';
+import { EmailVerificationModal } from '@/components/auth/EmailVerificationModal';
 import { useToast, Card, Input, Button, Badge } from '@/components/ui';
 import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
 import styles from '../dashboard.module.css';
@@ -12,6 +13,8 @@ export default function Profile() {
   const { showToast } = useToast();
 
   const [name, setName] = useState('');
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const accountVerified = isAccountVerified(profile);
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -73,30 +76,30 @@ export default function Profile() {
       </div>
 
       {/* Account Verification Status */}
-      <Card padding="md" style={{ marginBottom: '2rem', borderLeft: profile?.phoneVerified ? '4px solid var(--color-success)' : '4px solid var(--color-warning)' }}>
+      <Card padding="md" style={{ marginBottom: '2rem', borderLeft: accountVerified ? '4px solid var(--color-success)' : '4px solid var(--color-warning)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            {profile?.phoneVerified ? (
+            {accountVerified ? (
               <ShieldCheck size={32} style={{ color: 'var(--color-success)' }} />
             ) : (
               <ShieldAlert size={32} style={{ color: 'var(--color-warning)' }} />
             )}
             <div>
               <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-neutral-900)' }}>
-                {profile?.phoneVerified ? 'Verified Account' : 'Action Required: Verify Phone'}
+                {accountVerified ? 'Verified Account' : 'Action Required: Confirm Email'}
               </div>
               <div style={{ fontSize: '0.812rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-                {profile?.phoneVerified 
+                {accountVerified
                   ? 'Your account is in good standing and you can express interest in listings.'
-                  : 'You must verify your phone number to show interest in properties.'
+                  : 'Confirm your email to post listings and contact owners.'
                 }
               </div>
             </div>
           </div>
 
-          {!profile?.phoneVerified && (
-            <Button onClick={() => setPhoneModalOpen(true)} variant="primary" size="sm">
-              Verify Now
+          {!accountVerified && (
+            <Button type="button" onClick={() => setEmailModalOpen(true)} variant="primary" size="sm">
+              Confirm Now
             </Button>
           )}
         </div>
@@ -220,6 +223,12 @@ export default function Profile() {
       </Card>
 
       {/* Phone Verification Modal */}
+      <EmailVerificationModal
+        isOpen={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        onSuccess={() => showToast('Success', 'Your email is confirmed.', 'success')}
+      />
+
       <PhoneVerificationModal
         isOpen={phoneModalOpen}
         onClose={() => setPhoneModalOpen(false)}

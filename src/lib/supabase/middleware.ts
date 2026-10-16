@@ -1,8 +1,19 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { verifySessionToken } from '@/lib/session';
 import { isMockAuthEnabled } from '@/lib/mock-auth';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 
+/** Cookie set by the old custom session system; cleared wherever it is still found. */
+const LEGACY_SESSION_COOKIE = 'listme-session';
+
+/**
+ * Refreshes the Supabase session cookies and keeps signed-out visitors out of
+ * /dashboard and /admin.
+ *
+ * Only "is someone signed in" is decided here. Whether they are an admin is
+ * decided by the admin layout and the admin APIs, which read the role from
+ * the database.
+ */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -29,79 +40,43 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // 1. Resolve active user session — check Supabase first
-  let user: { id: string; app_metadata?: Record<string, unknown> } | null = null;
+  let signedIn = false;
 
   try {
     const { data } = await supabase.auth.getUser();
-    user = data.user;
+    signedIn = !!data.user;
   } catch (err) {
     console.warn('[Middleware] Supabase getUser error:', err);
   }
 
-  // 2. Check signed session cookie (set by firebase-login, phone-password, and OAuth callback)
-  let sessionRole: string | undefined;
-  const sessionCookie = request.cookies.get('listme-session')?.value;
-  if (sessionCookie) {
-    const sessionData = verifySessionToken(sessionCookie);
-    if (sessionData) {
-      sessionRole = sessionData.role;
-      if (!user) {
-        user = {
-          id: sessionData.userId,
-          app_metadata: { role: sessionData.role },
-        };
-      }
-    }
-  }
-
-  // 3. Dev-only: Check mock user ID cookie (ONLY in development with explicit opt-in)
-  if (!user && isMockAuthEnabled()) {
-    const mockUserIdCookie = request.cookies.get('sb-mock-user-id')?.value;
-    if (mockUserIdCookie) {
-      const mockAdminId = process.env.MOCK_ADMIN_ID;
-      const isAdminMock = Boolean(mockAdminId && mockUserIdCookie === mockAdminId);
-      user = {
-        id: mockUserIdCookie,
-        app_metadata: { role: isAdminMock ? 'ADMIN' : 'USER' },
-      };
-    }
+  // Dev-only: mock user cookie (ENABLE_MOCK_AUTH in a non-production runtime)
+  if (!signedIn && isMockAuthEnabled() && request.cookies.get('sb-mock-user-id')?.value) {
+    signedIn = true;
   }
 
   const pathname = request.nextUrl.pathname;
   const isProtectedPath = pathname.startsWith('/dashboard') || pathname.startsWith('/admin');
-  const isAdminPath = pathname.startsWith('/admin');
 
-  // 4. Unauthenticated user accessing protected routes → redirect to login
-  if (!user && isProtectedPath) {
+  let response: NextResponse = supabaseResponse;
+
+  if (!signedIn && isProtectedPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(url);
+    response = NextResponse.redirect(url);
+  } else if (signedIn && (pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
+    const target = safeRedirectPath(request.nextUrl.searchParams.get('redirect'));
+    response = NextResponse.redirect(new URL(target, request.url));
   }
 
-  // 5. Authenticated user checks — role from database/session metadata only, no hardcoded values
-  if (user) {
-    // user_metadata is writable by the user themselves via the Supabase client,
-    // so it must never decide access. app_metadata and the signed session are server-set.
-    const userRole = (user.app_metadata?.role as string | undefined) || sessionRole || 'USER';
-    const isAdminUser = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' || sessionRole === 'ADMIN' || sessionRole === 'SUPER_ADMIN';
-
-    // Admin route protection: Require ADMIN or SUPER_ADMIN role
-    if (isAdminPath && !isAdminUser) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
-    }
-
-    // Redirect logged-in user away from /login & /signup
-    const isAuthPath = pathname.startsWith('/login') || pathname.startsWith('/signup');
-    if (isAuthPath) {
-      const url = request.nextUrl.clone();
-      url.pathname = isAdminUser ? '/admin' : '/dashboard';
-      return NextResponse.redirect(url);
-    }
+  if (response !== supabaseResponse) {
+    // Keep any refreshed Supabase cookies on redirects too.
+    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
   }
 
-  return supabaseResponse;
+  if (request.cookies.get(LEGACY_SESSION_COOKIE)) {
+    response.cookies.set(LEGACY_SESSION_COOKIE, '', { path: '/', maxAge: 0 });
+  }
+
+  return response;
 }

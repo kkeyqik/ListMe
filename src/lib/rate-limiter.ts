@@ -1,93 +1,90 @@
+import { prisma } from '@/lib/prisma';
+
 /**
- * In-memory sliding-window rate limiter.
+ * Fixed-window rate limiter backed by the `rate_limits` table
+ * (prisma/sql/auth-email-first.sql).
  *
- * Uses `globalThis` so the store survives across warm Lambda / serverless
- * invocations within the same process.
- *
- * A max cache size (10 000 entries) prevents unbounded memory growth —
- * the oldest entries are evicted when the cap is exceeded.
+ * Vercel runs many server instances, each with its own memory, so counters
+ * must live in the database to hold across requests. If the database call
+ * fails, an in-process counter is used for that request instead, so a
+ * database hiccup never locks everyone out.
  */
 
-const MAX_CACHE_SIZE = 10_000;
+export interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  retryAfter: number;
+}
 
-// Persist the store across hot-reloads / warm invocations.
+const MAX_MEMORY_KEYS = 10_000;
+
 const globalStore = globalThis as unknown as {
-  __rateLimitStore?: Map<string, number[]>;
+  __rateLimitFallback?: Map<string, { count: number; resetAt: number }>;
 };
 
-function getStore(): Map<string, number[]> {
-  if (!globalStore.__rateLimitStore) {
-    globalStore.__rateLimitStore = new Map<string, number[]>();
+function memoryRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
+  if (!globalStore.__rateLimitFallback) globalStore.__rateLimitFallback = new Map();
+  const store = globalStore.__rateLimitFallback;
+  const now = Date.now();
+
+  let entry = store.get(key);
+  if (!entry || entry.resetAt <= now) {
+    entry = { count: 0, resetAt: now + windowMs };
   }
-  return globalStore.__rateLimitStore;
+  entry.count += 1;
+  store.set(key, entry);
+
+  if (store.size > MAX_MEMORY_KEYS) {
+    const oldest = store.keys().next().value;
+    if (oldest !== undefined) store.delete(oldest);
+  }
+
+  return toResult(entry.count, entry.resetAt, limit, now);
 }
 
-// ---------------------------------------------------------------------------
-// Core
-// ---------------------------------------------------------------------------
+function toResult(count: number, resetAt: number, limit: number, now: number): RateLimitResult {
+  if (count > limit) {
+    return { allowed: false, remaining: 0, retryAfter: Math.max(1, Math.ceil((resetAt - now) / 1000)) };
+  }
+  return { allowed: true, remaining: limit - count, retryAfter: 0 };
+}
 
 /**
- * Check whether a request identified by `key` is within the rate limit.
- *
- * @param key      - Unique identifier (e.g. IP address, userId).
- * @param limit    - Maximum number of requests allowed in the window.
- * @param windowMs - Window size in milliseconds.
- *
- * @returns `allowed` — whether the request should proceed,
- *          `remaining` — how many requests are left,
- *          `retryAfter` — seconds until the next slot opens (0 if allowed).
+ * Count one request against `key` and report whether it is within `limit`
+ * requests per `windowMs`.
  */
-export function rateLimit(
-  key: string,
-  limit: number,
-  windowMs: number,
-): { allowed: boolean; remaining: number; retryAfter: number } {
-  const store = getStore();
+export async function rateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
   const now = Date.now();
-  const windowStart = now - windowMs;
+  try {
+    const rows = await prisma.$queryRaw<{ count: number; reset_at: Date }[]>`
+      insert into public.rate_limits (key, count, reset_at)
+      values (${key}, 1, now() + make_interval(secs => ${windowMs / 1000}))
+      on conflict (key) do update set
+        count    = case when public.rate_limits.reset_at <= now() then 1 else public.rate_limits.count + 1 end,
+        reset_at = case when public.rate_limits.reset_at <= now() then excluded.reset_at else public.rate_limits.reset_at end
+      returning count, reset_at`;
 
-  // Get (or init) the timestamps for this key.
-  let timestamps = store.get(key) || [];
-
-  // Prune entries outside the current window.
-  timestamps = timestamps.filter((t) => t > windowStart);
-
-  if (timestamps.length >= limit) {
-    // Earliest timestamp still in the window → when it expires.
-    const oldestInWindow = timestamps[0];
-    const retryAfterMs = oldestInWindow + windowMs - now;
-    const retryAfter = Math.ceil(retryAfterMs / 1000);
-
-    store.set(key, timestamps);
-    return { allowed: false, remaining: 0, retryAfter };
-  }
-
-  // Record this request.
-  timestamps.push(now);
-  store.set(key, timestamps);
-
-  // Evict oldest entries when the cache grows too large.
-  if (store.size > MAX_CACHE_SIZE) {
-    const keysToDelete = store.size - MAX_CACHE_SIZE;
-    const iterator = store.keys();
-    for (let i = 0; i < keysToDelete; i++) {
-      const oldest = iterator.next().value;
-      if (oldest !== undefined) {
-        store.delete(oldest);
-      }
+    // Occasionally clear out expired rows so the table stays small.
+    if (Math.random() < 0.01) {
+      prisma.$executeRaw`delete from public.rate_limits where reset_at < now() - interval '1 day'`.catch(() => {});
     }
-  }
 
-  return {
-    allowed: true,
-    remaining: limit - timestamps.length,
-    retryAfter: 0,
-  };
+    const row = rows[0];
+    return toResult(Number(row.count), new Date(row.reset_at).getTime(), limit, now);
+  } catch (error) {
+    console.error('[rateLimit] Database limiter unavailable, using in-process fallback:', error);
+    return memoryRateLimit(key, limit, windowMs);
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Header helper
-// ---------------------------------------------------------------------------
+/** The caller's IP address as reported by Vercel's proxy. */
+export function getClientIp(request: Request): string {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
 
 /**
  * Build standard rate-limit response headers.

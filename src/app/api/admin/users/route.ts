@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
-import { getSecurePassword } from '@/lib/auth-helpers';
 import { Role, UserStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
@@ -108,16 +107,17 @@ export async function POST(request: NextRequest) {
       // Deterministic mock user ID
       suUserId = 'd9e87fb4-9c02-4217-ba5d-' + phone.replace(/\D/g, '').padEnd(12, '0').slice(-12);
     } else {
-      const securePassword = getSecurePassword(formattedPhone);
       const supabaseAdmin = createAdminClient();
 
       try {
         const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          // No password: the user signs in with an email code or Google, or
+          // sets a password through "Forgot password".
           phone: formattedPhone,
           email: email,
-          password: securePassword,
           phone_confirm: true,
-          user_metadata: { name, email },
+          email_confirm: true,
+          user_metadata: { name },
         });
 
         if (createError) {
@@ -141,16 +141,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create profile in Prisma
-    const createdProfile = await prisma.profile.create({
-      data: {
-        id: suUserId,
-        name,
-        phone: formattedPhone,
-        email,
-        role: role as Role,
-        status: (status as UserStatus) || 'ACTIVE',
-        phoneVerified: true,
-      },
+    // The database trigger may already have created a bare profile row.
+    const profileData = {
+      name,
+      phone: formattedPhone,
+      email,
+      role: role as Role,
+      status: (status as UserStatus) || 'ACTIVE',
+      phoneVerified: true,
+    };
+    const createdProfile = await prisma.profile.upsert({
+      where: { id: suUserId },
+      update: profileData,
+      create: { id: suUserId, ...profileData },
     });
 
     return NextResponse.json({

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User } from '@supabase/supabase-js';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 
 export interface DbProfile {
@@ -10,6 +10,8 @@ export interface DbProfile {
   email: string | null;
   phone: string | null;
   phoneVerified: boolean;
+  /** A real, confirmed email address (from Supabase). */
+  emailVerified?: boolean;
   avatarUrl: string | null;
   city: string | null;
   address: string | null;
@@ -20,27 +22,35 @@ export interface DbProfile {
   updatedAt: string;
 }
 
+/** Whether the account may post listings and contact owners. */
+export function isAccountVerified(profile: DbProfile | null): boolean {
+  return !!profile && (profile.emailVerified === true || profile.phoneVerified);
+}
+
+export type EmailCodePurpose = 'login' | 'signup' | 'recovery';
+
+interface AuthResult {
+  error: { message: string; code?: string } | null;
+}
+
 interface AuthContextType {
   user: User | null;
   profile: DbProfile | null;
   loading: boolean;
-  signInWithOtp: (phone: string) => Promise<{ error: any }>;
-  verifyOtp: (phone: string, token: string) => Promise<{ error: any }>;
-  verifyEmailOtp: (email: string, token: string) => Promise<{ error: any }>;
-  signInWithEmail: (email: string) => Promise<{ error: any }>;
-  signInWithPhoneAndPassword: (phone: string, password: string) => Promise<{ error: any }>;
-  signInWithGoogle: (redirectPath?: string) => Promise<{ error: any }>;
-  signInWithPassword: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (name: string, phone: string, email: string, password: string, city?: string) => Promise<{ error: any }>;
+  signInWithGoogle: (redirectPath?: string) => Promise<AuthResult>;
+  signInWithPassword: (email: string, password: string) => Promise<AuthResult>;
+  signUpWithPassword: (name: string, email: string, password: string, redirectPath?: string) => Promise<AuthResult & { needsConfirmation: boolean }>;
+  sendEmailCode: (email: string, purpose: EmailCodePurpose, options?: { name?: string; redirectPath?: string }) => Promise<AuthResult & { message?: string }>;
+  verifyEmailCode: (email: string, code: string, purpose: EmailCodePurpose) => Promise<AuthResult>;
+  signInWithPhoneToken: (idToken: string, phone?: string) => Promise<AuthResult>;
+  updatePassword: (password: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
-const PENDING_SIGNUP_KEY = 'listme_pending_signup';
-const formatIndiaPhone = (phone: string) => (phone.startsWith('+') ? phone : `+91${phone}`);
+export const MIN_PASSWORD_LENGTH = 8;
 
-// Check if mock auth is enabled (build-time flag)
-const IS_MOCK_AUTH_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true' && process.env.NODE_ENV !== 'production';
+const SUSPENDED_MESSAGE = 'Your account has been suspended. Please contact support.';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -52,502 +62,196 @@ export const useAuth = () => {
   return context;
 };
 
-// Generate deterministic fallback profile from Supabase user object
-function createFallbackProfile(user: User): DbProfile {
-  const userRole = user.app_metadata?.role || user.user_metadata?.role || 'USER';
-  const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
+/** Plain-language versions of Supabase auth errors. */
+function friendlyError(error: { message?: string; code?: string; status?: number } | null | undefined): AuthResult['error'] {
+  if (!error) return null;
+  const msg = error.message || '';
+  if (/invalid login credentials/i.test(msg)) return { message: 'Email or password is incorrect.', code: 'invalid_credentials' };
+  if (/email not confirmed/i.test(msg)) return { message: 'Please confirm your email first. We can send you a new code.', code: 'email_not_confirmed' };
+  if (/expired|invalid.*(otp|token)|token.*(expired|invalid)/i.test(msg)) return { message: 'That code is wrong or has expired. Request a new one.', code: 'invalid_code' };
+  if (/banned/i.test(msg)) return { message: SUSPENDED_MESSAGE, code: 'suspended' };
+  if (/password should be|weak password/i.test(msg)) return { message: `Use at least ${MIN_PASSWORD_LENGTH} characters, mixing letters and numbers.`, code: 'weak_password' };
+  if (/rate limit|too many|security purposes/i.test(msg) || error.status === 429) return { message: 'Too many attempts. Please wait a minute and try again.', code: 'rate_limited' };
+  return { message: msg || 'Something went wrong. Please try again.', code: error.code };
+}
 
-  return {
-    id: user.id,
-    name: user.user_metadata?.name || user.user_metadata?.full_name || 'User',
-    email: user.email || null,
-    phone: user.phone || null,
-    phoneVerified: true,
-    avatarUrl: user.user_metadata?.avatar_url || null,
-    city: user.user_metadata?.city || null,
-    address: null,
-    role: isAdmin ? (userRole as 'ADMIN' | 'SUPER_ADMIN') : 'USER',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+async function postJson(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<DbProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  /**
+   * Loads the profile from the server, the only source of role and status.
+   * A suspended account is signed out on the spot.
+   */
+  const loadProfile = useCallback(async (): Promise<{ suspended: boolean }> => {
     try {
-      const response = await fetch(`/api/users/${userId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.profile) {
-          setProfile(data.profile);
-        }
+      const res = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (!res.ok) return { suspended: false };
+      const data = await res.json();
+      if (data.authenticated && data.profile) {
+        setProfile(data.profile);
+        // Local development mock sessions have no Supabase user.
+        setUser((current) => current ?? ({ id: data.profile.id, email: data.profile.email } as User));
+        return { suspended: false };
       }
+      if (data.suspended) {
+        await supabase.auth.signOut({ scope: 'local' });
+        setUser(null);
+        setProfile(null);
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?error=suspended';
+        }
+        return { suspended: true };
+      }
+      setProfile(null);
+      return { suspended: false };
     } catch (err) {
-      console.warn('[AuthContext] Background profile sync warning:', err);
+      console.warn('[AuthContext] Profile load failed:', err);
+      return { suspended: false };
     }
-  }, []);
+  }, [supabase]);
 
   const refreshProfile = useCallback(async () => {
-    if (user) {
-      await fetchProfile(user.id);
-    }
-  }, [user, fetchProfile]);
+    await loadProfile();
+  }, [loadProfile]);
 
-  // Handle active session on mount
   useEffect(() => {
-    const initializeAuth = async () => {
-      let activeUser: User | null = null;
+    let active = true;
 
-      // 1. Check Supabase session first (real auth)
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          activeUser = session.user;
-        }
-      } catch (err) {
-        console.warn('[AuthContext] Supabase getSession error:', err);
-      }
-
-      // 2. Check server-side session via /api/auth/me (covers signed cookie sessions)
-      if (!activeUser) {
-        try {
-          const res = await fetch('/api/auth/me');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.authenticated && data.profile) {
-              // Create a minimal user object from the profile
-              activeUser = {
-                id: data.profile.id,
-                email: data.profile.email,
-                phone: data.profile.phone,
-                user_metadata: {
-                  name: data.profile.name,
-                  role: data.profile.role,
-                },
-                app_metadata: {
-                  role: data.profile.role,
-                },
-              } as any;
-
-              // Set profile directly since we already have it
-              setUser(activeUser);
-              setProfile(data.profile);
-              setLoading(false);
-              return; // Skip the rest, we have the full profile
-            }
-          }
-        } catch {
-          // No server session
-        }
-      }
-
-      // 3. Dev-only: Check mock session cookie (gated behind build-time flag)
-      if (!activeUser && IS_MOCK_AUTH_ENABLED && typeof window !== 'undefined') {
-        const match = document.cookie.match(/sb-mock-user-id=([^;]+)/);
-        const mockId = match ? match[1] : null;
-        if (mockId) {
-          // Use /api/auth/me to resolve the mock user server-side
-          // (The server's createClient will handle mock resolution)
-          try {
-            const res = await fetch(`/api/users/${mockId}`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data.profile) {
-                activeUser = {
-                  id: data.profile.id,
-                  email: data.profile.email,
-                  phone: data.profile.phone,
-                  user_metadata: { name: data.profile.name, role: data.profile.role },
-                  app_metadata: { role: data.profile.role },
-                } as any;
-
-                setUser(activeUser);
-                setProfile(data.profile);
-                setLoading(false);
-                return;
-              }
-            }
-          } catch {
-            // Mock user not found
-          }
-        }
-      }
-
-      if (activeUser) {
-        setUser(activeUser);
-        setProfile(createFallbackProfile(activeUser));
-        setLoading(false);
-        fetchProfile(activeUser.id);
-      } else {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      }
+    const init = async () => {
+      const { data: { user: sessionUser } } = await supabase.auth.getUser();
+      if (!active) return;
+      setUser(sessionUser ?? null);
+      await loadProfile();
+      if (active) setLoading(false);
     };
+    init();
 
-    initializeAuth();
-
-    // Listen for auth changes (Supabase real-time)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        setProfile(createFallbackProfile(session.user));
-        setLoading(false);
-        fetchProfile(session.user.id);
-      } else if (event === 'SIGNED_OUT') {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
-        setLoading(false);
+        return;
+      }
+      if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+        setUser(session.user);
+        // Defer: calling other Supabase methods inside this callback can deadlock.
+        setTimeout(() => { loadProfile(); }, 0);
       }
     });
 
     return () => {
+      active = false;
       subscription.unsubscribe();
     };
-  }, [supabase.auth, fetchProfile]);
+  }, [supabase, loadProfile]);
 
-  // Sign In with Phone OTP (sends OTP via Firebase/Supabase)
-  const signInWithOtp = async (phone: string) => {
-    setLoading(true);
-    try {
-      const cleanNum = phone.replace(/\D/g, '').slice(-10);
-      if (IS_MOCK_AUTH_ENABLED && (cleanNum === '7777777777' || cleanNum === '9999999999' || cleanNum === '8888888888')) {
-        return { error: null };
-      }
+  const afterSignIn = useCallback(async (): Promise<AuthResult> => {
+    const { data: { user: sessionUser } } = await supabase.auth.getUser();
+    setUser(sessionUser ?? null);
+    const { suspended } = await loadProfile();
+    return suspended ? { error: { message: SUSPENDED_MESSAGE, code: 'suspended' } } : { error: null };
+  }, [supabase, loadProfile]);
 
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formatIndiaPhone(phone),
-      });
-      return { error };
-    } catch (err: any) {
-      return { error: err };
-    } finally {
-      setLoading(false);
-    }
+  const signInWithGoogle = async (redirectPath?: string): Promise<AuthResult> => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/callback?redirect=${encodeURIComponent(redirectPath || '/dashboard')}`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    return { error: friendlyError(error) };
   };
 
-  // Verify Phone OTP — server-side verification via firebase-login route
-  const verifyOtp = async (phone: string, token: string) => {
-    setLoading(true);
-    try {
-      // Dev-only: Mock OTP bypass for test accounts
-      if (IS_MOCK_AUTH_ENABLED) {
-        const cleanNum = phone.replace(/\D/g, '').slice(-10);
-        if ((cleanNum === '7777777777' || cleanNum === '9999999999' || cleanNum === '8888888888') && token === '123456') {
-          // Use the firebase-login route which handles mock auth gating server-side
-          const res = await fetch('/api/auth/firebase-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: formatIndiaPhone(phone) }),
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.profile) {
-              const mockUser = {
-                id: data.profile.id,
-                phone: data.profile.phone,
-                email: data.profile.email,
-                user_metadata: { name: data.profile.name, role: data.profile.role },
-                app_metadata: { role: data.profile.role },
-              } as any;
-
-              setUser(mockUser);
-              setProfile(data.profile);
-              setLoading(false);
-              return { error: null };
-            }
-          }
-
-          return { error: new Error('Mock login failed') };
-        }
-      }
-
-      // Production: Verify OTP via Supabase
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: formatIndiaPhone(phone),
-        token,
-        type: 'sms',
-      });
-
-      if (error) {
-        return { error };
-      }
-
-      if (data?.user) {
-        // Sync with our DB via firebase-login route (creates profile + session)
-        try {
-          const res = await fetch('/api/auth/firebase-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phone: formatIndiaPhone(phone),
-              name: data.user.user_metadata?.name,
-              email: data.user.email,
-            }),
-          });
-
-          if (res.ok) {
-            const loginData = await res.json();
-            if (loginData.profile) {
-              setProfile(loginData.profile);
-            }
-          }
-        } catch (syncErr) {
-          console.warn('[AuthContext] Profile sync after OTP verify:', syncErr);
-        }
-
-        setUser(data.user);
-        if (!profile) {
-          setProfile(createFallbackProfile(data.user));
-        }
-        setLoading(false);
-        fetchProfile(data.user.id);
-      }
-
-      return { error: null };
-    } catch (err: any) {
-      return { error: err };
-    } finally {
-      setLoading(false);
-    }
+  const signInWithPassword = async (email: string, password: string): Promise<AuthResult> => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (error) return { error: friendlyError(error) };
+    return afterSignIn();
   };
 
-  // Verify Email OTP — via Supabase (no mock bypass in production)
-  const verifyEmailOtp = async (email: string, token: string) => {
-    setLoading(true);
+  const signUpWithPassword = async (name: string, email: string, password: string, redirectPath?: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      options: {
+        data: { name: name.trim() },
+        emailRedirectTo: `${window.location.origin}/callback?redirect=${encodeURIComponent(redirectPath || '/dashboard')}`,
+      },
+    });
+    if (error) return { error: friendlyError(error), needsConfirmation: false };
+    if (data.session) {
+      const result = await afterSignIn();
+      return { ...result, needsConfirmation: false };
+    }
+    return { error: null, needsConfirmation: true };
+  };
+
+  const sendEmailCode = async (email: string, purpose: EmailCodePurpose, options?: { name?: string; redirectPath?: string }) => {
     try {
-      // Dev-only: Mock email OTP bypass
-      if (IS_MOCK_AUTH_ENABLED && token === '123456') {
-        const res = await fetch('/api/auth/firebase-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: '+910000000000', email, name: email.split('@')[0] }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.profile) {
-            const mockUser = {
-              id: data.profile.id,
-              email: data.profile.email,
-              phone: data.profile.phone,
-              user_metadata: { name: data.profile.name, role: data.profile.role },
-              app_metadata: { role: data.profile.role },
-            } as any;
-
-            setUser(mockUser);
-            setProfile(data.profile);
-            setLoading(false);
-            return { error: null };
-          }
-        }
-
-        return { error: new Error('Mock email login failed') };
-      }
-
-      // Production: Verify via Supabase
-      const { data, error } = await supabase.auth.verifyOtp({
+      const { ok, data } = await postJson('/api/auth/email-code', {
         email,
-        token,
-        type: 'email',
+        purpose,
+        name: options?.name,
+        redirect: options?.redirectPath,
       });
-
-      if (error) return { error };
-
-      if (data?.user) {
-        setUser(data.user);
-        setProfile(createFallbackProfile(data.user));
-        setLoading(false);
-        fetchProfile(data.user.id);
-      }
-
-      return { error: null };
-    } catch (err: any) {
-      return { error: err };
-    } finally {
-      setLoading(false);
+      if (!ok) return { error: { message: data.message || 'Could not send the code. Please try again.' } };
+      return { error: null, message: data.message as string | undefined };
+    } catch {
+      return { error: { message: 'Network error. Check your connection and try again.' } };
     }
   };
 
-  // Sign In with Google
-  const signInWithGoogle = async (redirectPath?: string) => {
-    setLoading(true);
+  const verifyEmailCode = async (email: string, code: string, purpose: EmailCodePurpose): Promise<AuthResult> => {
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: code,
+      type: purpose === 'recovery' ? 'recovery' : 'email',
+    });
+    if (error) return { error: friendlyError(error) };
+    return afterSignIn();
+  };
+
+  const signInWithPhoneToken = async (idToken: string, phone?: string): Promise<AuthResult> => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/callback?redirect=${redirectPath || '/dashboard'}`,
-          queryParams: {
-            prompt: 'select_account',
-          },
-        },
-      });
-      return { error };
-    } catch (err: any) {
-      return { error: err };
-    } finally {
-      setLoading(false);
+      const { ok, data } = await postJson('/api/auth/firebase-login', { idToken, phone });
+      if (!ok) return { error: { message: data.message || 'Phone sign-in failed.', code: data.code } };
+      return afterSignIn();
+    } catch {
+      return { error: { message: 'Network error. Check your connection and try again.' } };
     }
   };
 
-  // Sign In with Email & Password
-  const signInWithPassword = async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      return { error };
-    } catch (err: any) {
-      return { error: err };
-    } finally {
-      setLoading(false);
-    }
+  const updatePassword = async (password: string): Promise<AuthResult> => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { error: friendlyError(error) };
+    // Sign out every other device that knew the old password.
+    await supabase.auth.signOut({ scope: 'others' });
+    return { error: null };
   };
 
-  // Sign Up with Email & Password
-  const signUp = async (name: string, phone: string, email: string, password: string, city?: string) => {
-    setLoading(true);
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(
-          PENDING_SIGNUP_KEY,
-          JSON.stringify({ name, phone, email, city })
-        );
-      }
-
-      const { data: signUpData, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            phone: formatIndiaPhone(phone),
-            city,
-          },
-        },
-      });
-
-      if (!error && signUpData?.user) {
-        if (signUpData.session) {
-          setUser(signUpData.user);
-        }
-        try {
-          const profRes = await fetch('/api/users/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name,
-              phone: formatIndiaPhone(phone),
-              email,
-              city,
-            }),
-          });
-          if (profRes.ok) {
-            const pData = await profRes.json();
-            if (pData.profile) setProfile(pData.profile);
-          }
-        } catch (syncErr) {
-          console.warn('[signUp] Profile auto-sync error:', syncErr);
-        }
-      }
-
-      return { error };
-    } catch (err: any) {
-      return { error: err };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
-  const signInWithEmail = async (email: string) => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-      });
-      return { error };
-    } catch (err: any) {
-      return { error: err };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signInWithPhoneAndPassword = async (phone: string, password: string) => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth/phone-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        return { error: { message: data.message || 'Invalid credentials' } };
-      }
-      
-      // Since it's server-side, check for hybrid sync via /api/auth/me
-      const meRes = await fetch('/api/auth/me');
-      if (meRes.ok) {
-        const meData = await meRes.json();
-        if (meData.authenticated && meData.profile) {
-          // Sync profile state locally since cookie has been set!
-          setUser({ id: meData.profile.id, email: meData.profile.email, user_metadata: {}, app_metadata: {}, aud: 'authenticated', created_at: '' } as any);
-          setProfile(meData.profile);
-        }
-      }
-      return { error: null };
-    } catch (err: any) {
-      return { error: err };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Sign Out — server-side session destruction
   const signOut = async () => {
-    setLoading(true);
     try {
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-
-      // Destroy server-side session
-      try {
-        await fetch('/api/auth/logout', { method: 'POST' });
-      } catch {
-        // Best-effort cleanup
-      }
-
-      // Clean up client-side storage
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(PENDING_SIGNUP_KEY);
-        // Clean up any remaining mock cookies (dev cleanup)
-        if (IS_MOCK_AUTH_ENABLED) {
-          localStorage.removeItem('listme_mock_user_id');
-          document.cookie = 'sb-mock-user-id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax;';
-        }
-      }
-
-      setUser(null);
-      setProfile(null);
-      window.location.href = '/login';
-    } catch (err) {
-      console.error('[AuthContext] SignOut error:', err);
-    } finally {
-      setLoading(false);
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Best effort; the local sign-out below still clears this browser.
     }
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    setUser(null);
+    setProfile(null);
+    window.location.href = '/login';
   };
 
   return (
@@ -556,14 +260,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         profile,
         loading,
-        signInWithOtp,
-        verifyOtp,
-        verifyEmailOtp,
-        signInWithEmail,
-        signInWithPhoneAndPassword,
         signInWithGoogle,
         signInWithPassword,
-        signUp,
+        signUpWithPassword,
+        sendEmailCode,
+        verifyEmailCode,
+        signInWithPhoneToken,
+        updatePassword,
         signOut,
         refreshProfile,
       }}

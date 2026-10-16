@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limiting: 3 phone verifications per hour per user
-    const rateLimitResult = rateLimit(`verify-phone:${userId}`, 3, 60 * 60 * 1000);
+    const rateLimitResult = await rateLimit(`verify-phone:${userId}`, 3, 60 * 60 * 1000);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { message: 'Too many verification attempts. Please try again later.' },

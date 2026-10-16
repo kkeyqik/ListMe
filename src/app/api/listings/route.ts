@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedUserId } from '@/lib/server-auth';
+import { getAuthenticatedUserId, isContactVerified } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { ListingStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
@@ -310,9 +310,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Your account has been suspended or banned' }, { status: 403 });
     }
 
-    if (!userProfile.phoneVerified) {
+    if (!userProfile.phoneVerified && !(await isContactVerified(userId))) {
       return NextResponse.json(
-        { message: 'Your mobile phone number must be verified before posting a property listing' },
+        { code: 'verify_email', message: 'Please verify your email before posting a property listing' },
         { status: 403 }
       );
     }

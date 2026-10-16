@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedUserId } from '@/lib/server-auth';
+import { getAuthenticatedUserId, syncSupabaseBan } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { Role, UserStatus } from '@prisma/client';
 import { logAdminActivity } from '@/lib/activity-logger';
@@ -100,6 +100,12 @@ export async function PUT(
         },
       },
     });
+
+    // Suspending ends the user's Supabase sessions and blocks new sign-ins;
+    // reactivating lifts the block.
+    if (status !== undefined && status !== targetProfile.status) {
+      await syncSupabaseBan(id, updatedProfile.status);
+    }
 
     // Log the admin activity
     const adminName = requesterProfile.name || 'Admin';

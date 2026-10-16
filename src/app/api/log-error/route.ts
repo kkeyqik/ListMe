@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ipKey = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const limit = rateLimit(`log-error:${userId || ipKey}`, 20, 60 * 1000);
+    const limit = await rateLimit(`log-error:${userId || ipKey}`, 20, 60 * 1000);
     if (!limit.allowed) {
       return NextResponse.json({ success: false }, { status: 429, headers: getRateLimitHeaders(limit, 20) });
     }
