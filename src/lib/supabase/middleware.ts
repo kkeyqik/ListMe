@@ -7,6 +7,29 @@ import { safeRedirectPath } from '@/lib/safe-redirect';
 const LEGACY_SESSION_COOKIE = 'listme-session';
 
 /**
+ * Admin accounts must finish two-factor sign-in before using the dashboard,
+ * the admin panel or any API other than sign-in itself.
+ */
+function requiresSecondFactor(pathname: string): boolean {
+  return (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/dashboard') ||
+    (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/'))
+  );
+}
+
+/** Payload of a JWT whose signature has already been checked by Supabase. */
+function readJwtClaims(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Refreshes the Supabase session cookies and keeps signed-out visitors out of
  * /dashboard and /admin.
  *
@@ -41,10 +64,19 @@ export async function updateSession(request: NextRequest) {
   );
 
   let signedIn = false;
+  let adminNeedsSecondFactor = false;
 
   try {
     const { data } = await supabase.auth.getUser();
     signedIn = !!data.user;
+    if (signedIn) {
+      // getUser() has just confirmed this access token with Supabase, so its
+      // claims can be read directly.
+      const { data: { session } } = await supabase.auth.getSession();
+      const claims = session ? readJwtClaims(session.access_token) : null;
+      adminNeedsSecondFactor =
+        (claims?.user_role === 'ADMIN' || claims?.user_role === 'SUPER_ADMIN') && claims?.aal !== 'aal2';
+    }
   } catch (err) {
     console.warn('[Middleware] Supabase getUser error:', err);
   }
@@ -59,7 +91,20 @@ export async function updateSession(request: NextRequest) {
 
   let response: NextResponse = supabaseResponse;
 
-  if (!signedIn && isProtectedPath) {
+  if (adminNeedsSecondFactor && requiresSecondFactor(pathname)) {
+    if (pathname.startsWith('/api/')) {
+      response = NextResponse.json(
+        { code: 'mfa_required', message: 'Confirm your sign-in with your authenticator app first.' },
+        { status: 403 }
+      );
+    } else {
+      const url = request.nextUrl.clone();
+      url.pathname = '/mfa';
+      url.search = '';
+      url.searchParams.set('redirect', pathname);
+      response = NextResponse.redirect(url);
+    }
+  } else if (!signedIn && isProtectedPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);
