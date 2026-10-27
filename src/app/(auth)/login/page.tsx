@@ -11,6 +11,7 @@ import { useSettings } from '@/context/SettingsContext';
 import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { createClient } from '@/lib/supabase/client';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 import styles from '../auth.module.css';
 
 const testimonials = [
@@ -123,7 +124,7 @@ function LoginContent() {
   }, []);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const redirectPath = searchParams.get('redirect') || '/dashboard';
+  const redirectPath = safeRedirectPath(searchParams.get('redirect'));
 
   // Redirect if already logged in
   useEffect(() => {

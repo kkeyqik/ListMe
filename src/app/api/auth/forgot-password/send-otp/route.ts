@@ -170,6 +170,7 @@ export async function POST(request: NextRequest) {
         text: `Hi ${profile.name || 'User'},\n\nYour 6-digit verification code to reset your ListMe password is: ${otp}\n\nThis code is valid for 10 minutes. If you did not request this, please ignore this email.\n\n- The ListMe Team`,
         html: emailHtml,
         metadata: { type: 'PASSWORD_RESET_OTP', channel: 'email', userId: profile.id },
+        sensitive: true,
       });
     } else {
       // SMS channel — never log plain text OTPs in production
