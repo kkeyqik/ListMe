@@ -21,6 +21,7 @@ import styles from '../admin.module.css';
 import pageStyles from './activity.module.css';
 import { gsap } from 'gsap';
 import { downloadCSV } from '@/lib/export-utils';
+import { recordAdminExport } from '@/lib/admin-export-audit';
 
 export default function AdminActivityLog() {
   const { showToast } = useToast();
@@ -165,7 +166,7 @@ export default function AdminActivityLog() {
     return matchesSearch && matchesAction && matchesDate;
   });
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     let exportData: any[] = [];
     const filename = `ListMe_Activity_${activeTab}_Export_${new Date().toISOString().split('T')[0]}.csv`;
 
@@ -215,6 +216,11 @@ export default function AdminActivityLog() {
 
     if (exportData.length === 0) {
       showToast('Info', 'No data to export', 'info');
+      return;
+    }
+
+    if (!(await recordAdminExport('ACTIVITY_LOGS', exportData.length, { tab: activeTab, startDate, endDate }))) {
+      showToast('Error', 'Export could not be recorded, so it was not downloaded', 'error');
       return;
     }
 

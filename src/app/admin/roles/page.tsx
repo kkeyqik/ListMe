@@ -7,6 +7,7 @@ import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { downloadCSV } from '@/lib/export-utils';
+import { recordAdminExport } from '@/lib/admin-export-audit';
 
 export default function RoleManager() {
   const { showToast } = useToast();
@@ -204,7 +205,8 @@ export default function RoleManager() {
     return 0;
   });
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    try {
     const exportData = sortedAdmins.map(a => {
       const perms = a.roleMetadata?.permissions || {};
       const activePerms = Object.keys(perms).filter(k => perms[k]).join(', ');
@@ -217,12 +219,20 @@ export default function RoleManager() {
         Role: a.role,
         Status: a.status,
         Permissions: activePerms || 'None',
-        RegisteredAt: new Date(a.createdAt).toISOString()
+        RegisteredAt: a.createdAt ? new Date(a.createdAt).toISOString() : ''
       };
     });
-    
+
+    if (!(await recordAdminExport('ADMINS', exportData.length, { search: searchQuery, role: roleFilter, status: statusFilter }))) {
+      showToast('Error', 'Export could not be recorded, so it was not downloaded', 'error');
+      return;
+    }
     downloadCSV(exportData, `ListMe_Admins_Export_${new Date().toISOString().split('T')[0]}.csv`);
     showToast('Success', 'Report downloaded successfully', 'success');
+    } catch (err) {
+      console.error('Admin export error:', err);
+      showToast('Error', 'Failed to export report', 'error');
+    }
   };
 
   return (

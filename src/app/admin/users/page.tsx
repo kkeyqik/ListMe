@@ -12,6 +12,7 @@ import { useToast, Card, Badge, Input, Button, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
 import { downloadCSV } from '@/lib/export-utils';
+import { recordAdminExport } from '@/lib/admin-export-audit';
 
 const AVATAR_THEMES = [
   { bg: '#e0f2fe', color: '#0369a1' }, // Light Blue / Dark Blue
@@ -147,9 +148,11 @@ export default function AdminUsers() {
     try {
       setLoading(true);
       const res = await fetch('/api/admin/users');
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setUsers(data.users || []);
+      } else {
+        showToast('Error', data.message || `Failed to load users (error ${res.status})`, 'error');
       }
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -355,7 +358,7 @@ export default function AdminUsers() {
   const totalPages = Math.ceil(sortedUsers.length / ITEMS_PER_PAGE) || 1;
   const paginatedMobileUsers = sortedUsers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const exportData = sortedUsers.map(u => ({
       ID: u.id,
       Name: u.name,
@@ -368,7 +371,13 @@ export default function AdminUsers() {
       InterestsExpressed: u._count?.interests || 0,
       RegisteredAt: new Date(u.createdAt).toISOString()
     }));
-    
+
+    if (!(await recordAdminExport('USERS', exportData.length, {
+      search: searchQuery, role: roleFilter, status: statusFilter, verification: verificationFilter, startDate, endDate,
+    }))) {
+      showToast('Error', 'Export could not be recorded, so it was not downloaded', 'error');
+      return;
+    }
     downloadCSV(exportData, `ListMe_Users_Export_${new Date().toISOString().split('T')[0]}.csv`);
     showToast('Success', 'Report downloaded successfully', 'success');
   };

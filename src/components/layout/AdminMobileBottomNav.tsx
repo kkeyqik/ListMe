@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutGrid, Building2, Users, BarChart3, MoreHorizontal } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { hasAdminAccess } from '@/lib/admin-permissions';
 import styles from './AdminMobileBottomNav.module.css';
 
 interface AdminMobileBottomNavProps {
@@ -16,6 +18,11 @@ export const AdminMobileBottomNav: React.FC<AdminMobileBottomNavProps> = ({
   isMoreActive = false
 }) => {
   const pathname = usePathname();
+  const { profile } = useAuth();
+  // Same rules as the sidebar and the server (src/lib/admin-permissions.ts).
+  const canListings = hasAdminAccess(profile, 'listings');
+  const canUsers = hasAdminAccess(profile, 'users');
+  const canReports = hasAdminAccess(profile, 'super');
 
   const isDashboardActive = pathname === '/admin';
   const isListingsActive = pathname?.startsWith('/admin/listings') || pathname?.startsWith('/admin/pincodes');
@@ -34,6 +41,7 @@ export const AdminMobileBottomNav: React.FC<AdminMobileBottomNavProps> = ({
         <span className={styles.label}>Dashboard</span>
       </Link>
 
+      {canListings && (
       <Link
         href="/admin/listings"
         className={`${styles.navItem} ${isListingsActive ? styles.active : ''}`}
@@ -42,7 +50,9 @@ export const AdminMobileBottomNav: React.FC<AdminMobileBottomNavProps> = ({
         <Building2 className={styles.icon} />
         <span className={styles.label}>Listings</span>
       </Link>
+      )}
 
+      {canUsers && (
       <Link
         href="/admin/users"
         className={`${styles.navItem} ${isUsersActive ? styles.active : ''}`}
@@ -51,7 +61,9 @@ export const AdminMobileBottomNav: React.FC<AdminMobileBottomNavProps> = ({
         <Users className={styles.icon} />
         <span className={styles.label}>Users</span>
       </Link>
+      )}
 
+      {canReports && (
       <Link
         href="/admin/activity"
         className={`${styles.navItem} ${isReportsActive ? styles.active : ''}`}
@@ -60,6 +72,7 @@ export const AdminMobileBottomNav: React.FC<AdminMobileBottomNavProps> = ({
         <BarChart3 className={styles.icon} />
         <span className={styles.label}>Reports</span>
       </Link>
+      )}
 
       <button
         type="button"

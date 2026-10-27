@@ -75,7 +75,7 @@ export default function SeoDashboard() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch('/api/settings');
+        const res = await fetch(`/api/settings?fresh=${Date.now()}`, { cache: 'no-store' }); // bypass the public CDN cache so admins see what they just saved
         if (res.ok) {
           const data = await res.json();
           // Update formData with values from db, keeping defaults if undefined
