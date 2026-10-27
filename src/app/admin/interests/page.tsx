@@ -37,7 +37,7 @@ export default function AdminInterests() {
         // Compute metrics
         const total = fetchedInterests.length;
         const closed = fetchedInterests.filter((i: any) => i.status === 'SOLD').length;
-        const active = fetchedInterests.filter((i: any) => i.status !== 'SOLD' && i.status !== 'DEACTIVATED').length;
+        const active = fetchedInterests.filter((i: any) => i.status !== 'SOLD' && i.status !== 'CLOSED').length;
         
         const commissions = fetchedInterests.reduce((sum: number, item: any) => {
           const comm = item.commissionAmount ? parseFloat(item.commissionAmount.toString()) : 0;
@@ -201,7 +201,7 @@ export default function AdminInterests() {
             <option value="ADMIN_CONTACTED">Contacted</option>
             <option value="IN_PROGRESS">Negotiations</option>
             <option value="SOLD">Sold (Closed Deals)</option>
-            <option value="DEACTIVATED">Deactivated</option>
+            <option value="CLOSED">Closed (Lost)</option>
           </select>
 
           {statusFilter !== 'ALL' && (

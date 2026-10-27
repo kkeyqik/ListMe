@@ -5,27 +5,33 @@ import { MapPin, Search, ArrowUpDown, Download } from 'lucide-react';
 import { useToast, Card, Input, Button } from '@/components/ui';
 import styles from '../admin.module.css';
 import { downloadCSV } from '@/lib/export-utils';
+import { recordAdminExport } from '@/lib/admin-export-audit';
 
 export default function AdminPincodes() {
   const { showToast } = useToast();
   
   const [pincodes, setPincodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState('pincode');
+  const [sortField, setSortField] = useState('pinCode');
   const [sortAsc, setSortAsc] = useState(true);
 
   useEffect(() => {
     const fetchPincodes = async () => {
       try {
         setLoading(true);
+        setLoadError(null);
         const res = await fetch('/api/admin/pincodes');
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (res.ok) {
           setPincodes(data.pincodes || []);
+        } else {
+          setLoadError(data.message || `Could not load the pincode report (error ${res.status}).`);
         }
       } catch (err) {
         console.error('Error fetching pincodes:', err);
+        setLoadError('Could not load the pincode report. Check your connection and reload.');
         showToast('Error', 'Failed to retrieve pincode database reports', 'error');
       } finally {
         setLoading(false);
@@ -72,14 +78,22 @@ export default function AdminPincodes() {
     }
   });
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const exportData = sortedPincodes.map(p => ({
       Pincode: p.pinCode,
+      City: p.city,
+      Locality: p.locality,
+      TotalListings: p.totalListings,
       ActiveListings: p.activeListings,
-      AverageAskingPrice: p.avgAskingPrice,
+      AverageSalePrice: p.avgAskingPrice,
+      AverageMonthlyRent: p.avgMonthlyRent,
       SeekerInterests: p.totalInterests,
     }));
-    
+
+    if (!(await recordAdminExport('PINCODES', exportData.length, { search: searchQuery }))) {
+      showToast('Error', 'Export could not be recorded, so it was not downloaded', 'error');
+      return;
+    }
     downloadCSV(exportData, `ListMe_Pincodes_Export_${new Date().toISOString().split('T')[0]}.csv`);
     showToast('Success', 'Report downloaded successfully', 'success');
   };
@@ -117,6 +131,12 @@ export default function AdminPincodes() {
       {/* Data Table */}
       {loading ? (
         <Card padding="md">Loading reports...</Card>
+      ) : loadError ? (
+        <div className={styles.emptyState} role="alert">
+          <MapPin size={48} style={{ opacity: 0.3 }} />
+          <h3>Report unavailable</h3>
+          <p>{loadError}</p>
+        </div>
       ) : sortedPincodes.length === 0 ? (
         <div className={styles.emptyState}>
           <MapPin size={48} style={{ opacity: 0.3 }} />
@@ -128,28 +148,35 @@ export default function AdminPincodes() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '22%' }} onClick={() => handleSort('pinCode')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('pinCode')}>
                   Pincode <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '26%' }} onClick={() => handleSort('activeListings')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('activeListings')}>
                   Active Listings <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '26%' }} onClick={() => handleSort('avgAskingPrice')}>
-                  Average Asking Price <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('avgAskingPrice')}>
+                  Avg Sale Price <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '26%' }} onClick={() => handleSort('totalInterests')}>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('avgMonthlyRent')}>
+                  Avg Monthly Rent <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                </th>
+                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('totalInterests')}>
                   Seeker Interests <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                 </th>
               </tr>
             </thead>
             <tbody>
               {sortedPincodes.map((item) => (
-                <tr key={`${item.pinCode}-${item.city}-${item.locality}`} className={styles.tr}>
+                <tr key={item.pinCode} className={styles.tr}>
                   <td className={styles.td} style={{ fontWeight: 700, color: 'var(--color-neutral-900)' }}>
                     {item.pinCode}
+                    <div style={{ fontWeight: 400, fontSize: '0.8rem', color: 'var(--color-neutral-500)' }}>
+                      {[item.locality, item.city].filter(Boolean).join(', ')}
+                    </div>
                   </td>
                   <td className={styles.td}>{item.activeListings} properties</td>
                   <td className={styles.td}>{formatPrice(item.avgAskingPrice)}</td>
+                  <td className={styles.td}>{formatPrice(item.avgMonthlyRent)}</td>
                   <td className={styles.td}>{item.totalInterests} responses</td>
                 </tr>
               ))}

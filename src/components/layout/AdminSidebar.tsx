@@ -20,6 +20,7 @@ import {
   Home
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { hasAdminAccess } from '@/lib/admin-permissions';
 import styles from './AdminSidebar.module.css';
 
 interface AdminSidebarProps {
@@ -62,19 +63,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     };
   }, [isOpen, onClose]);
 
-  const permissions = profile?.roleMetadata?.permissions || {};
-  const isSuper = profile?.role === 'SUPER_ADMIN';
+  // Same rules the server enforces (src/lib/admin-permissions.ts).
+  const can = (access: Parameters<typeof hasAdminAccess>[1]) => hasAdminAccess(profile, access);
 
   const navItems = [
     { label: 'Overview', href: '/admin', icon: <LayoutDashboard size={16} className={styles.icon} />, show: true },
-    { label: 'All Listings', href: '/admin/listings', icon: <Building2 size={16} className={styles.icon} />, show: isSuper || permissions.listings },
-    { label: 'By Pincode', href: '/admin/pincodes', icon: <MapPin size={16} className={styles.icon} />, show: isSuper || permissions.listings },
-    { label: 'Users', href: '/admin/users', icon: <Users size={16} className={styles.icon} />, show: isSuper || permissions.users },
-    { label: 'Role Manager', href: '/admin/roles', icon: <Shield size={16} className={styles.icon} />, show: isSuper },
-    { label: 'Interest Tracking', href: '/admin/interests', icon: <Heart size={16} className={styles.icon} />, show: isSuper || permissions.interests || permissions.listings },
-    { label: 'Activity Log', href: '/admin/activity', icon: <FileText size={16} className={styles.icon} />, show: isSuper },
-    { label: 'SEO Dashboard', href: '/admin/seo', icon: <Search size={16} className={styles.icon} />, show: isSuper || permissions.seo },
-    { label: 'Settings', href: '/admin/settings', icon: <Settings size={16} className={styles.icon} />, show: isSuper },
+    { label: 'All Listings', href: '/admin/listings', icon: <Building2 size={16} className={styles.icon} />, show: can('listings') },
+    { label: 'By Pincode', href: '/admin/pincodes', icon: <MapPin size={16} className={styles.icon} />, show: can('listings') },
+    { label: 'Users', href: '/admin/users', icon: <Users size={16} className={styles.icon} />, show: can('users') },
+    { label: 'Role Manager', href: '/admin/roles', icon: <Shield size={16} className={styles.icon} />, show: can('super') },
+    { label: 'Interest Tracking', href: '/admin/interests', icon: <Heart size={16} className={styles.icon} />, show: can('interests') },
+    { label: 'Activity Log', href: '/admin/activity', icon: <FileText size={16} className={styles.icon} />, show: can('super') },
+    { label: 'SEO Dashboard', href: '/admin/seo', icon: <Search size={16} className={styles.icon} />, show: can('seo') },
+    { label: 'Settings', href: '/admin/settings', icon: <Settings size={16} className={styles.icon} />, show: can('super') },
   ].filter(item => item.show);
 
   const handleLogout = () => {

@@ -42,7 +42,7 @@ export default function AdminSettings() {
   const fetchSettings = async (showResetNotification = false) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/settings');
+      const res = await fetch(`/api/settings?fresh=${Date.now()}`, { cache: 'no-store' }); // bypass the public CDN cache so admins see what they just saved
       if (res.ok) {
         const data = await res.json();
         setFormData({

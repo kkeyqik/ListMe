@@ -2,6 +2,27 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifySessionToken } from '@/lib/session';
 import { isMockAuthEnabled } from '@/lib/mock-auth';
+import { hasAdminAccess, isAdminRole, requiredAccessForAdminPath } from '@/lib/admin-permissions';
+
+/**
+ * Reads the current role, status and module permissions from the database
+ * for /admin page requests, so access follows Role Manager changes
+ * immediately and works for logins that carry no role in a cookie or in
+ * app_metadata (e.g. email + password). Returns undefined if the lookup
+ * fails, in which case the caller falls back to the cookie role.
+ */
+async function loadAdminProfile(userId: string) {
+  try {
+    const { prisma } = await import('@/lib/prisma');
+    return await prisma.profile.findUnique({
+      where: { id: userId },
+      select: { role: true, status: true, roleMetadata: true },
+    });
+  } catch (err) {
+    console.warn('[Middleware] Admin role lookup failed, falling back to session role:', err);
+    return undefined;
+  }
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -87,11 +108,29 @@ export async function updateSession(request: NextRequest) {
     const userRole = (user.app_metadata?.role as string | undefined) || sessionRole || 'USER';
     const isAdminUser = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' || sessionRole === 'ADMIN' || sessionRole === 'SUPER_ADMIN';
 
-    // Admin route protection: Require ADMIN or SUPER_ADMIN role
-    if (isAdminPath && !isAdminUser) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
+    // Admin route protection: Require ADMIN or SUPER_ADMIN role, checked
+    // against the database, plus the module permission for the section.
+    if (isAdminPath) {
+      const dbProfile = await loadAdminProfile(user.id);
+      if (dbProfile !== undefined) {
+        if (!dbProfile || !isAdminRole(dbProfile.role) || dbProfile.status !== 'ACTIVE') {
+          const url = request.nextUrl.clone();
+          url.pathname = '/dashboard';
+          url.search = '';
+          return NextResponse.redirect(url);
+        }
+        const access = requiredAccessForAdminPath(pathname);
+        if (access && !hasAdminAccess(dbProfile, access)) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          url.search = '';
+          return NextResponse.redirect(url);
+        }
+      } else if (!isAdminUser) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+      }
     }
 
     // Redirect logged-in user away from /login & /signup

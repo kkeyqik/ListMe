@@ -1,24 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedUserId } from '@/lib/server-auth';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdminModule } from '@/lib/admin-auth';
 import { ListingStatus, InterestStatus } from '@prisma/client';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify admin role
-    const profile = await prisma.profile.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    if (!profile || (profile.role !== 'ADMIN' && profile.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
+    // Aggregate counts only (no personal data), shown on the overview every admin sees.
+    const gate = await requireAdminModule(null);
+    if (!gate.ok) return gate.response;
 
     // Execute aggregation queries
     const [
