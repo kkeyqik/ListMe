@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
-import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { InterestStatus } from '@prisma/client';
+import { isUuid } from '@/lib/ids';
+
+// Keeps 2% of the price inside commission_amount Decimal(12,2).
+const MAX_CLOSING_PRICE = 100_000_000_000; // ₹10,000 crore
 
 // PUT - Update Interest Status / Admin Notes (Owner or Admin)
 export async function PUT(
@@ -14,6 +17,9 @@ export async function PUT(
     const userId = await getAuthenticatedUserId();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+    if (!isUuid(id)) {
+      return NextResponse.json({ message: 'Interest record not found' }, { status: 404 });
     }
 
     // Fetch the interest details
@@ -48,6 +54,7 @@ export async function PUT(
     const { status, adminNotes, soldPrice } = body;
 
     const updateData: any = {};
+    let deactivateListing = false;
 
     if (status) {
       const parsedStatus = String(status).toUpperCase() as InterestStatus;
@@ -71,20 +78,16 @@ export async function PUT(
 
         const closingPrice = parseFloat(String(rawPrice));
 
-        if (!Number.isFinite(closingPrice) || closingPrice <= 0) {
+        // commission_amount is Decimal(12,2); a larger price would overflow it.
+        if (!Number.isFinite(closingPrice) || closingPrice <= 0 || closingPrice > MAX_CLOSING_PRICE) {
           return NextResponse.json(
             { message: 'A valid sold/closing price is required to mark a deal as closed' },
             { status: 400 }
           );
         }
 
-        updateData.commissionAmount = closingPrice * 0.02;
-
-        // Auto de-activate the listing as it is sold
-        await prisma.listing.update({
-          where: { id: interest.listingId },
-          data: { status: 'DEACTIVATED' },
-        });
+        updateData.commissionAmount = Math.round(closingPrice * 0.02 * 100) / 100;
+        deactivateListing = true;
       }
     } else if (!isAdmin && !isListingOwner) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
@@ -100,11 +103,19 @@ export async function PUT(
       updateData.adminNotes = adminNotes;
     }
 
-    // Execute update
-    const updatedInterest = await prisma.interest.update({
-      where: { id },
-      data: updateData,
-    });
+    // Execute update. A sold deal also takes the listing offline; do both or neither.
+    const updatedInterest = deactivateListing
+      ? (await prisma.$transaction([
+          prisma.interest.update({ where: { id }, data: updateData }),
+          prisma.listing.update({
+            where: { id: interest.listingId },
+            data: { status: 'DEACTIVATED' },
+          }),
+        ]))[0]
+      : await prisma.interest.update({
+          where: { id },
+          data: updateData,
+        });
 
     let interestBody: Partial<typeof updatedInterest> = updatedInterest;
     if (!isAdmin) {
