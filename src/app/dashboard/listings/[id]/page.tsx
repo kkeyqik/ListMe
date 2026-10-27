@@ -14,10 +14,12 @@ import {
   Phone, 
   Mail, 
   Calendar,
-  FileText
+  FileText,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast, Button, Card, Badge } from '@/components/ui';
 import styles from '@/app/dashboard/dashboard.module.css';
+import { isSyntheticEmail } from '@/lib/ids';
 
 interface ListingDetailProps {
   params: Promise<{ id: string }>;
@@ -34,6 +36,7 @@ export default function OwnerListingDetail({ params }: ListingDetailProps) {
   const [listing, setListing] = useState<any>(null);
   const [interests, setInterests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resubmitting, setResubmitting] = useState(false);
 
   useEffect(() => {
     const fetchDetailData = async () => {
@@ -43,18 +46,21 @@ export default function OwnerListingDetail({ params }: ListingDetailProps) {
         const listingRes = await fetch(`/api/listings/${listingId}`);
         const listingData = await listingRes.json();
 
+        if (listingRes.ok && !listingData.isOwnerOrAdmin) {
+          // This page is for the listing's owner; send everyone else to the public page.
+          router.replace(`/property/${listingId}`);
+          return;
+        }
+
         if (listingRes.ok) {
           setListing(listingData.listing);
 
-          // 2. Fetch interests for this listing (filter from interests list or separate fetch)
-          const interestsRes = await fetch('/api/interests?mode=received');
+          // 2. Fetch interests for this listing only
+          const interestsRes = await fetch(`/api/interests?mode=received&listingId=${encodeURIComponent(listingId)}`);
           const interestsData = await interestsRes.json();
-          
+
           if (interestsRes.ok) {
-            const listInterests = (interestsData.interests || []).filter(
-              (i: any) => i.listing.id === listingId
-            );
-            setInterests(listInterests);
+            setInterests(interestsData.interests || []);
           }
         } else {
           showToast('Error', 'Listing not found', 'error');
@@ -69,6 +75,29 @@ export default function OwnerListingDetail({ params }: ListingDetailProps) {
     };
     fetchDetailData();
   }, [listingId, showToast, router]);
+
+  const handleResubmit = async () => {
+    setResubmitting(true);
+    try {
+      const res = await fetch(`/api/listings/${listingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PENDING_REVIEW' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Success', 'Listing resubmitted. It will go live once an admin approves it.', 'success');
+        setListing((prev: any) => (prev ? { ...prev, status: data.listing?.status || 'PENDING_REVIEW' } : prev));
+      } else {
+        showToast('Error', data.message || 'Could not resubmit the listing', 'error');
+      }
+    } catch (err) {
+      console.error('Resubmit error:', err);
+      showToast('Error', 'Something went wrong. Please check connection.', 'error');
+    } finally {
+      setResubmitting(false);
+    }
+  };
 
   const formatPrice = (price: string) => {
     const val = parseFloat(price);
@@ -117,11 +146,49 @@ export default function OwnerListingDetail({ params }: ListingDetailProps) {
           <Button href={`/dashboard/listings/${listing.id}/edit`} variant="outline" leftIcon={<Edit size={16} />}>
             Edit Property
           </Button>
-          <Button href={`/property/${listing.id}`} variant="primary" leftIcon={<Eye size={16} />}>
-            Public View
-          </Button>
+          {listing.status === 'ACTIVE' && (
+            <Button href={`/property/${listing.id}`} variant="primary" leftIcon={<Eye size={16} />}>
+              Public View
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Moderation feedback */}
+      {listing.status === 'REJECTED' && (
+        <Card padding="md" style={{ marginBottom: '2rem', border: '1px solid var(--color-error)' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flex: '1', minWidth: '240px' }}>
+              <AlertTriangle size={20} style={{ color: 'var(--color-error)', flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '0.937rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                <strong style={{ color: 'var(--color-neutral-900)' }}>This listing was not approved.</strong>
+                <div>{listing.rejectionReason ? `Reason: ${listing.rejectionReason}` : 'No reason was given.'}</div>
+                <div>Fix the problem by editing the listing (saving it resubmits it), or resubmit it as it is.</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button href={`/dashboard/listings/${listing.id}/edit`} variant="primary" size="sm" leftIcon={<Edit size={14} />}>
+                Fix &amp; Resubmit
+              </Button>
+              <Button onClick={handleResubmit} variant="outline" size="sm" loading={resubmitting}>
+                Resubmit As Is
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+      {(listing.status === 'DEACTIVATED' || listing.status === 'EXPIRED') && (
+        <Card padding="md" style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.937rem', color: 'var(--color-text-secondary)' }}>
+              This listing is not visible to seekers. Resubmit it to send it for review and put it back live.
+            </span>
+            <Button onClick={handleResubmit} variant="outline" size="sm" loading={resubmitting}>
+              Resubmit for Review
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       <div className={styles.statsGrid}>
@@ -184,6 +251,10 @@ export default function OwnerListingDetail({ params }: ListingDetailProps) {
               <div><strong>Full Address:</strong> {listing.fullAddress}</div>
               {listing.landmark && <div><strong>Landmark:</strong> {listing.landmark}</div>}
             </div>
+            <p style={{ marginTop: '0.75rem', fontSize: '0.812rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+              Your full address and map pin are visible only to you and ListMe admins. Seekers see the locality and city.
+              When a phone-verified seeker taps &quot;I&apos;m Interested&quot;, they get your name and phone number so they can call you.
+            </p>
           </Card>
 
           {/* Documents */}
@@ -229,12 +300,20 @@ export default function OwnerListingDetail({ params }: ListingDetailProps) {
                   </div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                    <a href={`tel:${interest.user.phone}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-primary)' }}>
-                      <Phone size={12} /> {interest.user.phone}
-                    </a>
-                    <a href={`mailto:${interest.user.email}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Mail size={12} /> {interest.user.email}
-                    </a>
+                    {interest.user?.phone ? (
+                      <a href={`tel:${interest.user.phone}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-primary)' }}>
+                        <Phone size={12} /> {interest.user.phone}
+                      </a>
+                    ) : (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Phone size={12} /> No phone number on file
+                      </span>
+                    )}
+                    {interest.user?.email && !isSyntheticEmail(interest.user.email) && (
+                      <a href={`mailto:${interest.user.email}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Mail size={12} /> {interest.user.email}
+                      </a>
+                    )}
                   </div>
                   
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)', paddingTop: '0.5rem', display: 'flex', gap: '4px', alignItems: 'center' }}>

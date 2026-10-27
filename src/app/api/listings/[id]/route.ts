@@ -1,9 +1,105 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
-import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma, ListingStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
+import { Prisma, ListingStatus, InterestStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
 import { logUserActivity, logAdminActivity } from '@/lib/activity-logger';
+import { isUuid, isSyntheticEmail } from '@/lib/ids';
+import { sendEmail } from '@/lib/email';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { LISTING_IMAGES_BUCKET, LISTING_DOCUMENTS_BUCKET, LISTING_VIDEOS_BUCKET } from '@/lib/upload-rules';
+
+// Statuses an owner may move their own listing to, keyed by the current status.
+// Everything else (approve, reject, expire) is an admin decision.
+const OWNER_STATUS_TRANSITIONS: Partial<Record<ListingStatus, ListingStatus[]>> = {
+  [ListingStatus.ACTIVE]: [ListingStatus.DEACTIVATED],
+  [ListingStatus.PENDING_REVIEW]: [ListingStatus.DEACTIVATED],
+  [ListingStatus.REJECTED]: [ListingStatus.PENDING_REVIEW],
+  [ListingStatus.DEACTIVATED]: [ListingStatus.PENDING_REVIEW],
+  [ListingStatus.EXPIRED]: [ListingStatus.PENDING_REVIEW],
+};
+
+/** Tell the owner about a moderation decision (in-app, plus email when we have a real address). */
+async function notifyOwnerOfModeration(
+  listing: { id: string; title: string; ownerId: string },
+  newStatus: ListingStatus,
+  reason: string | null
+) {
+  let title: string;
+  let message: string;
+  if (newStatus === ListingStatus.ACTIVE) {
+    title = 'Your listing is live';
+    message = `"${listing.title}" was approved and is now visible to seekers.`;
+  } else if (newStatus === ListingStatus.REJECTED) {
+    title = 'Your listing needs changes';
+    message = `"${listing.title}" was not approved.${reason ? ` Reason: ${reason}.` : ''} Edit the listing to fix it, then resubmit it for review.`;
+  } else if (newStatus === ListingStatus.DEACTIVATED) {
+    title = 'Your listing was deactivated';
+    message = `"${listing.title}" is no longer visible to seekers.${reason ? ` Reason: ${reason}.` : ''}`;
+  } else {
+    return;
+  }
+
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: listing.ownerId,
+        title,
+        message,
+        link: `/dashboard/listings/${listing.id}`,
+      },
+    });
+  } catch (err) {
+    console.error('[listings/id] owner notification failed:', err);
+  }
+
+  if (newStatus === ListingStatus.DEACTIVATED) return;
+  try {
+    const owner = await prisma.profile.findUnique({
+      where: { id: listing.ownerId },
+      select: { email: true, name: true },
+    });
+    if (owner?.email && !isSyntheticEmail(owner.email)) {
+      await sendEmail({
+        to: owner.email,
+        subject: `ListMe: ${title}`,
+        text: `Hi ${owner.name || 'there'},\n\n${message}\n\nManage your listing from your ListMe dashboard (My Properties).\n\n- Team ListMe`,
+        metadata: { type: 'LISTING_MODERATION', listingId: listing.id, status: newStatus },
+      });
+    }
+  } catch (err) {
+    console.error('[listings/id] owner moderation email failed:', err);
+  }
+}
+
+/** Best-effort removal of a hard-deleted listing's files from Storage. */
+async function removeListingFiles(listingId: string) {
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch (err) {
+    console.error('[listings/id DELETE] storage cleanup skipped:', err);
+    return;
+  }
+  const folders: Array<[string, string]> = [
+    [LISTING_IMAGES_BUCKET, 'images'],
+    [LISTING_DOCUMENTS_BUCKET, 'documents'],
+    [LISTING_VIDEOS_BUCKET, 'videos'],
+  ];
+  for (const [bucket, kind] of folders) {
+    const prefix = `properties/${listingId}/${kind}`;
+    try {
+      const { data, error } = await supabase.storage.from(bucket).list(prefix, { limit: 1000 });
+      if (error) throw error;
+      const paths = (data || []).filter((f) => f.name).map((f) => `${prefix}/${f.name}`);
+      if (paths.length > 0) {
+        const { error: removeError } = await supabase.storage.from(bucket).remove(paths);
+        if (removeError) throw removeError;
+      }
+    } catch (err) {
+      console.error(`[listings/id DELETE] storage cleanup failed for ${bucket}/${prefix}:`, err);
+    }
+  }
+}
 
 // 1. GET - Fetch Individual Listing Detail
 export async function GET(
@@ -12,7 +108,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    
+    if (!isUuid(id)) {
+      return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
+    }
+
     // Fetch user session to determine privacy clearance
     const userId = await getAuthenticatedUserId();
     const user = userId ? { id: userId } : null;
@@ -45,22 +144,19 @@ export async function GET(
       return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
     }
 
-    // Log the property view activity
-    await logUserActivity({
-      userId: user?.id,
-      action: 'VIEW_PROPERTY',
-      entityId: id,
-      request,
-    });
-
-    // Determine authorization level
+    // Determine authorization level.
+    // - Owner and admins see everything.
+    // - A seeker with an open (not CLOSED) interest in a live listing may see the
+    //   owner's phone so they can call directly. That is the point of the site.
+    // - Nobody but the owner and admins sees the exact address, the map pin or
+    //   the ownership documents: the listing form promises the address is
+    //   "Visible only to Admin". Seekers get locality / city only.
     let isOwnerOrAdmin = false;
-    let canViewPrivateDetails = false;
+    let canViewOwnerContact = false;
 
     if (user) {
       if (userId === listing.ownerId) {
         isOwnerOrAdmin = true;
-        canViewPrivateDetails = true;
       } else {
         // Query database profile to check admin status
         const requesterProfile = await prisma.profile.findUnique({
@@ -69,56 +165,75 @@ export async function GET(
         });
         if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {
           isOwnerOrAdmin = true;
-          canViewPrivateDetails = true;
-        } else {
+        } else if (listing.status === ListingStatus.ACTIVE) {
           const interest = await prisma.interest.findFirst({
             where: {
               userId: userId!,
               listingId: id,
+              // A withdrawn or closed lead no longer unlocks the owner's contact.
+              status: { not: InterestStatus.CLOSED },
             },
             select: { id: true },
           });
-          // Interested seekers may see the address and owner contact of a live
-          // listing, but never its ownership documents.
-          canViewPrivateDetails = !!interest && listing.status === ListingStatus.ACTIVE;
+          canViewOwnerContact = !!interest;
         }
       }
     }
 
-    // Increment view count if public viewing active listing
-    if (!isOwnerOrAdmin && listing.status === ListingStatus.ACTIVE) {
-      await prisma.listing.update({
-        where: { id },
-        data: { viewCount: { increment: 1 } },
+    if (!isOwnerOrAdmin && listing.status !== ListingStatus.ACTIVE) {
+      return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
+    }
+
+    // Logging and view counting must not hold up the response.
+    after(async () => {
+      await logUserActivity({
+        userId: user?.id,
+        action: 'VIEW_PROPERTY',
+        entityId: id,
+        request,
       });
-    }
-
-    // Enforce privacy restrictions
-    if (!canViewPrivateDetails) {
-      if (listing.status !== ListingStatus.ACTIVE) {
-        return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
+      if (!isOwnerOrAdmin && listing.status === ListingStatus.ACTIVE) {
+        try {
+          await prisma.listing.update({
+            where: { id },
+            data: { viewCount: { increment: 1 } },
+          });
+        } catch (err) {
+          console.error('[listings/id GET] viewCount update failed:', err);
+        }
       }
+    });
 
-      // 1. Obfuscate exact full address
-      listing.fullAddress = '[Private Address - Express Interest to Connect]';
-      
-      // 2. Hide owner phone number (crucial requirement)
-      if (listing.owner) {
-        listing.owner.email = '[Hidden - Click Interested to Contact]';
-        listing.owner.phone = '[Hidden - Click Interested to Contact]';
-      }
-      
-      // 3. Hide the exact map pin
-      listing.latitude = null;
-      listing.longitude = null;
+    if (isOwnerOrAdmin) {
+      return NextResponse.json({ listing, isOwnerOrAdmin });
     }
 
-    // Ownership documents are for the owner and admins only
-    if (!isOwnerOrAdmin) {
-      listing.documents = listing.documents.map((doc) => ({ ...doc, docUrl: '#' }));
+    // Exact address and map pin stay with the owner and admins.
+    listing.fullAddress = canViewOwnerContact
+      ? '[Exact address is private - ask the owner when you call]'
+      : '[Private Address - Express Interest to Connect]';
+    listing.latitude = null;
+    listing.longitude = null;
+
+    // The owner's internal id is not needed by the public page.
+    const { id: _ownerId, ...owner } = listing.owner;
+    if (canViewOwnerContact) {
+      // Placeholder addresses for phone sign-ups are not a real way to reach anyone.
+      if (isSyntheticEmail(owner.email)) owner.email = null;
+    } else {
+      owner.email = '[Hidden - Click Interested to Contact]';
+      owner.phone = '[Hidden - Click Interested to Contact]';
     }
 
-    return NextResponse.json({ listing, isOwnerOrAdmin });
+    return NextResponse.json({
+      listing: {
+        ...listing,
+        owner,
+        // Ownership documents (including their file names) are for the owner and admins only.
+        documents: [],
+      },
+      isOwnerOrAdmin,
+    });
   } catch (error: any) {
     console.error('[listings/id GET] Error:', error);
     return NextResponse.json(
@@ -138,6 +253,9 @@ export async function PUT(
     const userId = await getAuthenticatedUserId();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+    if (!isUuid(id)) {
+      return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
     }
 
     // Fetch original listing to verify ownership
@@ -236,7 +354,10 @@ export async function PUT(
     const updateData: Prisma.ListingUpdateInput = {};
     if (has('title') && title) updateData.title = String(title);
     if (has('description')) updateData.description = description ?? '';
-    if (has('keyHighlights') && Array.isArray(keyHighlights)) updateData.keyHighlights = keyHighlights.map(String);
+    if (has('keyHighlights') && Array.isArray(keyHighlights)) {
+      // Drop blank entries so the public page doesn't render empty bullets.
+      updateData.keyHighlights = keyHighlights.map((h: unknown) => String(h ?? '').trim()).filter(Boolean);
+    }
     if (has('subLocality')) updateData.subLocality = subLocality;
     if (has('landmark')) updateData.landmark = landmark;
     if (has('latitude')) updateData.latitude = toFloat(latitude);
@@ -283,9 +404,17 @@ export async function PUT(
       if (fullAddress) updateData.fullAddress = fullAddress;
     };
 
-    // If core details change, reset status back to PENDING_REVIEW (unless updated by admin)
+    // Status changes requested in the body (owner lifecycle or admin moderation)
+    const requestedStatus = has('status') ? toEnum(ListingStatus, body.status) : null;
+    if (has('status') && body.status && !requestedStatus) {
+      return NextResponse.json({ message: 'Invalid status' }, { status: 400 });
+    }
+
+    let moderationChange: ListingStatus | null = null;
+
     if (!isAdmin) {
-      const coreChanged = 
+      // If core details change, reset status back to PENDING_REVIEW
+      const coreChanged =
         (listingFor && listingFor.toUpperCase() !== listing.listingFor) ||
         (propertyType && propertyType.toUpperCase() !== listing.propertyType) ||
         (askingPrice && parseFloat(askingPrice) !== parseFloat(listing.askingPrice.toString())) ||
@@ -297,22 +426,41 @@ export async function PUT(
       if (coreChanged) {
         updateData.status = ListingStatus.PENDING_REVIEW;
       }
-      
+
+      // Any owner edit of a rejected listing is a resubmission: put it back in the queue.
+      if (listing.status === ListingStatus.REJECTED) {
+        updateData.status = ListingStatus.PENDING_REVIEW;
+      }
+
+      // Explicit owner lifecycle actions: resubmit, deactivate.
+      if (requestedStatus && requestedStatus !== listing.status) {
+        const allowed = OWNER_STATUS_TRANSITIONS[listing.status] || [];
+        if (!allowed.includes(requestedStatus)) {
+          return NextResponse.json(
+            { message: `A ${listing.status.replace('_', ' ').toLowerCase()} listing cannot be moved to ${requestedStatus.replace('_', ' ').toLowerCase()}` },
+            { status: 400 }
+          );
+        }
+        updateData.status = requestedStatus;
+      }
+
       applyCoreFields();
     } else {
       // Admins can update status and core values without review resets
-      const newStatus = toEnum(ListingStatus, body.status);
-      if (has('status') && !newStatus) {
-        return NextResponse.json({ message: 'Invalid status' }, { status: 400 });
-      }
-      if (newStatus) {
-        updateData.status = newStatus;
-        if (newStatus !== listing.status) {
+      if (requestedStatus) {
+        updateData.status = requestedStatus;
+        if (requestedStatus !== listing.status) {
+          moderationChange = requestedStatus;
           const adminName = requesterProfile?.name || 'Admin';
           const reason = body.rejectionReason || 'No reason specified';
-          const actionText = newStatus === ListingStatus.ACTIVE
-            ? `${adminName} approved Listing ${id}`
-            : `${adminName} rejected Listing ${id} with reason ${reason}`;
+          let actionText: string;
+          if (requestedStatus === ListingStatus.ACTIVE) {
+            actionText = `${adminName} approved Listing ${id}`;
+          } else if (requestedStatus === ListingStatus.REJECTED) {
+            actionText = `${adminName} rejected Listing ${id} with reason ${reason}`;
+          } else {
+            actionText = `${adminName} changed Listing ${id} from ${listing.status} to ${requestedStatus}`;
+          }
 
           await logAdminActivity({
             adminId: userId,
@@ -320,8 +468,9 @@ export async function PUT(
             entityType: 'LISTING',
             entityId: id,
             metadata: {
-              status: newStatus,
-              reason: newStatus === ListingStatus.REJECTED ? reason : undefined,
+              from: listing.status,
+              status: requestedStatus,
+              reason: requestedStatus === ListingStatus.REJECTED ? reason : undefined,
             },
           });
         }
@@ -329,15 +478,13 @@ export async function PUT(
       applyCoreFields();
     }
 
-    // Sync amenities if provided
+    // Sync amenities if provided. Replacing them inside the same update keeps it
+    // atomic, so a bad amenity id can no longer wipe the listing's amenities.
     if (Array.isArray(amenities)) {
-      // Remove old amenities
-      await prisma.listingAmenity.deleteMany({
-        where: { listingId: id },
-      });
-      // Add new amenities
+      const amenityIds = Array.from(new Set(amenities.filter(isUuid)));
       updateData.amenities = {
-        create: amenities.map((amenityId: string) => ({
+        deleteMany: {},
+        create: amenityIds.map((amenityId) => ({
           amenity: { connect: { id: amenityId } },
         })),
       };
@@ -349,6 +496,17 @@ export async function PUT(
       data: updateData,
     });
 
+    // Tell the owner about approve / reject / deactivate (not when admins edit their own listing).
+    if (moderationChange && listing.ownerId !== userId) {
+      const status = moderationChange;
+      const reason = status === ListingStatus.ACTIVE ? null : (body.rejectionReason ? String(body.rejectionReason) : null);
+      after(() => notifyOwnerOfModeration(
+        { id, title: updatedListing.title, ownerId: listing.ownerId },
+        status,
+        reason
+      ));
+    }
+
     // Log user activity if the owner made the edit (admins are logged separately above)
     if (!isAdmin && isAuthorized) {
       await logUserActivity({
@@ -359,9 +517,14 @@ export async function PUT(
       });
     }
 
+    const sentForReview =
+      updatedListing.status === ListingStatus.PENDING_REVIEW && listing.status !== ListingStatus.PENDING_REVIEW;
     return NextResponse.json({
-      message: 'Listing updated successfully',
+      message: sentForReview
+        ? 'Listing updated and sent for review. It will go live again once an admin approves it.'
+        : 'Listing updated successfully',
       listing: updatedListing,
+      sentForReview,
     });
   } catch (error: any) {
     console.error('[listings/id PUT] Error:', error);
@@ -383,6 +546,9 @@ export async function DELETE(
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
+    if (!isUuid(id)) {
+      return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
+    }
 
     // Fetch listing
     const listing = await prisma.listing.findUnique({
@@ -394,22 +560,51 @@ export async function DELETE(
     }
 
     // Verify if owner or admin
-    let isAuthorized = false;
+    const requesterProfile = await prisma.profile.findUnique({
+      where: { id: userId },
+      select: { role: true, name: true },
+    });
+    const isAdmin = !!requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN');
+    const isOwner = userId === listing.ownerId;
 
-    if (userId === listing.ownerId) {
-      isAuthorized = true;
-    } else {
-      const requesterProfile = await prisma.profile.findUnique({
-        where: { id: userId! },
-        select: { role: true },
-      });
-      if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {
-        isAuthorized = true;
-      }
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    if (!isAuthorized) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    // Interests cascade-delete with the listing (schema: onDelete Cascade), and
+    // they are the lead and commission records. Never let a delete erase them.
+    const [interestCount, soldCount] = await Promise.all([
+      prisma.interest.count({ where: { listingId: id } }),
+      prisma.interest.count({ where: { listingId: id, status: InterestStatus.SOLD } }),
+    ]);
+
+    if (!isAdmin && interestCount > 0) {
+      // Owners: archive instead of delete. The listing leaves search, the leads stay.
+      if (listing.status !== ListingStatus.DEACTIVATED) {
+        await prisma.listing.update({
+          where: { id },
+          data: { status: ListingStatus.DEACTIVATED },
+        });
+      }
+      await logUserActivity({
+        userId,
+        action: 'ARCHIVE_LISTING',
+        entityId: id,
+        request,
+        metadata: { reason: 'delete requested on a listing with enquiries', interestCount },
+      });
+      return NextResponse.json({
+        message: 'This listing has enquiries, so it was deactivated (hidden from search) instead of deleted. Your enquiry history is kept.',
+        archived: true,
+        status: ListingStatus.DEACTIVATED,
+      });
+    }
+
+    if (isAdmin && soldCount > 0) {
+      return NextResponse.json(
+        { message: 'This listing has a closed (SOLD) deal with a commission record and cannot be deleted. Deactivate it instead.' },
+        { status: 409 }
+      );
     }
 
     // Delete listing
@@ -417,13 +612,26 @@ export async function DELETE(
       where: { id },
     });
 
+    // Remove its photos, videos and documents from Storage after responding.
+    after(() => removeListingFiles(id));
+
     // Log deletion activity
-    await logUserActivity({
-      userId,
-      action: 'DELETE_LISTING',
-      entityId: id,
-      request,
-    });
+    if (isAdmin && !isOwner) {
+      await logAdminActivity({
+        adminId: userId,
+        action: `${requesterProfile?.name || 'Admin'} deleted Listing ${id}`,
+        entityType: 'LISTING',
+        entityId: id,
+        metadata: { title: listing.title, ownerId: listing.ownerId, interestCount },
+      });
+    } else {
+      await logUserActivity({
+        userId,
+        action: 'DELETE_LISTING',
+        entityId: id,
+        request,
+      });
+    }
 
     return NextResponse.json({ message: 'Listing deleted successfully' });
   } catch (error: any) {
