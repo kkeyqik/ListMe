@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
-import { validatePhone, validateEmail } from '@/lib/validation';
+import { validateEmail, isPlaceholderEmail } from '@/lib/validation';
 import { sendEmail } from '@/lib/email';
 import { logUserActivity } from '@/lib/activity-logger';
 import { isMockAuthEnabled } from '@/lib/mock-auth';
@@ -12,6 +12,15 @@ function maskEmail(email: string): string {
   if (!domain) return email;
   if (local.length <= 2) return `${local[0]}***@${domain}`;
   return `${local.slice(0, 2)}${'*'.repeat(Math.min(local.length - 2, 5))}@${domain}`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function maskPhone(phone: string): string {
@@ -52,7 +61,7 @@ export async function POST(request: NextRequest) {
     if (emailValidation.valid) {
       profile = await prisma.profile.findFirst({
         where: { email: { equals: trimmed, mode: 'insensitive' } },
-        select: { id: true, name: true, email: true, phone: true },
+        select: { id: true, name: true, email: true, phone: true, phoneVerified: true },
       });
     } else {
       const cleanDigits = trimmed.replace(/\D/g, '').slice(-10);
@@ -65,7 +74,7 @@ export async function POST(request: NextRequest) {
               { phone: `91${cleanDigits}` },
             ],
           },
-          select: { id: true, name: true, email: true, phone: true },
+          select: { id: true, name: true, email: true, phone: true, phoneVerified: true },
         });
       }
     }
@@ -77,12 +86,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Per-account limit: without it, requesting a new code resets the
+    // 5-attempt cap on guesses as often as an attacker likes.
+    const accountLimit = rateLimit(`send-otp:user:${profile.id}`, 5, 60 * 60 * 1000);
+    if (!accountLimit.allowed) {
+      return NextResponse.json(
+        { message: 'Too many codes requested for this account. Please try again later.' },
+        { status: 429, headers: getRateLimitHeaders(accountLimit, 5) }
+      );
+    }
+
     // Verify channel availability on account
     let target = '';
     let maskedTarget = '';
 
     if (channel === 'email') {
-      if (!profile.email) {
+      // Placeholder addresses (phone_<digits>@listme.com) are on a domain ListMe
+      // does not own: a reset code must never be sent there.
+      if (!profile.email || isPlaceholderEmail(profile.email)) {
         return NextResponse.json(
           { message: 'No email address is linked to this account. Please select SMS verification instead.' },
           { status: 400 }
@@ -99,9 +120,10 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      if (!profile.phone) {
+      // An unverified number may be a typo that belongs to someone else.
+      if (!profile.phone || !profile.phoneVerified) {
         return NextResponse.json(
-          { message: 'No mobile number is linked to this account. Please select Email verification instead.' },
+          { message: 'No verified mobile number is linked to this account. Please select Email verification instead.' },
           { status: 400 }
         );
       }
@@ -154,7 +176,7 @@ export async function POST(request: NextRequest) {
     <div style="padding: 32px 28px;">
       <h2 style="color: #0F172A; margin: 0 0 12px; font-size: 18px; font-weight: 600;">Password Reset Verification</h2>
       <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-        Hi ${profile.name || 'there'},<br><br>
+        Hi ${escapeHtml(profile.name || 'there')},<br><br>
         We received a request to reset the password for your ListMe account. Use the 6-digit verification code below to proceed:
       </p>
       <div style="background: #F8FAFC; border: 2px dashed #CBD5E1; border-radius: 12px; padding: 18px; text-align: center; margin: 0 0 24px;">

@@ -11,18 +11,21 @@ export async function GET() {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
+    // Only live listings: pending, rejected or deactivated ones (and their
+    // moderation notes) are not public. Bounded, with just the cover image.
     const shortlists = await prisma.shortlist.findMany({
-      where: { userId },
+      where: { userId, listing: { status: 'ACTIVE' } },
       include: {
         listing: {
           // Same privacy as public search: no exact address or map pin
-          omit: { fullAddress: true, latitude: true, longitude: true },
+          omit: { fullAddress: true, latitude: true, longitude: true, rejectionReason: true },
           include: {
-            images: { orderBy: { displayOrder: 'asc' } },
+            images: { orderBy: { displayOrder: 'asc' }, take: 1 },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
 
     return NextResponse.json({ shortlists });
@@ -42,7 +45,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { listingId } = body;
 
-    if (!listingId) {
+    if (!listingId || typeof listingId !== 'string') {
       return NextResponse.json({ message: 'listingId is required' }, { status: 400 });
     }
 
@@ -61,6 +64,14 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       return NextResponse.json({ message: 'Already in shortlist', shortlist: existing }, { status: 200 });
+    }
+
+    const listing = await prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { status: true },
+    });
+    if (!listing || listing.status !== 'ACTIVE') {
+      return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
     }
 
     const shortlist = await prisma.shortlist.create({

@@ -45,6 +45,13 @@ function extractDigits(phone: string): string {
   // Remove all non-digit characters.
   let digits = phone.replace(/\D/g, '');
 
+  // An explicit international prefix must be India's: otherwise a foreign
+  // E.164 number that happens to have 10 digits (e.g. +6591234567) would be
+  // mapped onto an unrelated Indian number.
+  if (phone.startsWith('+') && !(digits.startsWith('91') && digits.length === 12)) {
+    return '';
+  }
+
   // Strip leading country code: 91 (India).
   if (digits.startsWith('91') && digits.length === 12) {
     digits = digits.slice(2);
@@ -167,4 +174,34 @@ export function validateName(name: string): {
   }
 
   return { valid: true, sanitized };
+}
+
+// ---------------------------------------------------------------------------
+// Passwords
+// ---------------------------------------------------------------------------
+
+/** Minimum length for new passwords (sign-up and password reset). */
+export const MIN_PASSWORD_LENGTH = 8;
+
+// ---------------------------------------------------------------------------
+// Placeholder emails & masking
+// ---------------------------------------------------------------------------
+
+/**
+ * Phone-only accounts were given synthetic addresses such as
+ * `phone_919876543210@listme.com`. listme.com is not a domain ListMe owns, so
+ * these addresses must never receive mail (reset codes, welcome mail) and
+ * must not be treated as a real contact email.
+ */
+export function isPlaceholderEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return /^phone_\d+@listme\.com$/i.test(email.trim());
+}
+
+/** Masks a phone number for logs, keeping only the last 4 digits. */
+export function maskPhoneForLog(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 4) return '****';
+  return `******${digits.slice(-4)}`;
 }

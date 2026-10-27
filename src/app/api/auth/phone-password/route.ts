@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
-import { validatePhone } from '@/lib/validation';
+import { validatePhone, maskPhoneForLog } from '@/lib/validation';
 import { logUserActivity } from '@/lib/activity-logger';
 
 export async function POST(request: NextRequest) {
@@ -31,7 +31,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: phoneValidation.error }, { status: 400 });
     }
     const formattedPhone = phoneValidation.normalized;
-    const cleanDigits = phone.replace(/\D/g, '').slice(-10);
+    const cleanDigits = formattedPhone.slice(-10);
+
+    // Per-account limit as well, so guessing one account's password cannot be
+    // spread across many IP addresses.
+    const accountLimit = rateLimit(`phone-login:acct:${cleanDigits}`, 10, 15 * 60 * 1000);
+    if (!accountLimit.allowed) {
+      return NextResponse.json(
+        { message: 'Too many login attempts. Please try again later.' },
+        { status: 429, headers: getRateLimitHeaders(accountLimit, 10) }
+      );
+    }
     // 1. Look up user by phone (support both +91 and 10-digit formats)
     const profile = await prisma.profile.findFirst({
       where: {
@@ -48,7 +58,7 @@ export async function POST(request: NextRequest) {
       await logUserActivity({
         action: 'FAILED_LOGIN',
         request,
-        metadata: { method: 'phone_password', reason: 'User not found', phone: formattedPhone, ip },
+        metadata: { method: 'phone_password', reason: 'User not found', phone: maskPhoneForLog(formattedPhone), ip },
       });
       return NextResponse.json({ message: 'Invalid phone number or password' }, { status: 401 });
     }
@@ -58,11 +68,20 @@ export async function POST(request: NextRequest) {
         userId: profile.id,
         action: 'FAILED_LOGIN',
         request,
-        metadata: { method: 'phone_password', reason: 'No password set up', phone: formattedPhone, ip },
+        metadata: { method: 'phone_password', reason: 'No password set up', phone: maskPhoneForLog(formattedPhone), ip },
       });
       return NextResponse.json({ 
         message: 'Your account does not have a password set up. Please login with OTP.' 
       }, { status: 400 });
+    }
+
+    // Check status before signing in, so a suspended account never gets
+    // Supabase session cookies.
+    if (profile.status === 'SUSPENDED' || profile.status === 'BANNED') {
+      return NextResponse.json(
+        { message: 'Your account has been suspended. Please contact support.' },
+        { status: 403 }
+      );
     }
 
     // 2. Validate password via Supabase using their email
@@ -77,17 +96,9 @@ export async function POST(request: NextRequest) {
         userId: profile.id,
         action: 'FAILED_LOGIN',
         request,
-        metadata: { method: 'phone_password', reason: 'Invalid password', phone: formattedPhone, ip },
+        metadata: { method: 'phone_password', reason: 'Invalid password', phone: maskPhoneForLog(formattedPhone), ip },
       });
       return NextResponse.json({ message: 'Invalid phone number or password' }, { status: 401 });
-    }
-
-
-    if (profile.status === 'SUSPENDED' || profile.status === 'BANNED') {
-      return NextResponse.json(
-        { message: 'Your account has been suspended. Please contact support.' },
-        { status: 403 }
-      );
     }
 
     // 3. Set our hybrid session token

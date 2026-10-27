@@ -12,7 +12,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (typeof action !== 'string' || !/^[A-Z_]{1,40}$/.test(action)) {
+    // Clients may only record their own CLIENT_* events. Server-side actions
+    // (LOGIN, FAILED_LOGIN, SEARCH, VIEW_PROPERTY, EXPRESS_INTEREST,
+    // SYSTEM_ERROR, ...) drive the admin Activity view and must not be forgeable.
+    if (typeof action !== 'string' || !/^CLIENT_[A-Z_]{1,33}$/.test(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 

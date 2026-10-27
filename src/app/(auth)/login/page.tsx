@@ -8,10 +8,11 @@ import { Phone, ArrowRight, Home, Mail, User, MapPin, ChevronDown, ShieldAlert, 
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
-import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
+import { getFirebaseAuth, isFirebaseConfigured, signOutFirebase } from '@/lib/firebase/client';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { createClient } from '@/lib/supabase/client';
 import { safeRedirectPath } from '@/lib/safe-redirect';
+import { MIN_PASSWORD_LENGTH } from '@/lib/validation';
 import styles from '../auth.module.css';
 
 const testimonials = [
@@ -330,28 +331,29 @@ function LoginContent() {
     if (type === 'phone') {
       setLoginMethod('otp');
 
-      // Kick off user registration check in parallel with SMS dispatch
-      const checkUserPromise = fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`)
+      // Check registration first: a new number goes to sign-up, so no SMS is
+      // sent (and paid for) that would never be used. The identifier travels
+      // in the POST body so it stays out of request logs.
+      const checkUserData: { registered?: boolean } = await fetch('/api/auth/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: finalIdentifier }),
+      })
         .then((res) => (res.ok ? res.json() : { registered: true }))
         .catch(() => ({ registered: true }));
+
+      if (!checkUserData.registered) {
+        showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
+        setStep('signup');
+        setLoading(false);
+        return;
+      }
 
       if (isFirebaseConfigured) {
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
           try {
-            // Run SMS sending and user check in parallel!
-            const [checkUserData, result] = await Promise.all([
-              checkUserPromise,
-              signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier),
-            ]);
-
-            if (!checkUserData.registered) {
-              showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
-              setStep('signup');
-              setLoading(false);
-              return;
-            }
-
+            const result = await signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier);
             setConfirmationResult(result);
             setStep('otp');
             setTimer(30);
@@ -368,13 +370,6 @@ function LoginContent() {
         }
       } else {
         // Mock flow
-        const checkUserData = await checkUserPromise;
-        if (!checkUserData.registered) {
-          showToast('Welcome!', 'Redirecting you to complete your profile registration...', 'info');
-          setStep('signup');
-          setLoading(false);
-          return;
-        }
         setStep('otp');
         setTimer(30);
       }
@@ -441,6 +436,9 @@ function LoginContent() {
               phone: phone.startsWith('+') ? phone : `+91${phone}`,
             }),
           });
+          // The ID token has been exchanged for a ListMe session; the Firebase
+          // browser session is no longer needed.
+          await signOutFirebase();
           if (res.ok) {
             await finishLogin();
           } else {
@@ -518,8 +516,8 @@ function LoginContent() {
       showToast('Error', 'Please enter a valid email address', 'error');
       return;
     }
-    if (!password || password.length < 6) {
-      showToast('Error', 'Password must be at least 6 characters', 'error');
+    if (!password || password.length < MIN_PASSWORD_LENGTH) {
+      showToast('Error', `Password must be at least ${MIN_PASSWORD_LENGTH} characters`, 'error');
       return;
     }
     if (!selectedCity) {
@@ -652,6 +650,12 @@ function LoginContent() {
                   Access your account and continue your journey with us
                 </p>
               </div>
+
+              {(searchParams.get('error') === 'auth_failed' || searchParams.get('error') === 'no_code') && (
+                <p role="alert" style={{ color: 'var(--color-error)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                  Google sign-in did not complete. Please try again, or use your email or mobile number.
+                </p>
+              )}
 
               {searchParams.get('error') === 'suspended' && (
                 <div className={styles.suspendedAlertBox}>
@@ -874,9 +878,9 @@ function LoginContent() {
           {step === 'otp' && (
             <>
               <div className={styles.header}>
-                <h1 className={styles.title}>Verify Phone</h1>
+                <h1 className={styles.title}>{identifierType === 'email' ? 'Verify Email' : 'Verify Phone'}</h1>
                 <p className={styles.subtitle}>
-                  Enter the 6-digit code sent to +91 {phone.replace(/\D/g, '').slice(-10)}
+                  Enter the 6-digit code sent to {identifierType === 'email' ? email : phone}
                 </p>
               </div>
 
@@ -885,7 +889,7 @@ function LoginContent() {
                 onClick={() => { setStep('identifier'); setOtp(''); }}
                 className={styles.backButton}
               >
-                ← Change number
+                ← Change {identifierType === 'email' ? 'email' : 'number'}
               </button>
 
               <form onSubmit={(e) => handleOtpSubmit(e)} className={styles.form}>
@@ -1028,7 +1032,7 @@ function LoginContent() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 6 characters"
+                  placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
                   required
                   disabled={loading}
                   fullWidth
