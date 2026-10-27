@@ -7,12 +7,16 @@ interface SendMailParams {
   text: string;
   html?: string;
   metadata?: Record<string, any>;
+  /** The body holds a secret (e.g. a one-time code): never print it or store it in email_logs. */
+  sensitive?: boolean;
 }
+
+export const REDACTED_EMAIL_BODY = '[Redacted: this email contained a one-time security code]';
 
 /**
  * Sends an email using Nodemailer SMTP and logs it directly inside the database 'email_logs' table.
  */
-export async function sendEmail({ to, subject, text, html, metadata }: SendMailParams) {
+export async function sendEmail({ to, subject, text, html, metadata, sensitive = false }: SendMailParams) {
   const from = process.env.SMTP_FROM || 'ListMe <no-reply@listme.in>';
   
   const host = process.env.SMTP_HOST;
@@ -33,7 +37,7 @@ export async function sendEmail({ to, subject, text, html, metadata }: SendMailP
     console.log(`From: ${from}`);
     console.log(`To: ${to}`);
     console.log(`Subject: ${subject}`);
-    console.log(`Text Body: ${text}`);
+    console.log(`Text Body: ${sensitive ? REDACTED_EMAIL_BODY : text}`);
     console.log('-----------------------------------------');
     
     status = 'SIMULATED';
@@ -73,7 +77,7 @@ export async function sendEmail({ to, subject, text, html, metadata }: SendMailP
         to,
         from,
         subject,
-        body: html || text,
+        body: sensitive ? REDACTED_EMAIL_BODY : html || text,
         status,
         error: errorMsg,
         metadata: metadata ? (metadata as any) : undefined,

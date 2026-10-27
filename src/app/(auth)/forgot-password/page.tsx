@@ -9,6 +9,7 @@ import { Button, Input, OtpInput } from '@/components/ui';
 import { useToast } from '@/components/ui';
 import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 import styles from '../auth.module.css';
 import fpStyles from './ForgotPassword.module.css';
 
@@ -251,9 +252,7 @@ function ForgotPasswordContent() {
         if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
           window.location.href = '/admin';
         } else {
-          const redirectParam = searchParams.get('redirect');
-          const dest = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/dashboard';
-          window.location.href = dest;
+          window.location.href = safeRedirectPath(searchParams.get('redirect'));
         }
       }, 2500);
     } catch {

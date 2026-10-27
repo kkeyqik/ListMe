@@ -8,6 +8,11 @@ import styles from './MobileSearchDrawer.module.css';
 
 type SearchTabType = 'Buy' | 'Rent/PG' | 'Commercial';
 
+// SearchCapsule and the listings page store {display, params} objects under
+// 'listme_recent_searches'; rendering those as text crashed every page, so the
+// drawer keeps its own list of plain search terms.
+const RECENT_SEARCHES_KEY = 'listme_mobile_recent_searches';
+
 const POPULAR_LOCALITIES_BY_CITY: Record<string, string[]> = {
   Ghaziabad: [
     'Indirapuram',
@@ -200,9 +205,12 @@ export const MobileSearchDrawer: React.FC = () => {
   // Load recent searches from localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('listme_recent_searches');
+      const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
       if (stored) {
-        setRecentSearches(JSON.parse(stored).slice(0, 5));
+        const parsed: unknown = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setRecentSearches(parsed.filter((s): s is string => typeof s === 'string').slice(0, 5));
+        }
       }
     } catch {
       // Ignore localStorage errors
@@ -217,7 +225,7 @@ export const MobileSearchDrawer: React.FC = () => {
         ...recentSearches.filter((s) => s.toLowerCase() !== term.toLowerCase().trim()),
       ].slice(0, 5);
       setRecentSearches(updated);
-      localStorage.setItem('listme_recent_searches', JSON.stringify(updated));
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
     } catch {
       // Ignore localStorage errors
     }
@@ -226,7 +234,7 @@ export const MobileSearchDrawer: React.FC = () => {
   const handleClearRecent = () => {
     setRecentSearches([]);
     try {
-      localStorage.removeItem('listme_recent_searches');
+      localStorage.removeItem(RECENT_SEARCHES_KEY);
     } catch {
       // Ignore localStorage errors
     }

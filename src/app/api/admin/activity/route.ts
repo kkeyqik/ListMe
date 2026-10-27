@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
+import { REDACTED_EMAIL_BODY } from '@/lib/email';
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,11 +62,18 @@ export async function GET(request: NextRequest) {
       user: log.userId ? profileMap.get(log.userId) || null : null,
     }));
 
-    // Fetch email logs
-    const emailLogs = await prisma.emailLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
+    // Fetch email logs. Reset-code emails logged before bodies were redacted at
+    // send time still contain the code, so hide them here as well.
+    const emailLogs = (
+      await prisma.emailLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      })
+    ).map((log) =>
+      (log.metadata as { type?: string } | null)?.type === 'PASSWORD_RESET_OTP'
+        ? { ...log, body: REDACTED_EMAIL_BODY }
+        : log
+    );
 
     return NextResponse.json({
       userLogs: userLogsWithProfiles,
