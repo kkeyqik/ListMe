@@ -404,7 +404,7 @@ const PROPERTIES_TO_SEED = [
   },
   {
     city: 'Mumbai',
-    locality: 'Worli',
+    locality: 'Malabar Hill',
     title: 'Exclusive 5BHK Penthouse in Malabar Hill',
     description: 'Top floor exclusive home with private terrace pool, direct 360-degree ocean views, premium security systems, and helper quarters.',
     listingFor: ListingFor.SALE,
@@ -432,7 +432,7 @@ const PROPERTIES_TO_SEED = [
   },
   {
     city: 'Mumbai',
-    locality: 'Powai',
+    locality: 'Chembur',
     title: 'Premium 3BHK Flat in Chembur',
     description: 'Excellent connectivity to Eastern Freeway. Highly spacious rooms, modular kitchen cabinets, and premium wood tiling in master suite.',
     listingFor: ListingFor.SALE,
@@ -446,7 +446,7 @@ const PROPERTIES_TO_SEED = [
   },
   {
     city: 'Mumbai',
-    locality: 'Bandra West',
+    locality: 'Juhu',
     title: 'Elegant 1BHK Flat in Juhu',
     description: 'Quiet, premium residential road near the beach. Air conditioning, geysers, modular wardrobes, and secure entry.',
     listingFor: ListingFor.RENT,
@@ -560,7 +560,7 @@ const PROPERTIES_TO_SEED = [
   },
   {
     city: 'Delhi NCR',
-    locality: 'Connaught Place',
+    locality: 'Saket',
     title: 'Furnished 1BHK Flat in Saket',
     description: 'Cozy and quiet flat ideal for professionals. Walking distance to Saket Metro and Select Citywalk. Full security, TV, bed, fridge, and AC.',
     listingFor: ListingFor.RENT,
@@ -603,6 +603,14 @@ const PROPERTIES_TO_SEED = [
 ];
 
 async function seed() {
+  // Demo listings are ACTIVE and public. Never write them by accident: the
+  // local .env points at the production database.
+  if (process.env.ALLOW_DEMO_SEED !== 'true') {
+    console.error('Refusing to seed demo listings. This writes public ACTIVE listings to the database in DATABASE_URL.');
+    console.error('Point DATABASE_URL at a non-production database and re-run with ALLOW_DEMO_SEED=true.');
+    process.exit(1);
+  }
+
   console.log('🏁 Starting Properties Seeding script...');
 
   // Ensure owner profile exists
@@ -630,6 +638,13 @@ async function seed() {
     const prop = PROPERTIES_TO_SEED[i];
     const imageUrl = IMAGES[i % IMAGES.length];
 
+    // Idempotent: re-running the seed does not duplicate listings.
+    const alreadySeeded = await prisma.listing.findFirst({
+      where: { ownerId: OWNER_ID, title: prop.title },
+      select: { id: true },
+    });
+    if (alreadySeeded) continue;
+
     const listing = await prisma.listing.create({
       data: {
         ownerId: OWNER_ID,
@@ -647,7 +662,7 @@ async function seed() {
         bedrooms: prop.bedrooms,
         bathrooms: prop.bathrooms,
         carpetArea: prop.carpetArea,
-        keyHighlights: ['Direct Owner', 'Verified Listing', 'Zero Brokerage'],
+        keyHighlights: ['Direct Owner', 'Zero Brokerage'],
       },
     });
 

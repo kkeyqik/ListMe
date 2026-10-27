@@ -44,6 +44,9 @@ export async function logUserActivity({
         null;
       resolvedUa = request.headers.get('user-agent') || null;
     }
+    // Headers are client-controlled: keep stored values bounded.
+    resolvedIp = resolvedIp ? String(resolvedIp).slice(0, 64) : null;
+    resolvedUa = resolvedUa ? resolvedUa.slice(0, 500) : null;
 
     return await prisma.userActivityLog.create({
       data: {

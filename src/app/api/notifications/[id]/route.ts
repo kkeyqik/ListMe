@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
-import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { isUuid } from '@/lib/ids';
 
 // PUT - Mark notification as read
 export async function PUT(
@@ -13,6 +13,9 @@ export async function PUT(
     const userId = await getAuthenticatedUserId();
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+    if (!isUuid(id)) {
+      return NextResponse.json({ message: 'Notification not found' }, { status: 404 });
     }
 
     // Verify ownership and update status
@@ -28,10 +31,12 @@ export async function PUT(
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    const updated = await prisma.notification.update({
-      where: { id },
-      data: { isRead: true },
-    });
+    const updated = notification.isRead
+      ? notification
+      : await prisma.notification.update({
+          where: { id },
+          data: { isRead: true },
+        });
 
     return NextResponse.json({
       message: 'Notification marked as read',

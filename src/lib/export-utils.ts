@@ -18,7 +18,7 @@ function convertToCSV(data: any[], filename: string) {
   const headers = Array.from(headersSet);
   
   // Create CSV header row
-  const csvRows = [headers.join(',')];
+  const csvRows = [headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(',')];
   
   // Create CSV data rows
   for (const row of data) {
@@ -30,25 +30,23 @@ function convertToCSV(data: any[], filename: string) {
         return '';
       }
       
-      let stringVal = '';
-      if (typeof val === 'object') {
-        stringVal = JSON.stringify(val).replace(/"/g, '""'); // Escape inner quotes
-      } else {
-        stringVal = String(val).replace(/"/g, '""');
+      let stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+
+      // Spreadsheet formula injection: a cell starting with = + - @ (or tab/CR)
+      // is run as a formula by Excel/Sheets. Prefixing a quote makes it text,
+      // which also keeps phone numbers like +91... from being mangled.
+      if (typeof val === 'string' && /^[=+\-@\t\r]/.test(stringVal)) {
+        stringVal = `'${stringVal}`;
       }
-      
-      // Quote strings containing commas, newlines, or quotes
-      if (stringVal.includes(',') || stringVal.includes('\n') || stringVal.includes('"')) {
-        return `"${stringVal}"`;
-      }
-      
-      return stringVal;
+
+      // Quote every field and escape inner quotes.
+      return `"${stringVal.replace(/"/g, '""')}"`;
     });
-    
+
     csvRows.push(values.join(','));
   }
-  
-  return csvRows.join('\n');
+
+  return csvRows.join('\r\n');
 }
 
 /**
@@ -61,7 +59,8 @@ export function downloadCSV(data: any[], filename: string = 'export.csv') {
     return;
   }
   
-  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  // The UTF-8 BOM makes Excel read ₹ and non-Latin names correctly.
+  const blob = new Blob(['﻿' + csvString], { type: 'text/csv;charset=utf-8;' });
   
   // Create a link and trigger download
   const link = document.createElement('a');

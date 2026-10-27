@@ -16,12 +16,20 @@ if (connectionString.includes(':5432/')) {
   }
 }
 
-// Cap max connections per lambda instance to 2 in production to prevent pool exhaustion (EMAXCONNSESSION)
+// Connections per lambda instance. The default stays at 2 in production (to avoid
+// EMAXCONNSESSION on the pooler); DB_POOL_MAX raises it without a code change once
+// the pooler's client limit allows. Note: `pgbouncer=` and `connection_limit=` in
+// DATABASE_URL are Prisma-engine options that node-postgres ignores.
+const envPoolMax = parseInt(process.env.DB_POOL_MAX || '', 10);
+const poolMax = Number.isFinite(envPoolMax) && envPoolMax > 0 && envPoolMax <= 20
+  ? envPoolMax
+  : process.env.NODE_ENV === 'production' ? 2 : 5;
+
 const pool =
   globalForPrisma.pool ??
   new Pool({
     connectionString,
-    max: process.env.NODE_ENV === 'production' ? 2 : 5,
+    max: poolMax,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 5000,
   });

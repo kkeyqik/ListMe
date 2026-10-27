@@ -16,6 +16,11 @@ export const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 export const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB
 export const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 
+// Per-listing file caps enforced by the media API (the forms allow 20 photos).
+export const MAX_LISTING_IMAGES = 30;
+export const MAX_LISTING_DOCUMENTS = 10;
+export const MAX_LISTING_VIDEOS = 5;
+
 export const LISTING_IMAGES_BUCKET =
   process.env.NEXT_PUBLIC_SUPABASE_LISTING_IMAGES_BUCKET || 'listing-images';
 export const LISTING_DOCUMENTS_BUCKET =
