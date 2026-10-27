@@ -91,7 +91,8 @@ export async function POST(request: NextRequest) {
       maskedEmail: profile.email ? maskEmail(profile.email) : null,
       hasPhone,
       maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
-      primaryChannel: hasPhone ? 'sms' : 'email',
+      // SMS needs the typed phone number (see send-otp), so an email lookup defaults to email.
+      primaryChannel: hasPhone && (!emailValidation.valid || !hasEmail) ? 'sms' : 'email',
     });
   } catch (error: any) {
     console.error('[forgot-password/lookup] Error:', error);

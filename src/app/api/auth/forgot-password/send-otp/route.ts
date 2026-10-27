@@ -91,6 +91,14 @@ export async function POST(request: NextRequest) {
       target = profile.email;
       maskedTarget = maskEmail(profile.email);
     } else {
+      // The client needs the full number to send the SMS via Firebase, so only allow SMS
+      // when the caller typed that number themselves; an email must not reveal the phone.
+      if (emailValidation.valid) {
+        return NextResponse.json(
+          { message: 'To get the code by SMS, enter your mobile number instead of your email.' },
+          { status: 400 }
+        );
+      }
       if (!profile.phone) {
         return NextResponse.json(
           { message: 'No mobile number is linked to this account. Please select Email verification instead.' },
