@@ -32,11 +32,19 @@ import {
 } from '@/lib/upload';
 import styles from './new.module.css';
 
+const MAX_PHOTOS = 20;
+
+// Local, non-persisted id for a picked file (module counter keeps render pure)
+let localFileCounter = 0;
+const nextLocalFileId = () => `file-${++localFileCounter}`;
+
 export default function NewListing() {
   const router = useRouter();
   const { showToast } = useToast();
   const { profile, loading: authLoading, refreshProfile } = useAuth();
-  const isPhoneVerified = Boolean(profile?.phoneVerified || profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN');
+  // Must match the server rule in POST /api/listings, which requires a verified
+  // phone for everyone (admins included); otherwise the final submit is refused.
+  const isPhoneVerified = Boolean(profile?.phoneVerified);
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   
   // Data lists from backend APIs
@@ -46,6 +54,8 @@ export default function NewListing() {
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  // Set once POST /api/listings succeeds, so a retry after a failed upload reuses it
+  const [createdListingId, setCreatedListingId] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<any>({
@@ -364,10 +374,17 @@ export default function NewListing() {
     });
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const files = Array.from(e.target.files);
-    
+  const addPhotoFiles = (incoming: File[]) => {
+    const room = MAX_PHOTOS - selectedPhotos.length;
+    if (room <= 0) {
+      showToast('Photo limit reached', `A listing can have up to ${MAX_PHOTOS} photos.`, 'warning');
+      return;
+    }
+    if (incoming.length > room) {
+      showToast('Photo limit reached', `Only the first ${room} photo(s) were added (max ${MAX_PHOTOS}).`, 'warning');
+    }
+    const files = incoming.slice(0, room);
+
     const newPhotos = files.reduce((acc: any[], file) => {
       const validation = validateImage(file);
       if (!validation.valid) {
@@ -376,7 +393,7 @@ export default function NewListing() {
       }
 
       acc.push({
-        id: Math.random().toString(36).substring(2, 9),
+        id: nextLocalFileId(),
         name: file.name,
         file,
         progress: 0,
@@ -390,10 +407,34 @@ export default function NewListing() {
     setSelectedPhotos((prev) => [...prev, ...newPhotos]);
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    addPhotoFiles(Array.from(e.target.files));
+    // Reset so picking the same file again (after removing it) fires onChange
+    e.target.value = '';
+  };
+
   const handleDocSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const files = Array.from(e.target.files);
-    
+    addDocFiles(Array.from(e.target.files));
+    e.target.value = '';
+  };
+
+  // Drag & drop onto a dropzone: stop the browser from opening the file (which
+  // would navigate away and wipe the wizard) and reuse the picker handlers.
+  const dropHandlers = (onFiles: (files: File[]) => void) => ({
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      if (loading) return;
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) onFiles(files);
+    },
+  });
+
+  const addDocFiles = (files: File[]) => {
     const newDocs = files.reduce((acc: any[], file) => {
       const validation = validateDocument(file);
       if (!validation.valid) {
@@ -402,7 +443,7 @@ export default function NewListing() {
       }
 
       acc.push({
-        id: Math.random().toString(36).substring(2, 9),
+        id: nextLocalFileId(),
         name: file.name,
         file,
         progress: 0,
@@ -427,6 +468,13 @@ export default function NewListing() {
   const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return;
     const file = e.target.files[0];
+    e.target.value = '';
+    selectVideoFile(file);
+  };
+
+  const dropVideoFiles = (files: File[]) => selectVideoFile(files[0]);
+
+  const selectVideoFile = (file: File) => {
     const validation = validateVideo(file);
     if (!validation.valid) {
       showToast('Invalid Video', validation.error || 'Please select a valid video file', 'error');
@@ -434,7 +482,7 @@ export default function NewListing() {
     }
     const previewUrl = URL.createObjectURL(file);
     setSelectedVideo({
-      id: Math.random().toString(36).substring(2, 9),
+      id: nextLocalFileId(),
       name: file.name,
       size: file.size,
       file,
@@ -481,11 +529,10 @@ export default function NewListing() {
         )
       );
 
+      // Order and cover are set by the server (first photo becomes the cover)
       images.push({
         imageUrl: publicUrl,
         imageType: 'photo',
-        displayOrder: index,
-        isPrimary: index === 0,
       });
     }
 
@@ -694,28 +741,52 @@ export default function NewListing() {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/listings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          videoUrl: normalizedVideo,
-          amenities: formData.selectedAmenities,
-        }),
-      });
+      // If an earlier attempt already created the listing but a media upload
+      // failed, retry only the uploads instead of creating a duplicate listing.
+      let listingId = createdListingId;
+      if (!listingId) {
+        const response = await fetch('/api/listings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            // Don't save blank highlight bullets
+            keyHighlights: (formData.keyHighlights || [])
+              .map((h: unknown) => String(h ?? '').trim())
+              .filter(Boolean),
+            videoUrl: normalizedVideo,
+            amenities: formData.selectedAmenities,
+          }),
+        });
 
-      const data = await response.json();
+        const data = await response.json().catch(() => ({}));
 
-      if (response.ok) {
-        if (data.listing?.id && (selectedPhotos.length > 0 || selectedDocs.length > 0 || normalizedVideo || Boolean(selectedVideo))) {
-          await uploadListingMedia(data.listing.id, normalizedVideo);
+        if (!response.ok) {
+          showToast('Error', data.message || 'Failed to submit listing', 'error');
+          return;
         }
-
-        showToast('Success', 'Listing submitted successfully for moderation', 'success');
-        router.push('/dashboard/listings');
-      } else {
-        showToast('Error', data.message || 'Failed to submit listing', 'error');
+        listingId = data.listing?.id || null;
+        if (listingId) setCreatedListingId(listingId);
       }
+
+      if (listingId && (selectedPhotos.length > 0 || selectedDocs.length > 0 || normalizedVideo || Boolean(selectedVideo))) {
+        try {
+          await uploadListingMedia(listingId, normalizedVideo);
+        } catch (uploadErr) {
+          console.error('Media upload error:', uploadErr);
+          showToast(
+            'Upload failed',
+            `Your listing was saved, but its media could not be uploaded (${
+              uploadErr instanceof Error ? uploadErr.message : 'unknown error'
+            }). Press Submit again to retry the upload.`,
+            'error'
+          );
+          return;
+        }
+      }
+
+      showToast('Success', 'Listing submitted successfully for moderation', 'success');
+      router.push('/dashboard/listings');
     } catch (err) {
       console.error('Submit error:', err);
       showToast('Error', 'Something went wrong. Please check connection.', 'error');
@@ -964,7 +1035,7 @@ export default function NewListing() {
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Full Address (Private — Visible only to Admin)</label>
+              <label className={styles.label}>Full Address (Private — visible only to ListMe admins; seekers see just the locality and city)</label>
               <textarea
                 name="fullAddress"
                 value={formData.fullAddress}
@@ -1344,8 +1415,8 @@ export default function NewListing() {
 
             {/* Photos upload section */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>Upload Photos (Optional, Max 5MB per image)</label>
-              <div className={styles.dropzone}>
+              <label className={styles.label}>Upload Photos (Optional, Max 5MB per image, up to {MAX_PHOTOS} photos)</label>
+              <div className={styles.dropzone} {...dropHandlers(addPhotoFiles)}>
                 <input
                   type="file"
                   multiple
@@ -1446,7 +1517,7 @@ export default function NewListing() {
               {videoMode === 'upload' ? (
                 <>
                   {!selectedVideo ? (
-                    <div className={styles.dropzone}>
+                    <div className={styles.dropzone} {...dropHandlers(dropVideoFiles)}>
                       <input
                         type="file"
                         accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg"
@@ -1545,7 +1616,7 @@ export default function NewListing() {
             {/* Document upload section */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Upload Ownership Documents (Optional — Private)</label>
-              <div className={styles.dropzone}>
+              <div className={styles.dropzone} {...dropHandlers(addDocFiles)}>
                 <input
                   type="file"
                   multiple
