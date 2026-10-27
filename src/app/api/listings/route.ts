@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
@@ -10,6 +10,13 @@ function asEnum<T extends Record<string, string>>(enumObj: T, value: string | nu
   const upper = value.toUpperCase();
   return (Object.values(enumObj) as string[]).includes(upper) ? (upper as T[keyof T]) : undefined;
 }
+
+const COMMERCIAL_TYPES: PropertyType[] = [
+  PropertyType.OFFICE,
+  PropertyType.SHOP,
+  PropertyType.WAREHOUSE,
+  PropertyType.COMMERCIAL_LAND,
+];
 
 // 1. GET - Fetch / Search Listings
 export async function GET(request: NextRequest) {
@@ -32,7 +39,14 @@ export async function GET(request: NextRequest) {
     const bhk = searchParams.get('bhk');
     const furnishing = searchParams.get('furnishing');
     const query = searchParams.get('query');
-    
+    const propertyTypes = searchParams.get('property_types');
+    const possessionParam = searchParams.get('possession');
+    const postedBy = searchParams.get('posted_by')?.toLowerCase();
+    const minAreaParam = searchParams.get('min_area');
+    const maxAreaParam = searchParams.get('max_area');
+    // Background fetches (e.g. the home page's featured strip) aren't user searches
+    const source = searchParams.get('source');
+
     // Sort & Date parameters
     const sort = searchParams.get('sort') || 'newest';
     const startDate = searchParams.get('startDate') || searchParams.get('start_date');
@@ -97,10 +111,30 @@ export async function GET(request: NextRequest) {
         where.listingFor = ListingFor.SALE;
       } else if (type === 'rent') {
         where.listingFor = ListingFor.RENT;
+      } else if (type === 'project') {
+        // "Projects" = properties for sale that are new / under construction,
+        // unless the user explicitly asked to include ready-to-move ones.
+        where.listingFor = ListingFor.SALE;
+        const statuses = (searchParams.get('project_statuses') || '')
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+        const wantsReady = statuses.some((s) => s.startsWith('ready'));
+        const wantsUnderConstruction = statuses.length === 0
+          || statuses.some((s) => s.includes('construction') || s.includes('launch'));
+        if (wantsUnderConstruction && !wantsReady) {
+          where.possession = Possession.UNDER_CONSTRUCTION;
+        } else if (wantsReady && !wantsUnderConstruction) {
+          where.possession = Possession.READY;
+        }
+        const projectClass = searchParams.get('project_class');
+        if (projectClass === 'commercial') {
+          where.propertyType = { in: COMMERCIAL_TYPES };
+        } else if (projectClass === 'residential') {
+          where.propertyType = { notIn: COMMERCIAL_TYPES };
+        }
       } else if (type === 'commercial') {
-        where.propertyType = {
-          in: [PropertyType.OFFICE, PropertyType.SHOP, PropertyType.WAREHOUSE, PropertyType.COMMERCIAL_LAND],
-        };
+        where.propertyType = { in: COMMERCIAL_TYPES };
         const commercialTrade = searchParams.get('commercial_trade');
         if (commercialTrade === 'lease' || commercialTrade === 'rent') {
           where.listingFor = ListingFor.RENT;
@@ -110,10 +144,41 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Filter by specific property type
+    // Filter by specific property type, or a comma-separated list (property_types=HOUSE,VILLA)
     const propertyTypeFilter = asEnum(PropertyType, propertyType);
+    const propertyTypesFilter = (propertyTypes || '')
+      .split(',')
+      .map((t) => asEnum(PropertyType, t.trim()))
+      .filter((t): t is PropertyType => !!t);
     if (propertyTypeFilter) {
       where.propertyType = propertyTypeFilter;
+    } else if (propertyTypesFilter.length > 0) {
+      where.propertyType = { in: propertyTypesFilter };
+    }
+
+    // Construction / possession status (ready | under_construction)
+    const possessionFilter = asEnum(Possession, possessionParam);
+    if (possessionFilter) {
+      where.possession = possessionFilter;
+    }
+
+    // Posted by: every ListMe listing is posted directly by its owner, so
+    // dealer/builder filters honestly return nothing rather than everything.
+    if (postedBy && postedBy !== 'owner' && postedBy !== 'any') {
+      where.id = { in: [] };
+    }
+
+    // Area range (sq ft): matches carpet area, or plot area for land
+    const minArea = minAreaParam ? parseFloat(minAreaParam) : NaN;
+    const maxArea = maxAreaParam ? parseFloat(maxAreaParam) : NaN;
+    if (Number.isFinite(minArea) || Number.isFinite(maxArea)) {
+      const range: { gte?: number; lte?: number } = {};
+      if (Number.isFinite(minArea)) range.gte = minArea;
+      if (Number.isFinite(maxArea)) range.lte = maxArea;
+      where.AND = [
+        ...(where.AND || []),
+        { OR: [{ carpetArea: range }, { carpetArea: null, plotArea: range }] },
+      ];
     }
 
     if (city) {
@@ -204,33 +269,37 @@ export async function GET(request: NextRequest) {
     }
 
     // Log the search activity if filters are used
-    const hasFilters = !!(type || propertyType || city || locality || pinCode || minPrice || maxPrice || bhk || furnishing || query);
-    if (hasFilters) {
-      let loggedInUser = null;
-      try {
-        const userId = await getAuthenticatedUserId();
-    const data = { user: userId ? { id: userId } : null };
-        loggedInUser = data?.user || null;
-      } catch (err) {
-        // Ignore errors extracting user details for public search logging
-      }
+    // Owner/admin dashboards and background fetches are not searches.
+    const hasFilters = !!(type || propertyType || propertyTypes || city || locality || pinCode || minPrice || maxPrice || bhk || furnishing || query || possessionParam);
+    if (hasFilters && !ownerOnly && !adminOnly && !source) {
+      // Log after the response is sent so search results aren't delayed.
+      after(async () => {
+        let loggedInUserId: string | undefined;
+        try {
+          loggedInUserId = (await getAuthenticatedUserId()) || undefined;
+        } catch {
+          // Ignore errors extracting user details for public search logging
+        }
 
-      await logUserActivity({
-        userId: loggedInUser?.id,
-        action: 'SEARCH',
-        request,
-        metadata: {
-          type,
-          propertyType,
-          city,
-          locality,
-          pinCode,
-          minPrice,
-          maxPrice,
-          bhk,
-          furnishing,
-          query,
-        },
+        await logUserActivity({
+          userId: loggedInUserId,
+          action: 'SEARCH',
+          request,
+          metadata: {
+            type,
+            propertyType,
+            propertyTypes,
+            city,
+            locality,
+            pinCode,
+            minPrice,
+            maxPrice,
+            bhk,
+            furnishing,
+            possession: possessionParam,
+            query,
+          },
+        });
       });
     }
 
@@ -246,7 +315,8 @@ export async function GET(request: NextRequest) {
     } else if (sortNorm === 'price_desc') {
       orderBy = { askingPrice: 'desc' };
     } else if (sortNorm === 'area_desc') {
-      orderBy = { carpetArea: 'desc' };
+      // Listings without an area go last instead of first (Postgres DESC = NULLS FIRST)
+      orderBy = [{ carpetArea: { sort: 'desc', nulls: 'last' } }, { plotArea: { sort: 'desc', nulls: 'last' } }];
     }
 
     // Execute queries in parallel
