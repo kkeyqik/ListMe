@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import styles from './MobileMenuDrawer.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
-import { useSettings } from '@/context/SettingsContext';
+import { getWhatsAppLink, getWhatsAppNumber } from '@/lib/contact-info';
 import { useToast } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { 
@@ -52,6 +52,9 @@ const CATEGORIES = [
   { id: 'price_insights', label: 'Price & Insights', icon: <TrendingUp size={20} /> },
   { id: 'activity_support', label: 'Activity & Support', icon: <Info size={20} /> },
 ];
+
+// WhatsApp posting is offered only when a real number is configured.
+const WHATSAPP_ENABLED = getWhatsAppNumber() !== null;
 
 type SubOptionItem = {
   label: string;
@@ -217,7 +220,6 @@ export const MobileMenuDrawer: React.FC = () => {
   const [avatarError, setAvatarError] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { settings } = useSettings();
   const { showToast } = useToast();
   const { user, profile, signOut } = useAuth();
 
@@ -278,8 +280,8 @@ export const MobileMenuDrawer: React.FC = () => {
     closeMenu();
     
     if (item.action === 'whatsapp') {
-      const phone = settings?.contactPhone?.replace(/[^0-9]/g, '') || '919999999999';
-      window.open(`https://wa.me/${phone}?text=Hi%20I%20want%20to%20post%20a%20property`, '_blank');
+      const link = getWhatsAppLink('Hi ListMe, I want to post a property');
+      if (link) window.open(link, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -429,7 +431,7 @@ export const MobileMenuDrawer: React.FC = () => {
                 <div key={idx} className={styles.sectionBlock}>
                   <h3 className={styles.sectionTitle}>{section.title}</h3>
                   <div className={styles.gridContainer}>
-                    {section.items.map((item, i) => (
+                    {section.items.filter((item) => item.action !== 'whatsapp' || WHATSAPP_ENABLED).map((item, i) => (
                       <button 
                         type="button"
                         key={i} 

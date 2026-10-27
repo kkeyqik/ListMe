@@ -6,21 +6,33 @@ import PropertyClient from './PropertyClient';
 import { Breadcrumbs } from '@/components/ui';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { serializeJsonLd } from '@/lib/json-ld';
+import { absoluteUrl } from '@/lib/site-url';
 import styles from './page.module.css';
 
 interface PropertyPageProps {
   params: Promise<{ id: string }>;
 }
 
+// Listing.id is a Postgres UUID; Prisma throws (500) on anything else, so treat it as not found.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // 1. Generate Server-side SEO Metadata
 export async function generateMetadata({ params }: PropertyPageProps): Promise<Metadata> {
   const { id } = await params;
+
+  if (!UUID_RE.test(id)) {
+    return {
+      title: 'Property Not Found — ListMe',
+      robots: { index: false, follow: false },
+    };
+  }
 
   const listing = await prisma.listing.findUnique({
     where: { id },
     include: {
       images: {
-        where: { isPrimary: true },
+        // Prefer the primary image, else fall back to the first one
+        orderBy: [{ isPrimary: 'desc' }, { displayOrder: 'asc' }],
         take: 1
       }
     }
@@ -49,9 +61,9 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     ? `₹${(formatVal / 100000).toFixed(2)} Lk` 
     : `₹${formatVal.toLocaleString('en-IN')}`;
 
-  const title = `${listing.title} — ${priceStr} | ListMe`;
+  const title = `${listing.title} — ${priceStr}${listing.listingFor === 'RENT' ? '/month' : ''} | ListMe`;
   const description = listing.description || `Verified owner property listed directly on ListMe in ${listing.locality}, ${listing.city}. Zero brokerage fees!`;
-  const imageUrl = listing.images[0]?.imageUrl || '';
+  const imageUrl = listing.images[0]?.imageUrl ? absoluteUrl(listing.images[0].imageUrl) : '';
 
   return {
     title,
@@ -78,6 +90,10 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
 // 2. Render Server Component Page
 export default async function PropertyPage({ params }: PropertyPageProps) {
   const { id } = await params;
+
+  if (!UUID_RE.test(id)) {
+    notFound();
+  }
 
   // Fetch listing details including nested amenities
   const listing = await prisma.listing.findUnique({
@@ -135,16 +151,33 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   };
 
   // Compile JSON-LD Schema
+  const primaryImage = listing.images.find((img) => img.isPrimary) || listing.images[0];
+  const price = parseFloat(listing.askingPrice.toString());
+  const isRent = listing.listingFor === 'RENT';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'RealEstateListing',
     'name': listing.title,
     'description': listing.description || '',
-    'url': `https://listme.in/property/${listing.id}`,
-    'image': listing.images[0]?.imageUrl || '',
+    'url': absoluteUrl(`/property/${listing.id}`),
+    ...(primaryImage?.imageUrl ? { 'image': absoluteUrl(primaryImage.imageUrl) } : {}),
     'datePosted': listing.createdAt.toISOString(),
-    'priceCurrency': 'INR',
-    'price': parseFloat(listing.askingPrice.toString()),
+    'offers': {
+      '@type': 'Offer',
+      'price': price,
+      'priceCurrency': 'INR',
+      'businessFunction': isRent ? 'http://purl.org/goodrelations/v1#LeaseOut' : 'http://purl.org/goodrelations/v1#Sell',
+      ...(isRent
+        ? {
+            'priceSpecification': {
+              '@type': 'UnitPriceSpecification',
+              'price': price,
+              'priceCurrency': 'INR',
+              'unitCode': 'MON',
+            },
+          }
+        : {}),
+    },
     'address': {
       '@type': 'PostalAddress',
       'addressLocality': listing.locality,

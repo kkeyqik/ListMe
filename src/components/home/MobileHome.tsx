@@ -352,17 +352,17 @@ export const MobileHome: React.FC = () => {
           <Link href="/listings?property_type=APARTMENT" className={styles.tallCard} style={{ backgroundColor: '#f0f9ff' }}>
             <h3 className={styles.tallCardTitle}>Residential<br/>Apartment</h3>
             <span className={styles.tallCardSub}>Explore Units</span>
-            <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=200&q=80" alt="Apt" className={styles.tallCardImg} />
+            <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=200&q=80" alt="Apt" className={styles.tallCardImg} />
           </Link>
           <Link href="/listings?property_type=VILLA" className={styles.tallCard} style={{ backgroundColor: '#fff5f5' }}>
             <h3 className={styles.tallCardTitle}>Independent<br/>House/Villa</h3>
             <span className={styles.tallCardSub}>Explore Villas</span>
-            <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=200&q=80" alt="Villa" className={styles.tallCardImg} />
+            <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=200&q=80" alt="Villa" className={styles.tallCardImg} />
           </Link>
           <Link href="/listings?property_type=BUILDER_FLOOR" className={styles.tallCard} style={{ backgroundColor: '#f0fdf4' }}>
             <h3 className={styles.tallCardTitle}>Builder<br/>Floor</h3>
             <span className={styles.tallCardSub}>Explore Floors</span>
-            <img src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=200&q=80" alt="Floor" className={styles.tallCardImg} />
+            <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=200&q=80" alt="Floor" className={styles.tallCardImg} />
           </Link>
         </div>
       </section>
@@ -388,7 +388,7 @@ export const MobileHome: React.FC = () => {
         <h2 className={styles.sectionTitle}>Recommended Projects</h2>
         <div className={styles.carousel}>
           <Link href="/listings?query=Whitefield" className={styles.projectCard}>
-            <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80" alt="Project" className={styles.projectImage} />
+            <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80" alt="Project" className={styles.projectImage} />
             <div className={styles.reraBadge}>RERA</div>
             <div className={styles.possessionTag}>Possession in 1 Year</div>
             <div className={styles.projectInfo}>
@@ -399,7 +399,7 @@ export const MobileHome: React.FC = () => {
           </Link>
 
           <Link href="/listings?query=Hitec" className={styles.projectCard}>
-            <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&q=80" alt="Project" className={styles.projectImage} />
+            <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&q=80" alt="Project" className={styles.projectImage} />
             <div className={styles.reraBadge}>RERA</div>
             <div className={styles.possessionTag}>Ready to Move</div>
             <div className={styles.projectInfo}>
@@ -417,7 +417,7 @@ export const MobileHome: React.FC = () => {
         <div className={styles.carousel}>
           <Link href="/listings?city=bangalore&query=Koramangala" className={styles.localityCard}>
             <div className={styles.localityHeader}>
-              <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" alt="Locality" className={styles.localityThumb} />
+              <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" alt="Locality" className={styles.localityThumb} />
               <div>
                 <h4 className={styles.localityName}>Koramangala</h4>
                 <span className={styles.localityRating}>4.8 ★</span>
@@ -431,7 +431,7 @@ export const MobileHome: React.FC = () => {
 
           <Link href="/listings?city=delhi&query=Hauz+Khas" className={styles.localityCard}>
             <div className={styles.localityHeader}>
-              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="Locality" className={styles.localityThumb} />
+              <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="Locality" className={styles.localityThumb} />
               <div>
                 <h4 className={styles.localityName}>Hauz Khas</h4>
                 <span className={styles.localityRating}>4.9 ★</span>
@@ -445,7 +445,7 @@ export const MobileHome: React.FC = () => {
 
           <Link href="/listings?city=mumbai&query=Bandra" className={styles.localityCard}>
             <div className={styles.localityHeader}>
-              <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80" alt="Locality" className={styles.localityThumb} />
+              <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80" alt="Locality" className={styles.localityThumb} />
               <div>
                 <h4 className={styles.localityName}>Bandra West</h4>
                 <span className={styles.localityRating}>4.9 ★</span>
@@ -467,7 +467,7 @@ export const MobileHome: React.FC = () => {
           <li>Direct chat with genuine owners</li>
         </ul>
         <Link href="/listings" className={styles.bannerBtn}>Explore Verified Listings</Link>
-        <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=200&q=80" alt="Phone" className={styles.bannerImg} style={{ clipPath: 'circle(50% at 50% 50%)' }} />
+        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=200&q=80" alt="Phone" className={styles.bannerImg} style={{ clipPath: 'circle(50% at 50% 50%)' }} />
       </div>
 
       {/* 8. Tools */}

@@ -9,6 +9,18 @@ import styles from './Footer.module.css';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Only link real profile pages; bare network homepages (the old defaults) are placeholders. */
+function socialUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined;
+    return parsed.pathname.replace(/\/+$/, '') ? parsed.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -59,7 +71,8 @@ export const Footer: React.FC = () => {
               Reach thousands of genuine buyers and tenants. India's first completely free real estate SaaS platform connecting owners and seekers directly.
             </p>
             <div className={styles.socialLinks}>
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Facebook">
+              {socialUrl(settings.facebookUrl) && (
+              <a href={socialUrl(settings.facebookUrl)} target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Facebook">
                 <svg
                   className={styles.socialSvg}
                   viewBox="0 0 24 24"
@@ -72,7 +85,9 @@ export const Footer: React.FC = () => {
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
                 </svg>
               </a>
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Twitter">
+              )}
+              {socialUrl(settings.twitterUrl) && (
+              <a href={socialUrl(settings.twitterUrl)} target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Twitter">
                 <svg
                   className={styles.socialSvg}
                   viewBox="0 0 24 24"
@@ -85,7 +100,9 @@ export const Footer: React.FC = () => {
                   <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
                 </svg>
               </a>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
+              )}
+              {socialUrl(settings.instagramUrl) && (
+              <a href={socialUrl(settings.instagramUrl)} target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
                 <svg
                   className={styles.socialSvg}
                   viewBox="0 0 24 24"
@@ -100,7 +117,9 @@ export const Footer: React.FC = () => {
                   <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
                 </svg>
               </a>
-              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="LinkedIn">
+              )}
+              {socialUrl(settings.linkedinUrl) && (
+              <a href={socialUrl(settings.linkedinUrl)} target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="LinkedIn">
                 <svg
                   className={styles.socialSvg}
                   viewBox="0 0 24 24"
@@ -115,6 +134,7 @@ export const Footer: React.FC = () => {
                   <circle cx="4" cy="4" r="2" />
                 </svg>
               </a>
+              )}
             </div>
           </div>
 

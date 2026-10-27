@@ -1,11 +1,7 @@
 import { MetadataRoute } from 'next';
+import { SITE_URL } from '@/lib/site-url';
 
 export default function robots(): MetadataRoute.Robots {
-  // Use VERCEL_URL if available, else default to listme.in
-  const baseUrl = process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}` 
-    : 'https://listme.in';
-
   return {
     rules: {
       userAgent: '*',
@@ -16,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
         '/api/',
       ],
     },
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }

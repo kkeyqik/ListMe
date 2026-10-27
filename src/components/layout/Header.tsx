@@ -24,6 +24,9 @@ import styles from './Header.module.css';
 import { useAuth } from '@/context/AuthContext';
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import dynamic from 'next/dynamic';
+import { getWhatsAppLink } from '@/lib/contact-info';
+
+const whatsappHref = getWhatsAppLink('Hi ListMe, I want to post a property');
 
 const AuthModal = dynamic(() => import('../auth/AuthModal').then((mod) => mod.AuthModal), {
   ssr: false,
@@ -141,9 +144,10 @@ export const Header: React.FC = () => {
             </Link>
           </div>
 
-          {/* Mobile Right WhatsApp Action */}
+          {/* Mobile Right WhatsApp Action (hidden until NEXT_PUBLIC_WHATSAPP_NUMBER is set) */}
+          {whatsappHref && (
           <a
-            href="https://wa.me/919999999999?text=Hi%20ListMe%2C%20I%20want%20to%20post%20a%20property"
+            href={whatsappHref}
             target="_blank"
             rel="noopener noreferrer"
             className={styles.ppWhatsappBtn}
@@ -156,6 +160,7 @@ export const Header: React.FC = () => {
               </svg>
             </span>
           </a>
+          )}
 
           {/* Right Controls */}
           <div className={`${styles.ppRightControls} ${styles.ppDesktopControls}`}>
