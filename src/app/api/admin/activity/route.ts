@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { REDACTED_EMAIL_BODY } from '@/lib/email';
+import { requireAdminModule, logAdminDataAccess } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify requesting user is admin
-    const requesterProfile = await prisma.profile.findUnique({
-      where: { id: userId },
-    });
-
-    if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
+    // Activity and email logs hold every user's IP, user agent and email
+    // contents, so they are Super Admin only (matches the sidebar).
+    const gate = await requireAdminModule('super');
+    if (!gate.ok) return gate.response;
 
     // Fetch user activity logs
     const userLogs = await prisma.userActivityLog.findMany({
@@ -74,6 +65,14 @@ export async function GET(request: NextRequest) {
         ? { ...log, body: REDACTED_EMAIL_BODY }
         : log
     );
+
+    await logAdminDataAccess({
+      admin: gate.admin,
+      action: 'Viewed activity and email logs',
+      entityType: 'DATA_ACCESS_ACTIVITY_LOGS',
+      rowCount: userLogs.length + adminLogs.length + emailLogs.length,
+      request,
+    });
 
     return NextResponse.json({
       userLogs: userLogsWithProfiles,

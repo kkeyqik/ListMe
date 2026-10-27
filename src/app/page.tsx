@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Building, Building2, ShieldCheck, Heart, Check, Tag, ArrowUp, MapPin, MessageSquare, Calendar, Home as HomeIcon, CheckCircle, Users, CircleDollarSign, Star, ChevronLeft, ChevronRight, ChevronDown, Navigation, Mic, ArrowLeft } from 'lucide-react';
 import { Header, Footer } from '../components/layout';
@@ -12,6 +13,8 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useAuth } from '@/context/AuthContext';
 import { MobileHome } from '../components/home/MobileHome';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 
 // Register ScrollTrigger plugin (client-side only to prevent SSR issues)
@@ -701,7 +704,7 @@ export default function Home() {
       setIsLoadingFeatured(true);
       try {
         if (closestCityName) {
-          const res = await fetch(`/api/listings?city=${encodeURIComponent(closestCityName)}`);
+          const res = await fetch(`/api/listings?city=${encodeURIComponent(closestCityName)}&limit=4&source=home`);
           if (res.ok) {
             const data = await res.json();
             if (data.listings) {
@@ -712,7 +715,7 @@ export default function Home() {
         }
         
         // General fallback if no city is detected/provided
-        const res = await fetch('/api/listings?limit=4');
+        const res = await fetch('/api/listings?limit=4&source=home');
         if (res.ok) {
           const data = await res.json();
           if (data.listings) {
@@ -1235,6 +1238,8 @@ export default function Home() {
                 }}
               >
                 <img 
+                  loading="lazy"
+                  decoding="async"
                   src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80" 
                   alt="Apartments" 
                   className={styles.typeCardImg}
@@ -1261,6 +1266,8 @@ export default function Home() {
                 }}
               >
                 <img 
+                  loading="lazy"
+                  decoding="async"
                   src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80" 
                   alt="Builder Floor" 
                   className={styles.typeCardImg}
@@ -1287,6 +1294,8 @@ export default function Home() {
                 }}
               >
                 <img 
+                  loading="lazy"
+                  decoding="async"
                   src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80" 
                   alt="Land/Plots" 
                   className={styles.typeCardImg}
@@ -1313,6 +1322,8 @@ export default function Home() {
                 }}
               >
                 <img 
+                  loading="lazy"
+                  decoding="async"
                   src="https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80" 
                   alt="Villas" 
                   className={styles.typeCardImg}
@@ -1339,6 +1350,8 @@ export default function Home() {
                 }}
               >
                 <img 
+                  loading="lazy"
+                  decoding="async"
                   src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80" 
                   alt="Studio" 
                   className={styles.typeCardImg}
@@ -1365,6 +1378,8 @@ export default function Home() {
                 }}
               >
                 <img 
+                  loading="lazy"
+                  decoding="async"
                   src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80" 
                   alt="Serviced Apartments" 
                   className={styles.typeCardImg}
@@ -1391,6 +1406,8 @@ export default function Home() {
                 }}
               >
                 <img 
+                  loading="lazy"
+                  decoding="async"
                   src="https://images.unsplash.com/photo-1500076656116-558758c991c1?auto=format&fit=crop&w=800&q=80" 
                   alt="Farmhouse" 
                   className={styles.typeCardImg}
@@ -1524,6 +1541,8 @@ export default function Home() {
                     {/* Image Wrap */}
                     <div className={styles.cardImageWrap}>
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={prop.image}
                         alt={prop.title}
                         className={styles.propertyImage}
@@ -1538,7 +1557,20 @@ export default function Home() {
                       <div className={styles.priceRow}>
                         <span className={styles.propertyPrice}>{prop.price}</span>
                       </div>
-                      <h3 className={styles.propertyTitle}>{prop.title}</h3>
+                      <h3 className={styles.propertyTitle}>
+                        {/* Real link (crawlable, middle-clickable) for genuine listings */}
+                        {UUID_RE.test(String(prop.id)) ? (
+                          <Link
+                            href={`/property/${prop.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ color: 'inherit', textDecoration: 'none' }}
+                          >
+                            {prop.title}
+                          </Link>
+                        ) : (
+                          prop.title
+                        )}
+                      </h3>
                       
                       <div className={styles.locationRow}>
                         <MapPin size={15} className={styles.locationIcon} />
@@ -1821,6 +1853,8 @@ export default function Home() {
                 }}
               >
                 <img
+                  loading="lazy"
+                  decoding="async"
                   src={city.image}
                   alt={`${city.name} city skyline`}
                   className={styles.cityCardImage}
@@ -1865,6 +1899,8 @@ export default function Home() {
                 </p>
                 <div className={styles.userProfile}>
                   <img
+                    loading="lazy"
+                    decoding="async"
                     src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&h=100&q=80"
                     alt="Rohan Mehta"
                     className={styles.userAvatar}
@@ -1884,6 +1920,8 @@ export default function Home() {
                 </p>
                 <div className={styles.userProfile}>
                   <img
+                    loading="lazy"
+                    decoding="async"
                     src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&h=100&q=80"
                     alt="Neha Sharma"
                     className={styles.userAvatar}
@@ -1903,6 +1941,8 @@ export default function Home() {
                 </p>
                 <div className={styles.userProfile}>
                   <img
+                    loading="lazy"
+                    decoding="async"
                     src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&h=100&q=80"
                     alt="Vikram Malhotra"
                     className={styles.userAvatar}
@@ -1938,6 +1978,8 @@ export default function Home() {
             <div className={styles.ctaSplitRight}>
               <div className={styles.villaGraphicContainer}>
                 <img
+                  loading="lazy"
+                  decoding="async"
                   src="/images/hero_bg.jpg"
                   alt="Modern house at night"
                   className={styles.villaGraphic}

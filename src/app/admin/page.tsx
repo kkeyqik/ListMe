@@ -33,6 +33,7 @@ export default function AdminHome() {
   const [pendingListings, setPendingListings] = useState<any[]>([]);
   const [recentInterests, setRecentInterests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadErrors, setLoadErrors] = useState<string[]>([]);
   const [actionId, setActionId] = useState<string | null>(null);
 
   // Rejection modal states
@@ -44,18 +45,25 @@ export default function AdminHome() {
   const fetchAdminData = async () => {
     try {
       setLoading(true);
-      // Fetch Metrics, Pending Listings, and Recent Interests in parallel
+      setLoadErrors([]);
+      // Fetch Metrics, Pending Listings, and Recent Interests in parallel.
+      // The queue is oldest-first so long-waiting submissions are not buried.
       const [metricsRes, listingsRes, interestsRes] = await Promise.all([
         fetch('/api/admin/metrics'),
-        fetch('/api/listings?admin=true&status=PENDING_REVIEW&limit=5'),
+        fetch('/api/listings?admin=true&status=PENDING_REVIEW&limit=5&sort=oldest'),
         fetch('/api/interests?mode=all')
       ]);
 
-      if (metricsRes.ok && listingsRes.ok && interestsRes.ok) {
-        const metricsData = await metricsRes.json();
-        const listingsData = await listingsRes.json();
-        const interestsData = await interestsRes.json();
+      // Handle each response on its own so one failure does not blank the
+      // others, and so a failure is shown instead of a misleading empty state.
+      const errors: string[] = [];
+      if (!metricsRes.ok) errors.push(`Metrics could not be loaded (error ${metricsRes.status}).`);
+      if (!listingsRes.ok) errors.push(`The pending approvals queue could not be loaded (error ${listingsRes.status}).`);
+      if (!interestsRes.ok && interestsRes.status !== 403) errors.push(`Recent interests could not be loaded (error ${interestsRes.status}).`);
+      setLoadErrors(errors);
 
+      if (metricsRes.ok) {
+        const metricsData = await metricsRes.json();
         setMetrics({
           totalListings: metricsData.metrics?.listings?.total || 0,
           activeListings: metricsData.metrics?.listings?.active || 0,
@@ -64,11 +72,18 @@ export default function AdminHome() {
           totalInterests: metricsData.metrics?.interests?.total || 0,
           estimatedCommissions: metricsData.metrics?.finance?.commissionEarned || 0,
         });
+      }
+      if (listingsRes.ok) {
+        const listingsData = await listingsRes.json();
         setPendingListings(listingsData.listings || []);
+      }
+      if (interestsRes.ok) {
+        const interestsData = await interestsRes.json();
         setRecentInterests((interestsData.interests || []).slice(0, 5));
       }
     } catch (err) {
       console.error('Error fetching admin home data:', err);
+      setLoadErrors(['The dashboard could not be loaded. Check your connection and try again.']);
       showToast('Error', 'Failed to retrieve admin control panel metrics', 'error');
     } finally {
       setLoading(false);
@@ -156,6 +171,35 @@ export default function AdminHome() {
           <p className={styles.subText}>Monitor site activity, moderate listings, and track commission collections.</p>
         </div>
       </div>
+
+      {loadErrors.length > 0 && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: '1.5rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            border: '1px solid var(--color-error-200, #fecaca)',
+            background: 'var(--color-error-50, #fef2f2)',
+            color: 'var(--color-error-700, #b91c1c)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            {loadErrors.map((msg) => (
+              <div key={msg}>{msg}</div>
+            ))}
+            <div>Counts and queues below may be incomplete.</div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => fetchAdminData()}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Metrics Grid */}
       <div className={styles.statsGrid}>

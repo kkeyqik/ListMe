@@ -740,9 +740,15 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                       <a href={`tel:${ownerContact?.phone || listing.owner?.phone}`} className={styles.contactLink}>
                         <Phone size={14} /> {ownerContact?.phone || listing.owner?.phone}
                       </a>
-                      <a href={`mailto:${ownerContact?.email || listing.owner?.email}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.812rem' }}>
-                        <Mail size={12} /> {ownerContact?.email || listing.owner?.email}
-                      </a>
+                      {/* Phone sign-ups have no real email (the API sends null), and the server-rendered owner only has placeholders. */}
+                      {(() => {
+                        const ownerEmail = ownerContact?.email || listing.owner?.email;
+                        return ownerEmail && ownerEmail.includes('@') ? (
+                          <a href={`mailto:${ownerEmail}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.812rem' }}>
+                            <Mail size={12} /> {ownerEmail}
+                          </a>
+                        ) : null;
+                      })()}
                     </div>
                   ) : (
                     <div className={styles.contactInfo} style={{ borderStyle: 'dashed', background: 'transparent', textAlign: 'center' }}>

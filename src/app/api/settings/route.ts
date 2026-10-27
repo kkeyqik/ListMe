@@ -3,6 +3,7 @@ import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { logAdminActivity } from '@/lib/activity-logger';
+import { hasAdminAccess } from '@/lib/admin-permissions';
 
 export async function GET() {
   try {
@@ -49,6 +50,19 @@ export async function PUT(request: NextRequest) {
     for (const [key, value] of Object.entries(body)) {
       if (typeof value !== 'string' || key.length > 100 || value.length > 10000) {
         return NextResponse.json({ message: `Invalid value for setting "${key.slice(0, 100)}"` }, { status: 400 });
+      }
+    }
+
+    // Site settings (contact phone, brand, analytics, ...) are Super Admin
+    // only. An ADMIN with the 'seo' permission may change seo_* keys only.
+    if (!hasAdminAccess(requesterProfile, 'super')) {
+      const keys = Object.keys(body);
+      const seoOnly = keys.length > 0 && keys.every((k) => k.startsWith('seo_'));
+      if (!seoOnly || !hasAdminAccess(requesterProfile, 'seo')) {
+        return NextResponse.json(
+          { message: 'Forbidden: only a Super Admin can change these settings' },
+          { status: 403 }
+        );
       }
     }
 

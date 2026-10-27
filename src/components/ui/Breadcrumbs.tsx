@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ChevronRight, Home } from 'lucide-react';
 import { serializeJsonLd } from '@/lib/json-ld';
+import { absoluteUrl } from '@/lib/site-url';
 import styles from './Breadcrumbs.module.css';
 
 interface BreadcrumbItem {
@@ -23,13 +24,13 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ items }) => {
         '@type': 'ListItem',
         'position': 1,
         'name': 'Home',
-        'item': 'https://listme.in/'
+        'item': absoluteUrl('/')
       },
       ...items.map((item, index) => ({
         '@type': 'ListItem',
         'position': index + 2,
         'name': item.label,
-        ...(item.href ? { item: `https://listme.in${item.href}` } : {})
+        ...(item.href ? { item: absoluteUrl(item.href) } : {})
       }))
     ]
   };

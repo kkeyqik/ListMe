@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Menu, Home, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AdminSidebar } from '@/components/layout';
 import { AdminMobileBottomNav } from '@/components/layout/AdminMobileBottomNav';
+import { hasAdminAccess, requiredAccessForAdminPath } from '@/lib/admin-permissions';
 import styles from '../dashboard/layout.module.css';
 
 export default function AdminLayout({
@@ -16,11 +17,17 @@ export default function AdminLayout({
 }) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isAdmin = 
     profile?.role === 'ADMIN' || 
     profile?.role === 'SUPER_ADMIN';
+
+  // Mirrors the server checks (proxy + API routes): pages for modules this
+  // admin has no permission for are not rendered.
+  const requiredAccess = requiredAccessForAdminPath(pathname || '/admin');
+  const hasPageAccess = isAdmin && (!requiredAccess || hasAdminAccess(profile, requiredAccess));
 
   // Client-side admin verification check
   useEffect(() => {
@@ -74,9 +81,15 @@ export default function AdminLayout({
 
         {/* Dynamic page contents */}
         <main className={styles.pageContainer}>
-          {loading || !user ? (
+          {loading || !user || !isAdmin ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
               <div className={styles.spinner} role="status" aria-label="loading" />
+            </div>
+          ) : !hasPageAccess ? (
+            <div role="alert" style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+              <h2>No access</h2>
+              <p>Your admin account does not have permission for this section. Ask a Super Admin to grant it in Role Manager.</p>
+              <Link href="/admin">Back to overview</Link>
             </div>
           ) : (
             children

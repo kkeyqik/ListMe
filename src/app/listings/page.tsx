@@ -1,11 +1,38 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Building, Bed, Square, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header, Footer } from '@/components/layout';
 import { Card, Badge, Button, Input, Select } from '@/components/ui';
 import styles from './listings.module.css';
+
+// Params that must never be forwarded from the public URL to the API
+// (owner/admin modes need auth and would 401/403 for visitors).
+const PRIVATE_API_PARAMS = new Set(['owner', 'admin', 'status', 'limit', 'source']);
+
+// Params managed by the sidebar form; everything else in the URL is preserved as-is.
+const SIDEBAR_PARAMS = ['type', 'city', 'location', 'query', 'property_type', 'property_types', 'min_price', 'max_price', 'bhk', 'furnishing', 'sort', 'page'];
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  APARTMENT: 'Apartment / Flat',
+  BUILDER_FLOOR: 'Builder Floor',
+  HOUSE: 'Independent House',
+  VILLA: 'Villa',
+  PENTHOUSE: 'Penthouse',
+  STUDIO: 'Studio / 1 RK',
+  FARM_HOUSE: 'Farm House',
+  PLOT: 'Plot / Land',
+  PG: 'PG / Hostel',
+  OFFICE: 'Office Space',
+  SHOP: 'Shop / Retail',
+  WAREHOUSE: 'Warehouse / Industrial',
+  COMMERCIAL_LAND: 'Commercial Land',
+};
+
+const titleCase = (value: string) =>
+  value.replace(/\b\w/g, (c) => c.toUpperCase());
 
 function ListingsSearchContent() {
   const router = useRouter();
@@ -14,8 +41,9 @@ function ListingsSearchContent() {
   // Search parameters states
   const type = searchParams.get('type') || '';
   const city = searchParams.get('city') || searchParams.get('location') || '';
+  const locality = searchParams.get('locality') || '';
   const queryParam = searchParams.get('query') || '';
-  
+
   const [listings, setListings] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -23,6 +51,8 @@ function ListingsSearchContent() {
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState(queryParam);
+  const [listingType, setListingType] = useState(type || 'ALL');
+  const [cityInput, setCityInput] = useState(city);
   const [propertyType, setPropertyType] = useState(searchParams.get('property_type') || 'ALL');
   const [minPrice, setMinPrice] = useState(searchParams.get('min_price') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('max_price') || '');
@@ -34,6 +64,8 @@ function ListingsSearchContent() {
   // Sync state with URL change
   useEffect(() => {
     setSearchQuery(searchParams.get('query') || '');
+    setListingType(searchParams.get('type') || 'ALL');
+    setCityInput(searchParams.get('city') || searchParams.get('location') || '');
     setPropertyType(searchParams.get('property_type') || 'ALL');
     setMinPrice(searchParams.get('min_price') || '');
     setMaxPrice(searchParams.get('max_price') || '');
@@ -47,26 +79,20 @@ function ListingsSearchContent() {
   const fetchResults = async (signal?: AbortSignal) => {
     setLoading(true);
     try {
+      // Forward every filter in the URL (locality, possession, area, commercial_trade, ...)
+      // so nothing chosen in the search UI is silently dropped.
       const params = new URLSearchParams();
-      if (type) params.append('type', type);
-      if (city) params.append('city', city);
-      const activeQuery = searchParams.get('query');
-      if (activeQuery) params.append('query', activeQuery);
-      const activePropertyType = searchParams.get('property_type');
-      if (activePropertyType && activePropertyType !== 'ALL') params.append('property_type', activePropertyType);
-      const activeMinPrice = searchParams.get('min_price');
-      if (activeMinPrice) params.append('min_price', activeMinPrice);
-      const activeMaxPrice = searchParams.get('max_price');
-      if (activeMaxPrice) params.append('max_price', activeMaxPrice);
-      const activeBhk = searchParams.get('bhk');
-      if (activeBhk && activeBhk !== 'ALL') params.append('bhk', activeBhk);
-      const activeFurnishing = searchParams.get('furnishing');
-      if (activeFurnishing && activeFurnishing !== 'ALL') params.append('furnishing', activeFurnishing);
-      const activeSort = searchParams.get('sort') || 'newest';
-      if (activeSort) params.append('sort', activeSort);
-      const activePage = searchParams.get('page') || '1';
-      params.append('page', activePage);
-      params.append('limit', '12');
+      searchParams.forEach((value, key) => {
+        if (!value || value === 'ALL' || PRIVATE_API_PARAMS.has(key)) return;
+        if (key === 'location') {
+          if (!searchParams.get('city')) params.set('city', value);
+          return;
+        }
+        params.append(key, value);
+      });
+      if (!params.get('sort')) params.set('sort', 'newest');
+      if (!params.get('page')) params.set('page', '1');
+      params.set('limit', '12');
 
       const res = await fetch(`/api/listings?${params.toString()}`, { signal });
       const data = await res.json();
@@ -92,11 +118,19 @@ function ListingsSearchContent() {
 
   // Apply filters by pushing to URL router
   const applyFilters = () => {
+    // Keep URL filters the sidebar doesn't manage (locality, possession, area, ...)
     const params = new URLSearchParams();
-    if (type) params.append('type', type);
-    if (city) params.append('city', city);
+    searchParams.forEach((value, key) => {
+      if (!SIDEBAR_PARAMS.includes(key)) params.append(key, value);
+    });
+    const nextCity = cityInput.trim();
+    if (listingType !== 'ALL') params.append('type', listingType);
+    else if (type === 'project') params.append('type', type);
+    if (nextCity) params.append('city', nextCity);
+    if (nextCity.toLowerCase() !== city.toLowerCase()) params.delete('locality');
     if (searchQuery) params.append('query', searchQuery);
     if (propertyType !== 'ALL') params.append('property_type', propertyType);
+    else if (searchParams.get('property_types')) params.append('property_types', searchParams.get('property_types') as string);
     if (minPrice) params.append('min_price', minPrice);
     if (maxPrice) params.append('max_price', maxPrice);
     if (bhk !== 'ALL') params.append('bhk', bhk);
@@ -115,11 +149,11 @@ function ListingsSearchContent() {
         if (searchQuery) {
           parts.push(`"${searchQuery}"`);
         }
-        if (city) {
-          parts.push(city.charAt(0).toUpperCase() + city.slice(1));
+        if (nextCity) {
+          parts.push(nextCity.charAt(0).toUpperCase() + nextCity.slice(1));
         }
-        if (type) {
-          parts.push(type === 'sale' ? 'For Sale' : type === 'rent' ? 'For Rent' : type);
+        if (listingType !== 'ALL') {
+          parts.push(listingType === 'sale' ? 'For Sale' : listingType === 'rent' ? 'For Rent' : listingType);
         }
         if (propertyType !== 'ALL') {
           parts.push(propertyType.charAt(0).toUpperCase() + propertyType.slice(1).toLowerCase());
@@ -161,13 +195,22 @@ function ListingsSearchContent() {
     return `₹${val.toLocaleString('en-IN')}`;
   };
 
+  // Heading reflects the actual filters instead of defaulting to "Commercial"
+  const activePropertyType = (searchParams.get('property_type') || '').toUpperCase();
+  const typeNoun = PROPERTY_TYPE_LABELS[activePropertyType]
+    || (type === 'commercial' ? 'Commercial Properties' : type === 'project' ? 'New Projects' : 'Properties');
+  const bhkNum = parseInt(searchParams.get('bhk') || '', 10);
+  const bhkPrefix = Number.isFinite(bhkNum) && bhkNum > 0 ? `${bhkNum >= 5 ? '5+' : bhkNum} BHK ` : '';
+  const purpose = type === 'sale' ? ' for Sale' : type === 'rent' ? ' for Rent' : '';
+  const place = [locality, city].filter(Boolean).map(titleCase).join(', ');
+  const heading = `${bhkPrefix}${typeNoun}${purpose}${place ? ` in ${place}` : ''}`;
+
   return (
     <div className={`${styles.container} container`}>
       {/* Title */}
       <div>
         <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800 }}>
-          Properties for {type === 'sale' ? 'Sale' : type === 'rent' ? 'Rent' : 'Commercial'} 
-          {city ? ` in ${city.charAt(0).toUpperCase() + city.slice(1)}` : ''}
+          {heading}
         </h1>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.937rem', marginTop: '0.25rem' }}>
           Browse verified owner property listings with zero brokerage fee.
@@ -189,6 +232,36 @@ function ListingsSearchContent() {
             />
           </div>
 
+          {/* Buy / Rent / Commercial */}
+          <div className={styles.filterGroup}>
+            <label className={styles.filterTitle}>Looking To</label>
+            <Select
+              size="sm"
+              fullWidth
+              value={listingType}
+              onChange={(e) => setListingType(e.target.value)}
+              options={[
+                { value: 'ALL', label: type === 'project' ? 'New Projects' : 'Buy or Rent' },
+                { value: 'sale', label: 'Buy' },
+                { value: 'rent', label: 'Rent' },
+                { value: 'commercial', label: 'Commercial' },
+              ]}
+            />
+          </div>
+
+          {/* City */}
+          <div className={styles.filterGroup}>
+            <label className={styles.filterTitle}>City</label>
+            <Input
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+              placeholder="Any city"
+              leftIcon={<MapPin size={16} />}
+              fullWidth
+            />
+          </div>
+
           {/* Property Type */}
           <div className={styles.filterGroup}>
             <label className={styles.filterTitle}>Property Type</label>
@@ -199,13 +272,7 @@ function ListingsSearchContent() {
               onChange={(e) => setPropertyType(e.target.value)}
               options={[
                 { value: 'ALL', label: 'All Categories' },
-                { value: 'APARTMENT', label: 'Apartment / Flat' },
-                { value: 'HOUSE', label: 'Independent House' },
-                { value: 'VILLA', label: 'Villa' },
-                { value: 'PLOT', label: 'Plot / Land' },
-                { value: 'OFFICE', label: 'Office Space' },
-                { value: 'SHOP', label: 'Shop / Retail' },
-                { value: 'PG', label: 'PG / Hostel' },
+                ...Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({ value, label })),
               ]}
             />
           </div>
@@ -279,7 +346,7 @@ function ListingsSearchContent() {
             <div className={styles.resultsCount}>
               Showing <strong>{listings.length}</strong> of <strong>{total}</strong> listings
             </div>
-            
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>Sort By:</span>
               <Select
@@ -309,26 +376,27 @@ function ListingsSearchContent() {
             </Card>
           ) : (
             <div className={styles.grid}>
-              {listings.map((item) => (
-                <Card 
-                  key={item.id} 
-                  className={styles.propertyCard} 
-                  hoverable 
-                  clickable
-                  onClick={() => router.push(`/property/${item.id}`)}
+              {listings.map((item, index) => (
+                <Link key={item.id} href={`/property/${item.id}`} className={styles.cardLink}>
+                <Card
+                  className={styles.propertyCard}
+                  hoverable
                 >
                   <div className={styles.cardImageArea}>
                     <Badge variant="secondary" className={styles.cardBadge}>
-                      {item.listingFor}
+                      {item.listingFor === 'RENT' ? 'For Rent' : item.listingFor === 'SALE' ? 'For Sale' : item.listingFor}
                     </Badge>
                     <div className={styles.cardPrice}>
                       {formatPrice(item.askingPrice)}
+                      {item.listingFor === 'RENT' && <span className={styles.priceUnit}>/month</span>}
                     </div>
                     {item.images?.[0]?.imageUrl ? (
                       <img
                         src={item.images[0].imageUrl}
                         alt={item.title}
                         className={styles.cardImage}
+                        loading={index < 3 ? 'eager' : 'lazy'}
+                        decoding="async"
                       />
                     ) : (
                       <Building size={64} style={{ color: 'var(--color-neutral-300)' }} />
@@ -343,7 +411,7 @@ function ListingsSearchContent() {
                     </div>
 
                     <div className={styles.cardSpecs}>
-                      {item.bedrooms && (
+                      {item.bedrooms > 0 && (
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                             <Bed size={14} /> {item.bedrooms} BHK
@@ -351,9 +419,9 @@ function ListingsSearchContent() {
                           <span className={styles.specDivider} />
                         </>
                       )}
-                      {item.carpetArea && (
+                      {(item.carpetArea || item.plotArea) > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <Square size={12} /> {item.carpetArea} sqft
+                          <Square size={12} /> {item.carpetArea || item.plotArea} sqft
                         </div>
                       )}
                     </div>
@@ -363,11 +431,12 @@ function ListingsSearchContent() {
                     <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-secondary-dark)' }}>
                       DIRECT FROM OWNER
                     </span>
-                    <Button variant="ghost" size="sm" style={{ padding: '0 0.5rem', minHeight: 'auto' }}>
+                    <span className={styles.viewDetails} aria-hidden="true">
                       View Details
-                    </Button>
+                    </span>
                   </div>
                 </Card>
+                </Link>
               ))}
             </div>
           )}

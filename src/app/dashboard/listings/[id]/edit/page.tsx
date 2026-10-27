@@ -16,11 +16,14 @@ import {
   FileText,
   Locate,
   X,
-  Video
+  Video,
+  Star,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useToast, Button, Input, Card, Select, Combobox } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
 import {
-  deleteListingFile,
   uploadListingFile,
   validateDocument,
   validateImage,
@@ -29,6 +32,12 @@ import {
 } from '@/lib/upload';
 import styles from '@/app/dashboard/listings/new/new.module.css';
 
+const MAX_PHOTOS = 20;
+
+// Local, non-persisted id for a picked file (module counter keeps render pure)
+let localFileCounter = 0;
+const nextLocalFileId = () => `file-${++localFileCounter}`;
+
 interface EditListingProps {
   params: Promise<{ id: string }>;
 }
@@ -36,7 +45,10 @@ interface EditListingProps {
 export default function EditListing({ params }: EditListingProps) {
   const router = useRouter();
   const { showToast } = useToast();
-  
+  const { profile } = useAuth();
+  // Admin edits never send a listing back to review (server rule)
+  const isAdminEditor = profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN';
+
   // Resolve params Promise (Next.js 16 requirement)
   const resolvedParams = use(params);
   const listingId = resolvedParams.id;
@@ -87,7 +99,15 @@ export default function EditListing({ params }: EditListingProps) {
   });
 
   // Media States (re-load current items)
+  // currentPhotos is kept in display order; the first photo is the cover.
   const [currentPhotos, setCurrentPhotos] = useState<any[]>([]);
+  const [initialPhotoOrder, setInitialPhotoOrder] = useState<string[]>([]);
+  const [removedPhotos, setRemovedPhotos] = useState<any[]>([]);
+  const [currentDocs, setCurrentDocs] = useState<any[]>([]);
+  const [removedDocs, setRemovedDocs] = useState<any[]>([]);
+  // Values as loaded, used to warn before a save that sends the listing back to review
+  const initialListingRef = React.useRef<any>(null);
+  const [initialVideoIsLink, setInitialVideoIsLink] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<any[]>([]);
   const [selectedDocs, setSelectedDocs] = useState<any[]>([]);
   const [initialVideoUrl, setInitialVideoUrl] = useState('');
@@ -102,6 +122,12 @@ export default function EditListing({ params }: EditListingProps) {
   } | null>(null);
   const [videoMode, setVideoMode] = useState<'upload' | 'link'>('upload');
   const [deleteExistingVideo, setDeleteExistingVideo] = useState(false);
+
+  // Track last resolved pin code to avoid duplicate fetches and loops
+  const lastResolvedPinRef = React.useRef<string>('');
+  // Last locality the PIN was auto-filled for (seeded with the saved locality)
+  const lastAutofilledLocalityRef = React.useRef<string>('');
+  const prevCityRef = React.useRef(formData.city);
 
   // Fetch Cities, Amenities, and Existing Listing Details
   useEffect(() => {
@@ -126,18 +152,53 @@ export default function EditListing({ params }: EditListingProps) {
             return;
           }
 
-          setCities(citiesData.cities || []);
-          setAmenities(amenitiesData.amenities || []);
+          // Only the owner or an admin can edit; don't show a form that would fail on save
+          if (!listingData.isOwnerOrAdmin) {
+            showToast('Not allowed', 'You can only edit your own listings', 'error');
+            router.push('/dashboard/listings');
+            return;
+          }
 
           // Map existing listing details to form state
           const listing = listingData.listing;
+
+          // Keep the listing's saved city selectable even if it is not in the cities list
+          const loadedCities: any[] = citiesData.cities || [];
+          if (
+            listing.city &&
+            !loadedCities.some((c: any) => c.name?.toLowerCase() === String(listing.city).toLowerCase())
+          ) {
+            loadedCities.push({ id: `saved-${listing.city}`, name: listing.city, localities: [] });
+          }
+          setCities(loadedCities);
+          setAmenities(amenitiesData.amenities || []);
+
+          // The saved PIN/locality are already resolved: only re-run the India Post
+          // lookup or locality→PIN autofill when the owner actually changes them,
+          // so opening Edit never rewrites city/locality behind the owner's back.
+          lastResolvedPinRef.current = String(listing.pinCode || '').replace(/\D/g, '');
+          lastAutofilledLocalityRef.current = String(listing.locality || '').toLowerCase();
+          prevCityRef.current = listing.city || '';
+          initialListingRef.current = {
+            status: listing.status,
+            listingFor: listing.listingFor,
+            propertyType: listing.propertyType,
+            askingPrice: listing.askingPrice ? parseFloat(listing.askingPrice.toString()) : null,
+            city: listing.city || '',
+            locality: listing.locality || '',
+            pinCode: listing.pinCode || '',
+            fullAddress: listing.fullAddress || '',
+          };
+
           const existingVideo = listing.videos?.[0]?.videoUrl || '';
           setInitialVideoUrl(existingVideo);
           if (existingVideo) {
+            const isUploaded = existingVideo.includes('/listing-videos/');
+            setInitialVideoIsLink(!isUploaded);
             const isEmbed = /youtube\.com|youtu\.be|vimeo\.com|streamable\.com|loom\.com/i.test(existingVideo);
             setVideoMode(isEmbed ? 'link' : 'upload');
           }
-          
+
           setFormData({
             listingFor: listing.listingFor || 'SALE',
             propertyType: listing.propertyType || 'APARTMENT',
@@ -173,10 +234,15 @@ export default function EditListing({ params }: EditListingProps) {
             selectedAmenities: listing.amenities?.map((a: any) => a.amenityId) || [],
           });
 
-          setInitialVideoUrl(existingVideo);
-
-          // Preload current photo names for visual feedback
-          setCurrentPhotos(listing.images || []);
+          // Existing photos in display order, cover first
+          const orderedPhotos = [...(listing.images || [])].sort(
+            (a: any, b: any) =>
+              Number(!!b.isPrimary) - Number(!!a.isPrimary) ||
+              (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+          );
+          setCurrentPhotos(orderedPhotos);
+          setInitialPhotoOrder(orderedPhotos.map((img: any) => img.id));
+          setCurrentDocs(listing.documents || []);
         } else {
           showToast('Error', 'Failed to retrieve property details', 'error');
           router.push('/dashboard/listings');
@@ -191,9 +257,6 @@ export default function EditListing({ params }: EditListingProps) {
     fetchAllData();
   }, [listingId, showToast, router]);
 
-  // Track last resolved pin code to avoid duplicate fetches and loops
-  const lastResolvedPinRef = React.useRef<string>('');
-  const prevCityRef = React.useRef(formData.city);
 
   // Update localities list based on selected city without wiping existing custom locality
   useEffect(() => {
@@ -221,10 +284,14 @@ export default function EditListing({ params }: EditListingProps) {
   // Auto-fill PIN Code when locality is selected from pre-seeded list
   useEffect(() => {
     if (formData.locality && formData.city && localities.length > 0) {
+      // Only autofill after the owner picks a different locality, never for the saved one
+      if (formData.locality.toLowerCase() === lastAutofilledLocalityRef.current) return;
       const selectedLocObj = localities.find(
         (l) => typeof l !== 'string' && l.name?.toLowerCase() === formData.locality.toLowerCase()
       );
+      if (selectedLocObj) lastAutofilledLocalityRef.current = formData.locality.toLowerCase();
       if (selectedLocObj?.pinCode && formData.pinCode !== selectedLocObj.pinCode) {
+        lastResolvedPinRef.current = selectedLocObj.pinCode;
         setFormData((prev: any) => ({ ...prev, pinCode: selectedLocObj.pinCode }));
         showToast('PIN Code Verified', `Auto-filled code for ${formData.locality}: ${selectedLocObj.pinCode}`, 'success');
       }
@@ -364,10 +431,17 @@ export default function EditListing({ params }: EditListingProps) {
     });
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const files = Array.from(e.target.files);
-    
+  const addPhotoFiles = (incoming: File[]) => {
+    const room = MAX_PHOTOS - currentPhotos.length - selectedPhotos.length;
+    if (room <= 0) {
+      showToast('Photo limit reached', `A listing can have up to ${MAX_PHOTOS} photos.`, 'warning');
+      return;
+    }
+    if (incoming.length > room) {
+      showToast('Photo limit reached', `Only the first ${room} photo(s) were added (max ${MAX_PHOTOS}).`, 'warning');
+    }
+    const files = incoming.slice(0, room);
+
     const newPhotos = files.reduce((acc: any[], file) => {
       const validation = validateImage(file);
       if (!validation.valid) {
@@ -376,7 +450,7 @@ export default function EditListing({ params }: EditListingProps) {
       }
 
       acc.push({
-        id: Math.random().toString(36).substring(2, 9),
+        id: nextLocalFileId(),
         name: file.name,
         file,
         progress: 0,
@@ -390,10 +464,34 @@ export default function EditListing({ params }: EditListingProps) {
     setSelectedPhotos((prev) => [...prev, ...newPhotos]);
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    addPhotoFiles(Array.from(e.target.files));
+    // Reset so picking the same file again (after removing it) fires onChange
+    e.target.value = '';
+  };
+
   const handleDocSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const files = Array.from(e.target.files);
+    addDocFiles(Array.from(e.target.files));
+    e.target.value = '';
+  };
 
+  // Drag & drop onto a dropzone: stop the browser from opening the file (which
+  // would navigate away and lose the form) and reuse the picker handlers.
+  const dropHandlers = (onFiles: (files: File[]) => void) => ({
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      if (submitting) return;
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) onFiles(files);
+    },
+  });
+
+  const addDocFiles = (files: File[]) => {
     const newDocs = files.reduce((acc: any[], file) => {
       const validation = validateDocument(file);
       if (!validation.valid) {
@@ -402,7 +500,7 @@ export default function EditListing({ params }: EditListingProps) {
       }
 
       acc.push({
-        id: Math.random().toString(36).substring(2, 9),
+        id: nextLocalFileId(),
         name: file.name,
         file,
         progress: 0,
@@ -424,9 +522,58 @@ export default function EditListing({ params }: EditListingProps) {
     setSelectedDocs((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Existing photos/documents: changes are staged here and applied on Save
+  const moveCurrentPhoto = (index: number, delta: number) => {
+    setCurrentPhotos((prev) => {
+      const target = index + delta;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const setCoverPhoto = (index: number) => {
+    setCurrentPhotos((prev) => {
+      if (index <= 0 || index >= prev.length) return prev;
+      const next = [...prev];
+      const [cover] = next.splice(index, 1);
+      return [cover, ...next];
+    });
+  };
+
+  const removeCurrentPhoto = (index: number) => {
+    const photo = currentPhotos[index];
+    if (!photo) return;
+    setCurrentPhotos((prev) => prev.filter((_, i) => i !== index));
+    setRemovedPhotos((prev) => [...prev, photo]);
+  };
+
+  const removeCurrentDoc = (index: number) => {
+    const doc = currentDocs[index];
+    if (!doc) return;
+    setCurrentDocs((prev) => prev.filter((_, i) => i !== index));
+    setRemovedDocs((prev) => [...prev, doc]);
+  };
+
+  const undoMediaRemovals = () => {
+    // Restored photos go back at the end; the owner can reorder them again
+    if (removedPhotos.length) setCurrentPhotos((prev) => [...prev, ...removedPhotos]);
+    if (removedDocs.length) setCurrentDocs((prev) => [...prev, ...removedDocs]);
+    setRemovedPhotos([]);
+    setRemovedDocs([]);
+  };
+
   const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return;
     const file = e.target.files[0];
+    e.target.value = '';
+    selectVideoFile(file);
+  };
+
+  const dropVideoFiles = (files: File[]) => selectVideoFile(files[0]);
+
+  const selectVideoFile = (file: File) => {
     const validation = validateVideo(file);
     if (!validation.valid) {
       showToast('Invalid Video', validation.error || 'Please select a valid video file', 'error');
@@ -434,7 +581,7 @@ export default function EditListing({ params }: EditListingProps) {
     }
     const previewUrl = URL.createObjectURL(file);
     setSelectedVideo({
-      id: Math.random().toString(36).substring(2, 9),
+      id: nextLocalFileId(),
       name: file.name,
       size: file.size,
       file,
@@ -463,20 +610,9 @@ export default function EditListing({ params }: EditListingProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const removeExistingVideo = async () => {
-    // S8: Delete the Storage binary when removing an existing Supabase-hosted video
-    if (initialVideoUrl && initialVideoUrl.includes('/listing-videos/')) {
-      try {
-        // Extract the storage path from the public URL
-        const match = initialVideoUrl.match(/\/listing-videos\/(.+)/);
-        if (match && match[1]) {
-          await deleteListingFile(listingId, 'videos', decodeURIComponent(match[1]));
-        }
-      } catch (err) {
-        console.warn('Could not delete video from storage:', err);
-        // Non-blocking: DB row will still be removed
-      }
-    }
+  const removeExistingVideo = () => {
+    // Only staged here. The stored file is deleted by the media API after Save
+    // commits the change, so leaving the page without saving keeps the video.
     setDeleteExistingVideo(true);
     setFormData((prev: any) => ({ ...prev, videoUrl: '' }));
   };
@@ -500,11 +636,10 @@ export default function EditListing({ params }: EditListingProps) {
         )
       );
 
+      // Order and cover are decided by the server (new photos go after existing ones)
       images.push({
         imageUrl: publicUrl,
         imageType: 'photo',
-        displayOrder: currentPhotos.length + index,
-        isPrimary: currentPhotos.length === 0 && index === 0,
       });
     }
 
@@ -556,6 +691,10 @@ export default function EditListing({ params }: EditListingProps) {
     } else if (videoUrlToSave?.trim() && videoUrlToSave.trim() !== initialVideoUrl) {
       finalVideoUrl = videoUrlToSave.trim();
       shouldUpdateVideos = true;
+    } else if (videoMode === 'link' && initialVideoIsLink && initialVideoUrl && !videoUrlToSave?.trim()) {
+      // The owner cleared the saved video link: remove the video
+      finalVideoUrl = '';
+      shouldUpdateVideos = true;
     } else if (!deleteExistingVideo && initialVideoUrl) {
       finalVideoUrl = initialVideoUrl;
     }
@@ -577,8 +716,43 @@ export default function EditListing({ params }: EditListingProps) {
       });
 
       if (!mediaResponse.ok) {
-        const data = await mediaResponse.json();
+        const data = await mediaResponse.json().catch(() => ({}));
         throw new Error(data.message || 'Failed to save listing media');
+      }
+    }
+  };
+
+  // Applies staged deletions and the new photo order for existing media
+  const applyExistingMediaChanges = async () => {
+    if (removedPhotos.length || removedDocs.length) {
+      const res = await fetch(`/api/listings/${listingId}/media`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageIds: removedPhotos.map((p) => p.id),
+          documentIds: removedDocs.map((d) => d.id),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to remove photos or documents');
+      }
+    }
+
+    const keptInitialOrder = initialPhotoOrder.filter((photoId) =>
+      currentPhotos.some((p) => p.id === photoId)
+    );
+    const newOrder = currentPhotos.map((p) => p.id);
+    const orderChanged = newOrder.some((photoId, i) => photoId !== keptInitialOrder[i]);
+    if (newOrder.length && orderChanged) {
+      const res = await fetch(`/api/listings/${listingId}/media`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageOrder: newOrder }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to update photo order');
       }
     }
   };
@@ -601,6 +775,7 @@ export default function EditListing({ params }: EditListingProps) {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
           );
+          if (!res.ok) throw new Error('Failed to resolve coordinates');
           const data = await res.json();
           const address = data.address || {};
           const rawCity = address.city || address.town || address.village || address.state_district || '';
@@ -721,6 +896,28 @@ export default function EditListing({ params }: EditListingProps) {
       deleteExistingVideo ||
       normalizedVideo !== initialVideoUrl.trim();
 
+    // Mirrors the server's "core change" rule: these edits send the listing back to review
+    const initial = initialListingRef.current;
+    const coreChanged =
+      !!initial &&
+      (formData.listingFor !== initial.listingFor ||
+        formData.propertyType !== initial.propertyType ||
+        (!!formData.askingPrice && parseFloat(formData.askingPrice) !== initial.askingPrice) ||
+        (!!formData.city && formData.city !== initial.city) ||
+        (!!formData.locality && formData.locality !== initial.locality) ||
+        (!!formData.pinCode && formData.pinCode !== initial.pinCode) ||
+        (!!formData.fullAddress && formData.fullAddress !== initial.fullAddress));
+    if (
+      coreChanged &&
+      !isAdminEditor &&
+      initial?.status === 'ACTIVE' &&
+      !window.confirm(
+        'You changed the price, type, or location of this listing. After saving, it will go back to admin review and be hidden from search until it is approved again. Continue?'
+      )
+    ) {
+      return;
+    }
+
     setSubmitting(true);
     try {
       const response = await fetch(`/api/listings/${listingId}`, {
@@ -728,26 +925,43 @@ export default function EditListing({ params }: EditListingProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          // Don't save blank highlight bullets
+          keyHighlights: (formData.keyHighlights || [])
+            .map((h: unknown) => String(h ?? '').trim())
+            .filter(Boolean),
           videoUrl: deleteExistingVideo ? '' : (selectedVideo ? '' : normalizedVideo),
           amenities: formData.selectedAmenities,
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
         if (selectedPhotos.length > 0 || selectedDocs.length > 0 || videoChanged) {
           await uploadListingMedia(videoChanged, normalizedVideo);
         }
+        await applyExistingMediaChanges();
 
-        showToast('Success', 'Listing updated successfully', 'success');
+        const sentForReview =
+          data?.listing?.status === 'PENDING_REVIEW' && initial?.status !== 'PENDING_REVIEW';
+        showToast(
+          'Success',
+          sentForReview
+            ? 'Listing updated and sent for admin review'
+            : 'Listing updated successfully',
+          'success'
+        );
         router.push('/dashboard/listings');
       } else {
         showToast('Error', data.message || 'Failed to update listing', 'error');
       }
     } catch (err) {
       console.error('Submit error:', err);
-      showToast('Error', 'Something went wrong. Please check connection.', 'error');
+      showToast(
+        'Error',
+        err instanceof Error && err.message ? err.message : 'Something went wrong. Please check connection.',
+        'error'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -960,7 +1174,7 @@ export default function EditListing({ params }: EditListingProps) {
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Full Address (Private — Visible only to Admin)</label>
+              <label className={styles.label}>Full Address (Private — visible only to ListMe admins; seekers see just the locality and city)</label>
               <textarea
                 name="fullAddress"
                 value={formData.fullAddress}
@@ -1342,33 +1556,98 @@ export default function EditListing({ params }: EditListingProps) {
             {currentPhotos.length > 0 && (
               <div className={styles.formGroup}>
                 <label className={styles.label}>Current Property Photos</label>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block' }}>
+                  The first photo is the cover shown in search. Use the arrows to reorder, the star to make a photo the cover, or the bin to remove it. Changes apply when you save.
+                </span>
                 <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                  {currentPhotos.map((img) => (
-                    <div 
-                      key={img.id} 
-                      style={{ 
-                        position: 'relative', 
-                        width: '80px', 
-                        height: '80px', 
-                        borderRadius: 'var(--radius-md)', 
-                        border: '1px solid var(--color-border)',
-                        background: '#f5f5f5',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.625rem',
-                        fontWeight: 600,
-                        color: 'var(--color-text-secondary)'
-                      }}
-                    >
-                      {img.imageUrl ? (
-                        <img
-                          src={img.imageUrl}
-                          alt="Current property photo"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius-md)' }}
-                        />
-                      ) : (
-                        'Photo'
+                  {currentPhotos.map((img, index) => (
+                    <div key={img.id} style={{ width: '120px' }}>
+                      <div
+                        style={{
+                          position: 'relative',
+                          width: '120px',
+                          height: '90px',
+                          borderRadius: 'var(--radius-md)',
+                          border: index === 0 ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                          background: '#f5f5f5',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.625rem',
+                          fontWeight: 600,
+                          color: 'var(--color-text-secondary)',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {img.imageUrl ? (
+                          <img
+                            src={img.imageUrl}
+                            alt={`Property photo ${index + 1}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          'Photo'
+                        )}
+                        {index === 0 && (
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              left: '4px',
+                              background: 'var(--color-primary)',
+                              color: '#fff',
+                              fontSize: '0.625rem',
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: 'var(--radius-sm)',
+                            }}
+                          >
+                            Cover
+                          </span>
+                        )}
+                      </div>
+                      {!submitting && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => moveCurrentPhoto(index, -1)}
+                            disabled={index === 0}
+                            aria-label={`Move photo ${index + 1} earlier`}
+                            title="Move earlier"
+                            style={{ background: 'none', border: 'none', padding: '4px', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1, color: 'var(--color-text-secondary)' }}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCoverPhoto(index)}
+                            disabled={index === 0}
+                            aria-label={index === 0 ? 'Cover photo' : `Set photo ${index + 1} as cover`}
+                            title={index === 0 ? 'Cover photo' : 'Set as cover'}
+                            style={{ background: 'none', border: 'none', padding: '4px', cursor: index === 0 ? 'default' : 'pointer', color: index === 0 ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}
+                          >
+                            <Star size={16} fill={index === 0 ? 'currentColor' : 'none'} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveCurrentPhoto(index, 1)}
+                            disabled={index === currentPhotos.length - 1}
+                            aria-label={`Move photo ${index + 1} later`}
+                            title="Move later"
+                            style={{ background: 'none', border: 'none', padding: '4px', cursor: index === currentPhotos.length - 1 ? 'default' : 'pointer', opacity: index === currentPhotos.length - 1 ? 0.3 : 1, color: 'var(--color-text-secondary)' }}
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeCurrentPhoto(index)}
+                            aria-label={`Remove photo ${index + 1}`}
+                            title="Remove photo"
+                            style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', color: 'var(--color-error)' }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1376,10 +1655,30 @@ export default function EditListing({ params }: EditListingProps) {
               </div>
             )}
 
+            {(removedPhotos.length > 0 || removedDocs.length > 0) && (
+              <div
+                className={styles.formGroup}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}
+              >
+                <span>
+                  {[
+                    removedPhotos.length ? `${removedPhotos.length} photo(s)` : '',
+                    removedDocs.length ? `${removedDocs.length} document(s)` : '',
+                  ].filter(Boolean).join(' and ')}{' '}
+                  will be permanently deleted when you save.
+                </span>
+                {!submitting && (
+                  <Button type="button" variant="ghost" size="sm" onClick={undoMediaRemovals}>
+                    Undo
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Photos upload section */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>Upload Additional Photos (Optional, Max 5MB per image)</label>
-              <div className={styles.dropzone}>
+              <label className={styles.label}>Upload Additional Photos (Optional, Max 5MB per image, up to {MAX_PHOTOS} photos)</label>
+              <div className={styles.dropzone} {...dropHandlers(addPhotoFiles)}>
                 <input
                   type="file"
                   multiple
@@ -1390,7 +1689,7 @@ export default function EditListing({ params }: EditListingProps) {
                 />
                 <label htmlFor="photos-upload" className={styles.dropzoneLabel}>
                   <Upload size={32} style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }} />
-                  <span>Click to add more photos (Optional)</span>
+                  <span>Drag &amp; drop or click to add more photos (Optional)</span>
                 </label>
               </div>
 
@@ -1536,7 +1835,7 @@ export default function EditListing({ params }: EditListingProps) {
               ) : videoMode === 'upload' ? (
                 <>
                   {!selectedVideo ? (
-                    <div className={styles.dropzone}>
+                    <div className={styles.dropzone} {...dropHandlers(dropVideoFiles)}>
                       <input
                         type="file"
                         accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/ogg"
@@ -1632,9 +1931,36 @@ export default function EditListing({ params }: EditListingProps) {
               )}
             </div>
 
+            {currentDocs.length > 0 && (
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Current Ownership Documents (private)</label>
+                <div className={styles.fileList}>
+                  {currentDocs.map((doc, index) => (
+                    <div key={doc.id} className={styles.fileItem}>
+                      <div className={styles.fileInfo}>
+                        <FileText size={16} />
+                        <span className={styles.fileName}>{doc.docName || 'Document'}</span>
+                      </div>
+                      {!submitting && (
+                        <button
+                          type="button"
+                          onClick={() => removeCurrentDoc(index)}
+                          aria-label={`Delete document ${doc.docName || index + 1}`}
+                          title="Delete document"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', display: 'flex', alignItems: 'center', padding: '4px' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className={styles.formGroup}>
               <label className={styles.label}>Upload Additional Ownership Documents (Optional)</label>
-              <div className={styles.dropzone}>
+              <div className={styles.dropzone} {...dropHandlers(addDocFiles)}>
                 <input
                   type="file"
                   multiple

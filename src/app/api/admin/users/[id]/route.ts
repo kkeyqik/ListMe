@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedUserId } from '@/lib/server-auth';
+import { requireAdminModule, countOtherActiveSuperAdmins, getRequestIp } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { Role, UserStatus } from '@prisma/client';
 import { logAdminActivity } from '@/lib/activity-logger';
@@ -10,19 +10,11 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const userId = await getAuthenticatedUserId();
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify requesting user is admin
-    const requesterProfile = await prisma.profile.findUnique({
-      where: { id: userId },
-    });
-
-    if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
+    // Requires the 'users' module permission (SUPER_ADMIN always passes).
+    const gate = await requireAdminModule('users');
+    if (!gate.ok) return gate.response;
+    const userId = gate.admin.id;
+    const requesterProfile = gate.admin;
 
     // Verify target user exists
     const targetProfile = await prisma.profile.findUnique({
@@ -62,6 +54,9 @@ export async function PUT(
     if (id === userId && (status !== undefined && status !== 'ACTIVE')) {
       return NextResponse.json({ message: 'You cannot suspend your own account' }, { status: 400 });
     }
+    if (id === userId && role !== undefined && role !== targetProfile.role) {
+      return NextResponse.json({ message: 'You cannot change your own role' }, { status: 400 });
+    }
 
     // Validate and build update payload
     const updateData: any = {};
@@ -85,6 +80,21 @@ export async function PUT(
         return NextResponse.json({ message: 'Invalid status' }, { status: 400 });
       }
       updateData.status = status as UserStatus;
+    }
+
+    // Never leave the platform without an active super admin.
+    const nextRole = updateData.role ?? targetProfile.role;
+    const nextStatus = updateData.status ?? targetProfile.status;
+    if (
+      targetProfile.role === 'SUPER_ADMIN' &&
+      targetProfile.status === 'ACTIVE' &&
+      (nextRole !== 'SUPER_ADMIN' || nextStatus !== 'ACTIVE') &&
+      (await countOtherActiveSuperAdmins(id)) === 0
+    ) {
+      return NextResponse.json(
+        { message: 'This is the last active Super Admin and cannot be demoted or suspended' },
+        { status: 400 }
+      );
     }
 
     // Update target user profile
@@ -113,9 +123,15 @@ export async function PUT(
       entityType: 'USER_PROFILE',
       entityId: id,
       metadata: {
+        before: {
+          role: targetProfile.role,
+          status: targetProfile.status,
+          phoneVerified: targetProfile.phoneVerified,
+        },
         role: finalRole,
         status: finalStatus,
         phoneVerified: updatedProfile.phoneVerified,
+        ip: getRequestIp(request),
       },
     });
 
@@ -135,19 +151,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const requesterId = await getAuthenticatedUserId();
-    if (!requesterId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify requesting user is admin
-    const requesterProfile = await prisma.profile.findUnique({
-      where: { id: requesterId },
-    });
-
-    if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
+    const gate = await requireAdminModule('users');
+    if (!gate.ok) return gate.response;
+    const requesterId = gate.admin.id;
+    const requesterProfile = gate.admin;
 
     // Get the target user to check permissions
     const targetProfile = await prisma.profile.findUnique({
@@ -165,6 +172,23 @@ export async function DELETE(
 
     if (requesterProfile.role === 'SUPER_ADMIN' && targetProfile.role === 'SUPER_ADMIN') {
       return NextResponse.json({ message: 'Cannot delete a Super Admin' }, { status: 403 });
+    }
+
+    if (id === requesterId) {
+      return NextResponse.json({ message: 'You cannot delete your own account here' }, { status: 400 });
+    }
+
+    // Deleting a profile cascades to its admin audit trail, so accounts that
+    // have admin history must be demoted or suspended instead of deleted.
+    const auditRows = await prisma.adminActivityLog.count({ where: { adminId: id } });
+    if (auditRows > 0) {
+      return NextResponse.json(
+        {
+          message:
+            'This account has admin audit history. Suspend it or change its role instead of deleting it, so the audit trail is kept.',
+        },
+        { status: 409 }
+      );
     }
 
     // First delete from Supabase Auth
@@ -203,12 +227,12 @@ export async function DELETE(
         await tx.listing.deleteMany({ where: { id: { in: listingIds } } });
       }
 
-      // 2. Delete user's own shortlists, interests, saved searches, notifications, and admin logs
+      // 2. Delete user's own shortlists, interests, saved searches and notifications.
+      // (Accounts with admin audit rows are refused above, so none are deleted here.)
       await tx.shortlist.deleteMany({ where: { userId: id } });
       await tx.interest.deleteMany({ where: { userId: id } });
       await tx.savedSearch.deleteMany({ where: { userId: id } });
       await tx.notification.deleteMany({ where: { userId: id } });
-      await tx.adminActivityLog.deleteMany({ where: { adminId: id } });
 
       // 3. Delete user profile
       await tx.profile.delete({
@@ -225,7 +249,7 @@ export async function DELETE(
       action: actionText,
       entityType: 'USER_PROFILE',
       entityId: id,
-      metadata: { deletedUserRole: targetProfile.role },
+      metadata: { deletedUserRole: targetProfile.role, ip: getRequestIp(request) },
     });
 
     return NextResponse.json({ message: 'User deleted successfully' });

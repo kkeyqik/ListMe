@@ -7,6 +7,7 @@ import { MobileMenuDrawer } from '@/components/layout/MobileMenuDrawer';
 import { MobileSearchDrawer } from '@/components/search/MobileSearchDrawer';
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
+import { SITE_URL } from "@/lib/site-url";
 import "./globals.css";
 
 const inter = Inter({
@@ -25,10 +26,12 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains-mono",
   display: "swap",
+  // Only used by a couple of admin views; don't preload it on every page.
+  preload: false,
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://listme.in'),
+  metadataBase: new URL(SITE_URL),
   title: "ListMe — List it. Find it. Own it. | Free Real Estate Platform",
   description: "Browse, sell, or rent properties across India for free. Direct owner listing, verified phone numbers, and interest-based connection with zero brokerage.",
   keywords: "real estate, free listing, direct owner, no brokerage, property buy, rent apartment, land, commercial property, India real estate, ListMe",
@@ -36,7 +39,6 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ListMe — List it. Find it. Own it.",
     description: "Browse, sell, or rent properties across India for free with direct owner listings and zero brokerage.",
-    url: "https://listme.in",
     siteName: "ListMe",
     locale: "en_IN",
     type: "website",
@@ -53,7 +55,6 @@ export const viewport: Viewport = {
   themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: 'cover',
 };
 
@@ -67,7 +68,8 @@ export default function RootLayout({
 }>) {
   return (
     <html 
-      lang="en" 
+      lang="en"
+      data-scroll-behavior="smooth"
       className={`${inter.variable} ${outfit.variable} ${jetbrainsMono.variable}`}
       style={{
         "--font-body": "var(--font-inter)",

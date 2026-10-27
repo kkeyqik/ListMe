@@ -9,6 +9,39 @@ interface SearchCapsuleProps {
   searchLocation?: string;
 }
 
+/** Residential category checkbox -> PropertyType enum values understood by /api/listings. */
+const CATEGORY_TO_TYPES: Record<string, string[]> = {
+  'Flat/Apartment': ['APARTMENT'],
+  'Builder Floor': ['BUILDER_FLOOR'],
+  'Independent House/Villa': ['HOUSE', 'VILLA'],
+  'Residential Land': ['PLOT'],
+  '1 RK/ Studio Apartment': ['STUDIO'],
+  'Farm House': ['FARM_HOUSE'],
+  'Serviced Apartments': ['APARTMENT', 'PENTHOUSE'],
+};
+
+/**
+ * Budget slider positions (0-100) -> rupees.
+ * Sale: 0-50 covers ₹0-1 Cr in ₹2 L steps, 50-100 covers ₹1-21 Cr in ₹40 L steps.
+ * Rent: ₹2,000/month steps up to ₹2 L/month.
+ */
+function budgetSliderToPrice(position: number, isRental: boolean): number {
+  if (isRental) return position * 2000;
+  if (position <= 50) return position * 200000;
+  return 10000000 + (position - 50) * 4000000;
+}
+
+function formatBudget(position: number, isRental: boolean): string {
+  if (position >= 100) return isRental ? '₹2 L+/month' : '₹21 Cr+';
+  const price = budgetSliderToPrice(position, isRental);
+  let label: string;
+  if (price === 0) label = '₹0';
+  else if (price >= 10000000) label = `₹${+(price / 10000000).toFixed(2)} Cr`;
+  else if (price >= 100000) label = `₹${+(price / 100000).toFixed(2)} L`;
+  else label = `₹${+(price / 1000).toFixed(1)}k`;
+  return isRental ? `${label}/month` : label;
+}
+
 export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) => {
   const router = useRouter();
 
@@ -71,6 +104,11 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
   const plotsTypeMenuRef = useRef<HTMLDivElement>(null);
   const plotsTradeMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
+
+  // Rent and lease budgets are monthly and use a different scale from sale prices
+  const isRentalBudget = activeTab === 'Rent'
+    || (activeTab === 'Commercial' && commercialTrade === 'Lease')
+    || (activeTab === 'Plots/Land' && plotsType === 'Commercial' && plotsTrade === 'Lease');
 
   // Category label helper
   const categoryLabel = checkedCategories.size === defaultCategories.size
@@ -146,11 +184,15 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         () => {
-          setSearchQuery(searchLocation ? searchLocation.charAt(0).toUpperCase() + searchLocation.slice(1) : 'Mumbai');
+          // Only fill in a city we actually detected; never guess one.
+          if (searchLocation) {
+            setSearchQuery(searchLocation.charAt(0).toUpperCase() + searchLocation.slice(1));
+          }
         },
         () => {
-          setSearchQuery('Delhi NCR');
-        }
+          // Permission denied or unavailable: leave the query untouched.
+        },
+        { timeout: 10000 }
       );
     }
   };
@@ -236,9 +278,18 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
       params.set('query', residualQuery);
     }
 
+    // Bedroom pill (only when the typed query didn't already specify a BHK)
+    if (!resolvedBhk && selectedBedrooms !== 'Any') {
+      params.set('bhk', selectedBedrooms);
+    }
+
     // 3. Resolve active tab type
     if (activeTab === 'Rent') {
       params.set('type', 'rent');
+    } else if (activeTab === 'New Launch') {
+      // New launches are sale listings that are not yet ready to move in
+      params.set('type', 'sale');
+      params.set('possession', 'under_construction');
     } else if (activeTab === 'Commercial') {
       params.set('type', 'commercial');
       params.set('commercial_trade', commercialTrade.toLowerCase());
@@ -253,7 +304,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
           if (isGradeAOnly) params.set('grade_a', 'true');
         } else if (commercialType === 'Shops & Retail') params.set('property_type', 'SHOP');
         else if (commercialType === 'Other commercial spaces') params.set('property_type', 'WAREHOUSE');
-        else if (commercialType === 'Factory & Manufacturing') params.set('property_type', 'FACTORY');
+        else if (commercialType === 'Factory & Manufacturing') params.set('property_type', 'WAREHOUSE');
       } else {
         params.set('property_type', 'COMMERCIAL');
         if (selectedBuySubtypes.size > 0) {
@@ -269,13 +320,17 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
         if (commercialArea[1] < 10000) params.set('max_area', commercialArea[1].toString());
       }
     } else if (activeTab === 'Plots/Land') {
-      params.set('property_type', 'PLOT');
       params.set('plot_class', plotsType.toLowerCase());
       if (plotsType === 'Commercial') {
+        // Commercial land may be posted as PLOT or COMMERCIAL_LAND
+        params.set('property_types', 'PLOT,COMMERCIAL_LAND');
+        params.set('type', plotsTrade === 'Lease' ? 'rent' : 'sale');
         params.set('plots_trade', plotsTrade.toLowerCase());
         if (selectedPlotsSubtypes.size > 0) {
           params.set('plot_subtypes', Array.from(selectedPlotsSubtypes).join(','));
         }
+      } else {
+        params.set('property_type', 'PLOT');
       }
     } else if (activeTab === 'Projects') {
       params.set('type', 'project');
@@ -288,23 +343,36 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     }
 
     if (activeTab !== 'Commercial' && activeTab !== 'Plots/Land' && activeTab !== 'Projects') {
-      if (checkedCategories.size === 1) {
-        const cat = Array.from(checkedCategories)[0];
-        if (cat === 'Flat/Apartment') params.set('property_type', 'APARTMENT');
-        else if (cat === 'Independent House/Villa') params.set('property_type', 'VILLA');
-        else if (cat === 'Residential Land') params.set('property_type', 'PLOT');
-        else if (cat === 'Builder Floor') params.set('property_type', 'HOUSE');
+      // Restrict property types only when the user narrowed the category list
+      // (and didn't keep "Other", which has no matching type).
+      if (checkedCategories.size > 0 && checkedCategories.size < defaultCategories.size && !checkedCategories.has('Other')) {
+        const types = new Set<string>();
+        checkedCategories.forEach((cat) => {
+          (CATEGORY_TO_TYPES[cat] || []).forEach((t) => types.add(t));
+        });
+        if (types.size === 1) params.set('property_type', Array.from(types)[0]);
+        else if (types.size > 1) params.set('property_types', Array.from(types).join(','));
       }
     }
 
+    if (activeTab === 'Buy' || activeTab === 'Rent') {
+      // Construction status pill
+      if (selectedConstructionStatus === 'Ready to Move') params.set('possession', 'ready');
+      else if (selectedConstructionStatus === 'Under Construction' || selectedConstructionStatus === 'New Launch') {
+        params.set('possession', 'under_construction');
+      }
+
+      // Posted-by pill (all ListMe listings are posted directly by owners)
+      if (selectedPostedBy !== 'Any') params.set('posted_by', selectedPostedBy.toLowerCase());
+    }
+
     // 5. Budget Filters
-    const isRental = activeTab === 'Rent' || (activeTab === 'Commercial' && commercialTrade === 'Lease');
-    const priceMultiplier = isRental ? 10000 : 10000000;
+    const isRental = isRentalBudget;
     if (budgetRange[0] > 0) {
-      params.set('min_price', (budgetRange[0] * priceMultiplier).toString());
+      params.set('min_price', String(budgetSliderToPrice(budgetRange[0], isRental)));
     }
     if (budgetRange[1] < 100) {
-      params.set('max_price', (budgetRange[1] * priceMultiplier).toString());
+      params.set('max_price', String(budgetSliderToPrice(budgetRange[1], isRental)));
     }
 
     if (typeof window !== 'undefined') {
@@ -399,11 +467,11 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
             <div className={styles.budgetHeader}>
               <strong>Select Price Range</strong>
               <span className={styles.budgetSubtext}>
-                {budgetRange[0]} - {budgetRange[1] >= 100 ? '100+' : budgetRange[1]} Crore
+                {formatBudget(budgetRange[0], isRentalBudget)} - {formatBudget(budgetRange[1], isRentalBudget)}
               </span>
             </div>
             <div className={styles.budgetSliderContainer}>
-              <span className={styles.budgetLabel}>{budgetRange[0]}</span>
+              <span className={styles.budgetLabel}>{formatBudget(budgetRange[0], isRentalBudget)}</span>
               <div className={styles.budgetSliderTrack}>
                 <input
                   type="range"
@@ -424,7 +492,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                   className={styles.budgetRangeInput}
                 />
               </div>
-              <span className={styles.budgetLabel}>100+ Crores</span>
+              <span className={styles.budgetLabel}>{formatBudget(100, isRentalBudget)}</span>
             </div>
           </div>
         )}
@@ -958,11 +1026,11 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                       <div className={styles.budgetHeader}>
                         <strong>Select Price Range</strong>
                         <span className={styles.budgetSubtext}>
-                          {budgetRange[0]} - {budgetRange[1] >= 100 ? '100+' : budgetRange[1]} Crore
+                          {formatBudget(budgetRange[0], isRentalBudget)} - {formatBudget(budgetRange[1], isRentalBudget)}
                         </span>
                       </div>
                       <div className={styles.budgetSliderContainer}>
-                        <span className={styles.budgetLabel}>{budgetRange[0]}</span>
+                        <span className={styles.budgetLabel}>{formatBudget(budgetRange[0], isRentalBudget)}</span>
                         <div className={styles.budgetSliderTrack}>
                           <input
                             type="range"
@@ -981,7 +1049,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
                             className={styles.budgetRangeInput}
                           />
                         </div>
-                        <span className={styles.budgetLabel}>100+ Crores</span>
+                        <span className={styles.budgetLabel}>{formatBudget(100, isRentalBudget)}</span>
                       </div>
                     </div>
                   )}

@@ -24,6 +24,7 @@ import {
 import { useToast, Button, Input, Card, Badge, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
 import { downloadCSV } from '@/lib/export-utils';
+import { recordAdminExport } from '@/lib/admin-export-audit';
 
 export default function AdminListings() {
   const { showToast } = useToast();
@@ -427,7 +428,13 @@ export default function AdminListings() {
         RejectionReason: l.rejectionReason || 'None',
         CreatedAt: new Date(l.createdAt).toISOString()
       }));
-      
+
+      if (!(await recordAdminExport('LISTINGS', exportData.length, {
+        query: searchQuery, city: cityFilter, listingFor: forFilter, startDate, endDate,
+      }))) {
+        showToast('Error', 'Export could not be recorded, so it was not downloaded', 'error');
+        return;
+      }
       downloadCSV(exportData, `ListMe_All_Listings_Export_${new Date().toISOString().split('T')[0]}.csv`);
       showToast('Success', `Exported ${exportData.length} listings to CSV successfully!`, 'success');
     } catch (err) {

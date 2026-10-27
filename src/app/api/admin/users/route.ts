@@ -1,25 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getAuthenticatedUserId } from '@/lib/server-auth';
+import { requireAdminModule, logAdminDataAccess, getRequestIp } from '@/lib/admin-auth';
+import { logAdminActivity } from '@/lib/activity-logger';
 import { prisma } from '@/lib/prisma';
 import { getSecurePassword } from '@/lib/auth-helpers';
 import { Role, UserStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify requesting user is admin
-    const requesterProfile = await prisma.profile.findUnique({
-      where: { id: userId },
-    });
-
-    if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
+    // Requires the 'users' module permission (SUPER_ADMIN always passes).
+    const gate = await requireAdminModule('users');
+    if (!gate.ok) return gate.response;
 
     // Fetch all profiles in the database
     const users = await prisma.profile.findMany({
@@ -34,6 +25,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    await logAdminDataAccess({
+      admin: gate.admin,
+      action: 'Viewed user list',
+      entityType: 'DATA_ACCESS_USERS',
+      rowCount: users.length,
+      request,
+    });
+
     return NextResponse.json({ users });
   } catch (error: any) {
     console.error('[admin/users GET] Error:', error);
@@ -46,19 +45,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify requesting user is admin
-    const requesterProfile = await prisma.profile.findUnique({
-      where: { id: userId },
-    });
-
-    if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
+    const gate = await requireAdminModule('users');
+    if (!gate.ok) return gate.response;
+    const userId = gate.admin.id;
 
     const { name, phone, email, role, status } = await request.json();
 
@@ -71,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Role escalation protection: Only SUPER_ADMIN can create admin accounts
-    if (role !== 'USER' && requesterProfile.role !== 'SUPER_ADMIN') {
+    if (role !== 'USER' && !gate.admin.isSuper) {
       return NextResponse.json(
         { message: 'Only a Super Admin can create admin accounts' },
         { status: 403 }
@@ -153,12 +142,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await logAdminActivity({
+      adminId: userId,
+      action: `${gate.admin.name || 'Admin'} created ${role} account for ${name}`,
+      entityType: 'USER_PROFILE',
+      entityId: createdProfile.id,
+      metadata: {
+        role: createdProfile.role,
+        status: createdProfile.status,
+        phoneVerified: createdProfile.phoneVerified,
+        ip: getRequestIp(request),
+      },
+    });
+
     return NextResponse.json({
       message: 'User created successfully',
       profile: createdProfile,
     });
   } catch (error: any) {
-    console.error('Create admin user error:', error);
     console.error('[admin/users POST] Error:', error);
     return NextResponse.json(
       { message: 'Internal server error' },

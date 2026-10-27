@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
-import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { InterestStatus } from '@prisma/client';
 import { logUserActivity } from '@/lib/activity-logger';
+import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
+import { isUuid } from '@/lib/ids';
+
+// Each new interest unlocks one owner's phone number, so cap how many a single
+// account can express. The daily cap is counted in the database, so it holds
+// across serverless instances; the burst limit is a cheap per-instance guard.
+const INTEREST_DAILY_LIMIT = 15;
+const INTEREST_BURST_LIMIT = 5;
+const INTEREST_BURST_WINDOW_MS = 60_000;
 
 // Admin notes and commission are internal; owners and seekers never see them.
 const PUBLIC_INTEREST_FIELDS = { adminNotes: true, commissionAmount: true } as const;
@@ -18,6 +26,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get('mode') || 'expressed'; // 'expressed', 'received', or 'all'
+    // Optional: only the interests on one listing (owner detail page, property page).
+    const listingIdParam = searchParams.get('listingId');
+    if (listingIdParam !== null && !isUuid(listingIdParam)) {
+      return NextResponse.json({ interests: [] });
+    }
+    const listingFilter = listingIdParam ? { listingId: listingIdParam } : {};
 
     if (mode === 'all') {
       const userProfile = await prisma.profile.findUnique({
@@ -57,6 +71,7 @@ export async function GET(request: NextRequest) {
       // Fetch interests received on properties owned by the current user
       const received = await prisma.interest.findMany({
         where: {
+          ...listingFilter,
           listing: {
             ownerId: userId,
           },
@@ -90,6 +105,7 @@ export async function GET(request: NextRequest) {
       // Fetch interests expressed by the current user on other listings
       const expressed = await prisma.interest.findMany({
         where: {
+          ...listingFilter,
           userId: userId,
         },
         omit: PUBLIC_INTEREST_FIELDS,
@@ -133,6 +149,17 @@ export async function POST(request: NextRequest) {
 
     if (!listingId || typeof listingId !== 'string') {
       return NextResponse.json({ message: 'Listing ID is required' }, { status: 400 });
+    }
+    if (!isUuid(listingId)) {
+      return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
+    }
+
+    const burst = rateLimit(`interest:${userId}`, INTEREST_BURST_LIMIT, INTEREST_BURST_WINDOW_MS);
+    if (!burst.allowed) {
+      return NextResponse.json(
+        { message: 'Too many requests. Please wait a minute and try again.' },
+        { status: 429, headers: getRateLimitHeaders(burst, INTEREST_BURST_LIMIT) }
+      );
     }
 
     // 1. Verify user profile exists and phone is verified
@@ -192,7 +219,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Create the expression of interest
+    // 4. Daily cap (rolling 24 hours) to stop bulk harvesting of owner contacts
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentCount = await prisma.interest.count({
+      where: { userId, createdAt: { gte: dayAgo } },
+    });
+    if (recentCount >= INTEREST_DAILY_LIMIT) {
+      await logUserActivity({
+        userId,
+        action: 'INTEREST_LIMIT_REACHED',
+        entityId: listingId,
+        request,
+        metadata: { recentCount, limit: INTEREST_DAILY_LIMIT },
+      });
+      return NextResponse.json(
+        {
+          message: `You can contact up to ${INTEREST_DAILY_LIMIT} owners a day. Please try again tomorrow.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    // 5. Create the expression of interest
     const newInterest = await prisma.interest.create({
       data: {
         userId: userId,
@@ -201,7 +249,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 5. Create notification for the property owner
+    // 6. Create notification for the property owner
     await prisma.notification.create({
       data: {
         userId: listing.ownerId,
@@ -211,7 +259,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 6. Log the user activity
+    // 7. Log the user activity
     await logUserActivity({
       userId: userId,
       action: 'EXPRESS_INTEREST',

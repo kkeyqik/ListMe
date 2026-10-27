@@ -10,9 +10,22 @@ export interface PincodeLocationResult {
   localities: string[];
 }
 
-// In-memory cache for ultra-fast (1ms) repeat lookups
-const pincodeCache = new Map<string, { data: PincodeLocationResult; expiresAt: number }>();
+// In-memory cache for ultra-fast (1ms) repeat lookups.
+// Bounded (oldest entry evicted first) so PIN enumeration cannot grow memory
+// without limit. `data: null` caches a PIN that India Post says does not exist.
+const pincodeCache = new Map<string, { data: PincodeLocationResult | null; expiresAt: number }>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const NEGATIVE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour for unknown PINs
+const MAX_CACHE_ENTRIES = 5000;
+
+function cacheSet(pin: string, data: PincodeLocationResult | null, ttlMs: number) {
+  pincodeCache.delete(pin);
+  if (pincodeCache.size >= MAX_CACHE_ENTRIES) {
+    const oldest = pincodeCache.keys().next().value;
+    if (oldest !== undefined) pincodeCache.delete(oldest);
+  }
+  pincodeCache.set(pin, { data, expiresAt: Date.now() + ttlMs });
+}
 
 /**
  * Strips government postal acronyms and parenthetical city tags to produce clean real estate neighborhood names
@@ -116,8 +129,12 @@ export async function lookupPinCode(pinCode: string): Promise<PincodeLocationRes
   // 1. Check in-memory cache
   const cached = pincodeCache.get(cleanPin);
   if (cached && cached.expiresAt > Date.now()) {
+    // Refresh recency so frequently used PINs are evicted last
+    pincodeCache.delete(cleanPin);
+    pincodeCache.set(cleanPin, cached);
     return cached.data;
   }
+  if (cached) pincodeCache.delete(cleanPin);
 
   try {
     const res = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`, {
@@ -132,12 +149,19 @@ export async function lookupPinCode(pinCode: string): Promise<PincodeLocationRes
     }
 
     const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0 || data[0].Status !== 'Success') {
+    if (!Array.isArray(data) || data.length === 0) {
+      return null;
+    }
+    // India Post answers Status 'Error' for PINs that do not exist: remember that
+    // for a while so repeated lookups do not hit the upstream API again.
+    if (data[0].Status !== 'Success') {
+      if (data[0].Status === 'Error') cacheSet(cleanPin, null, NEGATIVE_CACHE_TTL_MS);
       return null;
     }
 
     const postOffices: any[] = data[0].PostOffice || [];
     if (postOffices.length === 0) {
+      cacheSet(cleanPin, null, NEGATIVE_CACHE_TTL_MS);
       return null;
     }
 
@@ -166,10 +190,7 @@ export async function lookupPinCode(pinCode: string): Promise<PincodeLocationRes
     };
 
     // Cache result
-    pincodeCache.set(cleanPin, {
-      data: result,
-      expiresAt: Date.now() + CACHE_TTL_MS,
-    });
+    cacheSet(cleanPin, result, CACHE_TTL_MS);
 
     return result;
   } catch (error) {
