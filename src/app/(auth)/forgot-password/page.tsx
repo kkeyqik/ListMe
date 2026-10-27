@@ -7,16 +7,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Home, Mail, Phone, ArrowRight, ArrowLeft, CheckCircle, Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { Button, Input, OtpInput } from '@/components/ui';
 import { useToast } from '@/components/ui';
-import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
+import { getFirebaseAuth, isFirebaseConfigured, signOutFirebase } from '@/lib/firebase/client';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { safeRedirectPath } from '@/lib/safe-redirect';
+import { MIN_PASSWORD_LENGTH } from '@/lib/validation';
 import styles from '../auth.module.css';
 import fpStyles from './ForgotPassword.module.css';
 
 type Step = 'identifier' | 'channel' | 'otp' | 'new-password' | 'success';
 
 interface AccountInfo {
-  name: string;
   hasEmail: boolean;
   maskedEmail: string | null;
   hasPhone: boolean;
@@ -120,7 +120,6 @@ function ForgotPasswordContent() {
     try {
       // For SMS via Firebase, handle client-side dispatch
       if (channel === 'sms' && isFirebaseConfigured && recaptchaVerifier) {
-        const accountPhone = accountInfo?.maskedPhone || '';
         // We do server-side lookup to get the raw phone, then Firebase sends SMS
         const res = await fetch('/api/auth/forgot-password/send-otp', {
           method: 'POST',
@@ -133,17 +132,20 @@ function ForgotPasswordContent() {
           setLoading(false);
           return;
         }
-        // If Firebase-configured, also initiate Firebase phone auth for SMS
-        if (data.formattedPhone) {
-          try {
-            const auth = getFirebaseAuth();
-            if (auth && recaptchaVerifier) {
-              const confirmation = await signInWithPhoneNumber(auth, data.formattedPhone, recaptchaVerifier);
-              setFirebaseConfirmation(confirmation);
-            }
-          } catch (fbErr: any) {
-            console.warn('[FP] Firebase SMS fallback failed:', fbErr.message);
-          }
+        // Firebase sends the SMS. If that fails, no code exists anywhere, so
+        // stay on this step and point the user to email instead.
+        const auth = getFirebaseAuth();
+        if (!data.formattedPhone || !auth) {
+          showToast('SMS unavailable', 'We could not send an SMS right now. Please choose Email instead.', 'error');
+          return;
+        }
+        try {
+          const confirmation = await signInWithPhoneNumber(auth, data.formattedPhone, recaptchaVerifier);
+          setFirebaseConfirmation(confirmation);
+        } catch (fbErr: any) {
+          console.warn('[FP] Firebase SMS failed:', fbErr?.message);
+          showToast('SMS not sent', accountInfo?.hasEmail ? 'We could not send the SMS. Please choose Email instead.' : 'We could not send the SMS. Please try again later.', 'error');
+          return;
         }
         setSentTarget(data.target || accountInfo?.maskedPhone || '');
         setSelectedChannel(channel);
@@ -151,7 +153,12 @@ function ForgotPasswordContent() {
         setStep('otp');
         setTimer(30);
       } else {
-        // Email OTP or SMS without Firebase
+        // Without Firebase nobody can deliver an SMS code (except local mock mode).
+        if (channel === 'sms' && !(process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true' && process.env.NODE_ENV !== 'production')) {
+          showToast('SMS unavailable', 'SMS codes are not available right now. Please choose Email instead.', 'error');
+          return;
+        }
+        // Email OTP (or SMS in local mock mode)
         const res = await fetch('/api/auth/forgot-password/send-otp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -209,6 +216,7 @@ function ForgotPasswordContent() {
         showToast('Verification Failed', data.message || 'Incorrect code', 'error');
         return;
       }
+      await signOutFirebase();
       setResetToken(data.resetToken);
       setStep('new-password');
     } catch {
@@ -226,8 +234,8 @@ function ForgotPasswordContent() {
   // Step 4: Reset password
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword || newPassword.length < 6) {
-      showToast('Error', 'Password must be at least 6 characters', 'error');
+    if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+      showToast('Error', `Password must be at least ${MIN_PASSWORD_LENGTH} characters`, 'error');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -263,7 +271,7 @@ function ForgotPasswordContent() {
   };
 
   const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
-  const passwordStrong = newPassword.length >= 6;
+  const passwordStrong = newPassword.length >= MIN_PASSWORD_LENGTH;
 
   return (
     <div className={styles.splitContainer}>
@@ -338,7 +346,7 @@ function ForgotPasswordContent() {
               <div className={styles.header}>
                 <h1 className={styles.title}>How to verify?</h1>
                 <p className={styles.subtitle}>
-                  Hi <strong>{accountInfo.name}</strong>, choose how you&apos;d like to receive your verification code.
+                  Choose how you&apos;d like to receive your verification code.
                 </p>
               </div>
 
@@ -481,7 +489,7 @@ function ForgotPasswordContent() {
                   <Input
                     label="New Password"
                     type={showNewPassword ? 'text' : 'password'}
-                    placeholder="Minimum 6 characters"
+                    placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     fullWidth
@@ -523,7 +531,7 @@ function ForgotPasswordContent() {
                 <div className={fpStyles.requirementsList}>
                   <div className={`${fpStyles.requirement} ${passwordStrong ? fpStyles.requirementMet : ''}`}>
                     <span className={fpStyles.requirementDot} />
-                    At least 6 characters
+                    At least {MIN_PASSWORD_LENGTH} characters
                   </div>
                   <div className={`${fpStyles.requirement} ${passwordsMatch ? fpStyles.requirementMet : ''}`}>
                     <span className={fpStyles.requirementDot} />

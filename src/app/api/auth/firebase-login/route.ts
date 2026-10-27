@@ -5,7 +5,7 @@ import { getSecurePassword } from '@/lib/auth-helpers';
 import { cookies } from 'next/headers';
 import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
-import { validatePhone, sanitizeInput } from '@/lib/validation';
+import { validatePhone, sanitizeInput, maskPhoneForLog } from '@/lib/validation';
 import { verifyFirebasePhoneToken } from '@/lib/firebase/verify-id-token';
 import { isMockAuthEnabled } from '@/lib/mock-auth';
 import { createClient } from '@/lib/supabase/server';
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
           userId: existingProfile.id,
           action: 'FAILED_LOGIN',
           request,
-          metadata: { method: 'phone_otp', reason: 'Account suspended or banned', phone: formattedPhone, ip },
+          metadata: { method: 'phone_otp', reason: 'Account suspended or banned', phone: maskPhoneForLog(formattedPhone), ip },
         });
         return NextResponse.json(
           { message: 'Your account has been suspended. Please contact support.' },
@@ -159,11 +159,11 @@ export async function POST(request: NextRequest) {
     if (existingProfile) {
       suUserId = existingProfile.id;
       try {
-        // Do NOT overwrite existing user passwords on OTP login
+        // Do NOT overwrite existing user passwords on OTP login. Proving a phone
+        // number says nothing about the email on the profile, so the email is
+        // neither changed nor marked as confirmed here.
         await supabaseAdmin.auth.admin.updateUserById(suUserId!, {
           phone_confirm: true,
-          email: existingProfile.email || resolvedEmail,
-          email_confirm: true,
         });
       } catch (err) {
         console.warn('Failed to update existing user in Supabase:', err);
@@ -173,6 +173,10 @@ export async function POST(request: NextRequest) {
         suUserId = crypto.randomUUID();
       }
 
+      // A profile must always belong to a real Supabase Auth user, otherwise the
+      // account can never use a password, reset it, or be cleaned up. Only mint
+      // a session once the auth user is known to exist.
+      let authUserReady = false;
       try {
         const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
           id: suUserId,
@@ -191,15 +195,24 @@ export async function POST(request: NextRequest) {
             const matchedUser = listData?.users.find((u) => (u.phone || '').replace(/\D/g, '') === phoneDigits);
             if (matchedUser) {
               suUserId = matchedUser.id;
+              authUserReady = true;
             }
           } else {
             throw createError;
           }
         } else if (createData?.user) {
           suUserId = createData.user.id;
+          authUserReady = true;
         }
       } catch (err: any) {
         console.error('Supabase admin create user error:', err);
+      }
+
+      if (!authUserReady) {
+        return NextResponse.json(
+          { message: 'We could not set up your account right now. Please try again or contact support.' },
+          { status: 503 }
+        );
       }
     }
 
@@ -235,10 +248,9 @@ export async function POST(request: NextRequest) {
           userId: existingProfile.id,
           action: 'LOGIN',
           request,
-          metadata: { 
-            method: 'phone_otp', 
-            phone: formattedPhone,
-            details: `Phone login: ${formattedPhone}`,
+          metadata: {
+            method: 'phone_otp',
+            phone: maskPhoneForLog(formattedPhone),
             ip
           },
         });
