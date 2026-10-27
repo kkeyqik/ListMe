@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
-import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { logAdminActivity } from '@/lib/activity-logger';
 import { hasAdminAccess } from '@/lib/admin-permissions';
@@ -42,11 +41,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return NextResponse.json({ message: 'Invalid settings body' }, { status: 400 });
     }
 
+    if (Object.keys(body).length > 100) {
+      return NextResponse.json({ message: 'Too many settings in one request' }, { status: 400 });
+    }
     for (const [key, value] of Object.entries(body)) {
       if (typeof value !== 'string' || key.length > 100 || value.length > 10000) {
         return NextResponse.json({ message: `Invalid value for setting "${key.slice(0, 100)}"` }, { status: 400 });
@@ -75,7 +77,8 @@ export async function PUT(request: NextRequest) {
       });
     });
 
-    await Promise.all(updates);
+    // All keys or none: a failure part-way must not leave a half-saved settings form.
+    await prisma.$transaction(updates);
 
     // Log the admin activity
     const changedKeys = Object.keys(body).join(', ');

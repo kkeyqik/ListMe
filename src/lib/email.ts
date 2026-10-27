@@ -13,6 +13,13 @@ interface SendMailParams {
 
 export const REDACTED_EMAIL_BODY = '[Redacted: this email contained a one-time security code]';
 
+/** "jane.doe@example.com" -> "ja***@example.com", for log lines. */
+function maskEmail(address: string): string {
+  const [local, domain] = String(address).split('@');
+  if (!domain) return '***';
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
 /**
  * Sends an email using Nodemailer SMTP and logs it directly inside the database 'email_logs' table.
  */
@@ -29,18 +36,23 @@ export async function sendEmail({ to, subject, text, html, metadata, sensitive =
   let status = 'SENT';
   let errorMsg: string | null = null;
 
-  console.log(`[Email Service] Attempting to send email to: ${to} (Subject: ${subject})`);
+  // Server logs are not the place for recipients' addresses or message bodies.
+  const maskedTo = maskEmail(to);
+  console.log(`[Email Service] Attempting to send email to: ${maskedTo} (Subject: ${subject})`);
 
   if (!isConfigured) {
     // Simulated Flow
     console.log('-----------------------------------------');
     console.log(`[SIMULATED EMAIL SENT]`);
     console.log(`From: ${from}`);
-    console.log(`To: ${to}`);
+    console.log(`To: ${maskedTo}`);
     console.log(`Subject: ${subject}`);
-    console.log(`Text Body: ${sensitive ? REDACTED_EMAIL_BODY : text}`);
+    // Bodies are printed for local development only, and never when they hold a secret.
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Text Body: ${sensitive ? REDACTED_EMAIL_BODY : text}`);
+    }
     console.log('-----------------------------------------');
-    
+
     status = 'SIMULATED';
   } else {
     // Live SMTP Flow
@@ -53,6 +65,11 @@ export async function sendEmail({ to, subject, text, html, metadata, sensitive =
           user,
           pass,
         },
+        // Fail fast instead of holding the request open for nodemailer's
+        // multi-minute defaults when the SMTP server is slow or unreachable.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
       });
 
       await transporter.sendMail({
@@ -60,12 +77,13 @@ export async function sendEmail({ to, subject, text, html, metadata, sensitive =
         to,
         subject,
         text,
-        html: html || text,
+        // Plain-text emails go out as text only; wrapping them as HTML collapsed the line breaks.
+        ...(html ? { html } : {}),
       });
 
-      console.log(`[Email Service] Email sent successfully to ${to}`);
+      console.log(`[Email Service] Email sent successfully to ${maskedTo}`);
     } catch (err: any) {
-      console.error(`[Email Service] Error sending email to ${to}:`, err);
+      console.error(`[Email Service] Error sending email to ${maskedTo}:`, err?.message || err);
       status = 'FAILED';
       errorMsg = err.message || 'Unknown error occurred while sending email';
     }
