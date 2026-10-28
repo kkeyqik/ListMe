@@ -2,12 +2,32 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ChevronDown, Navigation, Mic, ArrowLeft } from 'lucide-react';
+import { Search, ChevronDown, Navigation, Mic, ArrowLeft, MapPin, Building2 } from 'lucide-react';
+import { usePlaceSuggestions, formatPlaceSecondary, type Place } from '@/components/ui/LocalityAutocomplete';
 import styles from './SearchCapsule.module.css';
 
 interface SearchCapsuleProps {
   searchLocation?: string;
 }
+
+/** Cities the free-text parser recognises (longest names first so "navi mumbai" wins over "mumbai"). */
+const RECOGNIZED_CITIES = [
+  'navi mumbai', 'delhi ncr', 'greater noida',
+  'mumbai', 'pune', 'delhi', 'ghaziabad', 'noida', 'gurgaon', 'gurugram',
+  'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'kolkata', 'ahmedabad',
+  'jaipur', 'lucknow', 'faridabad', 'thane', 'chandigarh',
+  'indore', 'bhopal', 'kochi', 'coimbatore', 'patna', 'surat', 'nagpur', 'kanpur'
+];
+
+const titleCase = (s: string) => s.replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\bNcr\b/, 'NCR');
+
+/** A typed query that reads like "2 BHK for rent ..." is a property search, not a place name. */
+const looksLikePropertyQuery = (q: string) =>
+  /\b\d\s*bhk\b|\bbhk\b|\bfor\s+(sale|rent)\b|\b(flat|apartment|villa|plot|office|shop)s?\b/i.test(q);
+
+type CapsuleSuggestion =
+  | { kind: 'city'; key: string; city: string }
+  | { kind: 'place'; key: string; place: Place };
 
 /** Residential category checkbox -> PropertyType enum values understood by /api/listings. */
 const CATEGORY_TO_TYPES: Record<string, string[]> = {
@@ -48,6 +68,35 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
   // Tab State
   const [activeTab, setActiveTab] = useState('Buy');
   const [searchQuery, setSearchQuery] = useState('');
+  // Locality / city suggestions under the search input
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestIndex, setSuggestIndex] = useState(-1);
+  const searchPaneRef = useRef<HTMLDivElement>(null);
+  const trimmedQuery = searchQuery.trim();
+  const placeQueryEnabled = suggestOpen && trimmedQuery.length >= 2 && !looksLikePropertyQuery(trimmedQuery);
+  const { places: placeSuggestions, loading: placesLoading } = usePlaceSuggestions(searchQuery, {
+    city: searchLocation || undefined,
+    enabled: placeQueryEnabled,
+  });
+  const suggestions: CapsuleSuggestion[] = [];
+  if (suggestOpen && trimmedQuery.length >= 2) {
+    const ql = trimmedQuery.toLowerCase();
+    const seenCities = new Set<string>();
+    for (const c of RECOGNIZED_CITIES) {
+      const display = c === 'bengaluru' ? 'bangalore' : c === 'gurugram' ? 'gurgaon' : c;
+      if ((c.startsWith(ql) || (ql.length >= 3 && c.includes(ql))) && !seenCities.has(display)) {
+        seenCities.add(display);
+        suggestions.push({ kind: 'city', key: `city-${display}`, city: titleCase(display) });
+      }
+      if (seenCities.size >= 3) break;
+    }
+    if (placeQueryEnabled) {
+      for (const place of placeSuggestions.slice(0, 8)) {
+        suggestions.push({ kind: 'place', key: `place-${place.id}`, place });
+      }
+    }
+  }
+  const showSuggestions = suggestOpen && suggestions.length > 0;
 
   // Residential Categories
   const defaultCategories = new Set([
@@ -133,6 +182,11 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
 
+      if (searchPaneRef.current && !searchPaneRef.current.contains(target)) {
+        setSuggestOpen(false);
+        setSuggestIndex(-1);
+      }
+
       // If the click is inside any full-width dropdown panel, don't close anything
       if (target instanceof HTMLElement && target.closest('[data-dropdown-panel]')) {
         return;
@@ -216,22 +270,25 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     }
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    runSearch();
+  };
+
+  /**
+   * Build the /listings URL from the tabs and filters. `picked` is a city or
+   * locality chosen from the suggestions: it replaces parsing the typed text.
+   */
+  const runSearch = (picked?: { city: string; locality?: string }) => {
+    setSuggestOpen(false);
+    setSuggestIndex(-1);
     const params = new URLSearchParams();
 
     // 1. Resolve Location & Query Parsing
-    const queryLower = searchQuery.toLowerCase();
+    const queryLower = picked ? '' : searchQuery.toLowerCase();
     let resolvedCity = '';
     let matchedCityTerm = '';
-    const recognizedCities = [
-      'navi mumbai', 'delhi ncr', 'greater noida',
-      'mumbai', 'pune', 'delhi', 'ghaziabad', 'noida', 'gurgaon', 'gurugram',
-      'bangalore', 'bengaluru', 'hyderabad', 'chennai', 'kolkata', 'ahmedabad',
-      'jaipur', 'lucknow', 'faridabad', 'thane', 'chandigarh',
-      'indore', 'bhopal', 'kochi', 'coimbatore', 'patna', 'surat', 'nagpur', 'kanpur'
-    ];
-    for (const city of recognizedCities) {
+    for (const city of picked ? [] : RECOGNIZED_CITIES) {
       const cityRegex = new RegExp(`(^|[^a-z0-9])${city}([^a-z0-9]|$)`, 'i');
       if (cityRegex.test(queryLower)) {
         matchedCityTerm = city;
@@ -242,6 +299,10 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
         else resolvedCity = city;
         break;
       }
+    }
+    if (picked) {
+      resolvedCity = picked.city;
+      if (picked.locality) params.set('locality', picked.locality);
     }
     if (!resolvedCity && searchLocation) {
       resolvedCity = searchLocation.toLowerCase();
@@ -259,7 +320,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     if (resolvedBhk) params.set('bhk', resolvedBhk);
 
     // 3. Extract clean residual text query (stripping parsed city, bhk tokens, and prepositions)
-    let residualQuery = searchQuery.trim();
+    let residualQuery = picked ? '' : searchQuery.trim();
     if (matchedCityTerm) {
       const escapedCity = matchedCityTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const cityRegex = new RegExp(`(^|[^a-z0-9])${escapedCity}([^a-z0-9]|$)`, 'gi');
@@ -383,6 +444,7 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
         if (!Array.isArray(searches)) searches = [];
 
         const parts = [];
+        if (picked?.locality) parts.push(picked.locality);
         if (resolvedCity) parts.push(resolvedCity.charAt(0).toUpperCase() + resolvedCity.slice(1));
         parts.push(activeTab);
         if (checkedCategories.size < defaultCategories.size && checkedCategories.size > 0) parts.push(categoryLabel);
@@ -400,6 +462,41 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
     }
 
     router.push(`/listings?${params.toString()}`);
+  };
+
+  const pickSuggestion = (s: CapsuleSuggestion) => {
+    if (s.kind === 'city') {
+      setSearchQuery(s.city);
+      runSearch({ city: s.city });
+    } else {
+      const locality = s.place.locality || s.place.name;
+      setSearchQuery(s.place.city ? `${locality}, ${s.place.city}` : locality);
+      runSearch({ city: s.place.city, locality });
+    }
+  };
+
+  const handleQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      if (!suggestions.length) return;
+      e.preventDefault();
+      setSuggestOpen(true);
+      setSuggestIndex((i) => (i + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      if (!suggestions.length) return;
+      e.preventDefault();
+      setSuggestIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === 'Enter') {
+      if (showSuggestions && suggestIndex >= 0 && suggestIndex < suggestions.length) {
+        e.preventDefault();
+        pickSuggestion(suggestions[suggestIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      if (showSuggestions) {
+        e.stopPropagation();
+        setSuggestOpen(false);
+        setSuggestIndex(-1);
+      }
+    }
   };
 
   const renderCommercialSubView = () => (
@@ -838,16 +935,68 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
           <div className={styles.verticalDivider} aria-hidden="true" />
 
           {/* Search Query Pane */}
-          <div className={styles.searchQueryPane}>
+          <div className={styles.searchQueryPane} ref={searchPaneRef}>
             <Search size={20} className={styles.searchQueryIcon} />
             <input
               type="text"
               className={styles.searchQueryInput}
-              placeholder='Search "3 BHK for sale in Mumbai"'
+              placeholder='Search locality, city or "3 BHK for sale in Mumbai"'
               aria-label="Search properties input"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSuggestOpen(true);
+                setSuggestIndex(-1);
+              }}
+              onFocus={() => setSuggestOpen(true)}
+              onKeyDown={handleQueryKeyDown}
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={showSuggestions}
+              aria-haspopup="listbox"
+              aria-autocomplete="list"
+              aria-controls="search-capsule-suggestions"
+              aria-activedescendant={
+                showSuggestions && suggestIndex >= 0 ? `search-capsule-suggestion-${suggestIndex}` : undefined
+              }
             />
+            <ul
+              id="search-capsule-suggestions"
+              role="listbox"
+              aria-label="Location suggestions"
+              className={styles.suggestionsMenu}
+              hidden={!showSuggestions}
+            >
+              {suggestions.map((s, idx) => (
+                <li
+                  key={s.key}
+                  id={`search-capsule-suggestion-${idx}`}
+                  role="option"
+                  aria-selected={idx === suggestIndex}
+                  className={`${styles.suggestionOption} ${idx === suggestIndex ? styles.suggestionOptionActive : ''}`}
+                  onMouseEnter={() => setSuggestIndex(idx)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pickSuggestion(s)}
+                >
+                  {s.kind === 'city' ? (
+                    <Building2 size={16} className={styles.suggestionOptionIcon} aria-hidden="true" />
+                  ) : (
+                    <MapPin size={16} className={styles.suggestionOptionIcon} aria-hidden="true" />
+                  )}
+                  <span className={styles.suggestionOptionText}>
+                    <span className={styles.suggestionOptionName}>
+                      {s.kind === 'city' ? `All properties in ${s.city}` : s.place.name}
+                    </span>
+                    <span className={styles.suggestionOptionSub}>
+                      {s.kind === 'city' ? 'City' : formatPlaceSecondary(s.place)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <span className={styles.srOnly} role="status" aria-live="polite">
+              {placesLoading ? 'Searching localities…' : showSuggestions ? `${suggestions.length} suggestions` : ''}
+            </span>
           </div>
 
           <div className={styles.actionsGroup}>
