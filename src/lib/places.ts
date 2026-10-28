@@ -7,12 +7,21 @@
  *    with Photon as the fallback if Google fails or finds nothing.
  *  - India Post (src/lib/pincode.ts): merged in when the query is a 6-digit PIN.
  *
+ * Fallbacks when Google/Photon fail or return too few results:
+ *  - Localities of ACTIVE listings in our own database (read-only; also run on
+ *    every search so a real listing's locality is always findable).
+ *  - India Post post-office search by name (api.postalpincode.in/postoffice/{name}).
+ *
+ * Preference order: Google > Photon > own listings > India Post.
+ *
  * searchPlaces() never throws: a failing provider is logged and skipped, and
  * whatever the other providers returned is still sent back.
  */
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { cleanLocalityName, lookupPinCode, normalizeCityName } from '@/lib/pincode';
 
-export type PlaceSource = 'osm' | 'google' | 'indiapost';
+export type PlaceSource = 'osm' | 'google' | 'listing' | 'indiapost';
 
 export interface Place {
   /** Stable id: "osm:N123", "google:<placeId>", "indiapost:560038:Indiranagar" */
@@ -42,6 +51,10 @@ const USER_AGENT = 'ListMe/1.0 (+https://listme-sable.vercel.app; Indian propert
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 const INDIA_BBOX = '68.1,6.5,97.4,35.7';
 const PROVIDER_TIMEOUT_MS = 3500;
+// A dead Photon must not hold up the dropdown: short timeout, then the circuit breaker skips it.
+const PHOTON_TIMEOUT_MS = 2500;
+const INDIA_POST_TIMEOUT_MS = 3000;
+const DB_TIMEOUT_MS = 2000;
 const DEFAULT_LIMIT = 8;
 const MAX_LIMIT = 15;
 
@@ -315,13 +328,13 @@ async function photonFetch(q: string, limit: number, city: string | undefined, p
     params.set('location_bias_scale', '0.4');
   }
   // Fair use: while Photon is throttling or down, do not keep calling it.
-  if (Date.now() < photonState().backoffUntil) throw new Error('Photon backing off after recent failures');
+  if (photonBackingOff()) throw new Error('Photon backing off after recent failures');
 
   const url = `${PHOTON_URL}?${params.toString()}`;
   const get = () =>
     fetch(url, {
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
-      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      signal: AbortSignal.timeout(PHOTON_TIMEOUT_MS),
       cache: 'no-store',
     });
   let res: Response;
@@ -345,7 +358,8 @@ async function photonFetch(q: string, limit: number, city: string | undefined, p
   return Array.isArray(json.features) ? json.features : [];
 }
 
-// Simple circuit breaker shared by warm invocations: 15s, 30s, 60s ... up to 5 min.
+// Simple circuit breaker shared by warm invocations: after a timeout / 429 / 5xx,
+// skip Photon for 15s, then 30s, 60s ... up to 5 min while it keeps failing.
 const globalPhoton = globalThis as unknown as { __photonState?: { failures: number; backoffUntil: number } };
 function photonState() {
   if (!globalPhoton.__photonState) globalPhoton.__photonState = { failures: 0, backoffUntil: 0 };
@@ -354,9 +368,10 @@ function photonState() {
 function photonFailed() {
   const s = photonState();
   s.failures += 1;
-  if (s.failures >= 2) {
-    s.backoffUntil = Date.now() + Math.min(5 * 60_000, 15_000 * 2 ** (s.failures - 2));
-  }
+  s.backoffUntil = Date.now() + Math.min(5 * 60_000, 15_000 * 2 ** (s.failures - 1));
+}
+function photonBackingOff(): boolean {
+  return Date.now() < photonState().backoffUntil;
 }
 
 async function searchPhoton(q: string, city: string | undefined, limit: number): Promise<Place[]> {
@@ -545,15 +560,171 @@ async function searchIndiaPost(pin: string): Promise<Place[]> {
   }));
 }
 
+interface IndiaPostOffice {
+  Name?: string;
+  BranchType?: string;
+  DeliveryStatus?: string;
+  District?: string;
+  State?: string;
+  Pincode?: string;
+}
+
+/**
+ * India Post post-office search by name (fallback for name queries).
+ * Post offices with the same clean name and PIN collapse into one; a delivery
+ * office wins over a non-delivery one. Results matching the query's start and
+ * the city bias come first.
+ */
+async function searchIndiaPostByName(q: string, city: string | undefined, limit: number): Promise<Place[]> {
+  // The API takes a plain name: keep letters, digits, spaces, dots and hyphens.
+  const name = q.replace(/[^A-Za-z0-9 .-]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (name.length < 3) return [];
+
+  const cacheKey = `postoffice|${name.toLowerCase()}`;
+  let offices = cacheGet<IndiaPostOffice[]>(cacheKey);
+  if (!offices) {
+    const res = await fetch(`https://api.postalpincode.in/postoffice/${encodeURIComponent(name)}`, {
+      headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(INDIA_POST_TIMEOUT_MS),
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`India Post HTTP ${res.status}`);
+    const data = (await res.json()) as { Status?: string; PostOffice?: IndiaPostOffice[] | null }[];
+    const first = Array.isArray(data) ? data[0] : undefined;
+    // "Error" means no post office has that name: a valid, cacheable empty answer.
+    if (!first || (first.Status !== 'Success' && first.Status !== 'Error')) throw new Error('India Post: unexpected response');
+    offices = Array.isArray(first.PostOffice) ? first.PostOffice : [];
+    cacheSet(cacheKey, offices);
+  }
+
+  const qLower = name.toLowerCase();
+  const byKey = new Map<string, { place: Place; delivery: boolean; order: number }>();
+  offices.forEach((po, order) => {
+    const district = clean(po.District);
+    const locality = cleanLocalityName(clean(po.Name), district);
+    const pinCode = validPin(po.Pincode);
+    if (!locality || locality.length < 2) return;
+    const key = `${normalizePlaceText(locality)}|${pinCode || ''}`;
+    const delivery = clean(po.DeliveryStatus).toLowerCase() === 'delivery';
+    const existing = byKey.get(key);
+    if (existing && (existing.delivery || !delivery)) return;
+    const state = clean(po.State);
+    byKey.set(key, {
+      delivery,
+      order: existing ? existing.order : order,
+      place: {
+        id: `indiapost:${pinCode || 'x'}:${locality}`,
+        name: locality,
+        locality,
+        city: normalizeCityName(district, state),
+        state,
+        pinCode,
+        lat: null,
+        lng: null,
+        source: 'indiapost',
+      },
+    });
+  });
+
+  return Array.from(byKey.values())
+    .map((e) => {
+      // Exact name, then whole-word prefix ("Baner Gaon"), then partial word ("Banera").
+      const n = e.place.name.toLowerCase();
+      const startScore =
+        n === qLower ? 0 : n.startsWith(qLower) ? (/[a-z0-9]/.test(n.charAt(qLower.length)) ? 2 : 1) : 3;
+      const cityScore = city && cityMatches(e.place.city, city) ? 0 : 1;
+      return { ...e, startScore, cityScore };
+    })
+    .sort(
+      (a, b) =>
+        a.cityScore - b.cityScore ||
+        a.startScore - b.startScore ||
+        Number(b.delivery) - Number(a.delivery) ||
+        a.order - b.order
+    )
+    .slice(0, limit)
+    .map((e) => e.place);
+}
+
+// ---------------------------------------------------------------------------
+// Localities of our own active listings (read-only)
+// ---------------------------------------------------------------------------
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function searchOwnListings(q: string, pin: string | null, city: string | undefined, limit: number): Promise<Place[]> {
+  if (!process.env.DATABASE_URL) return [];
+  // Escape LIKE wildcards in what the user typed.
+  const pattern = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const pinCondition = pin ? Prisma.sql`OR pin_code = ${pin}` : Prisma.empty;
+  const rows = await withTimeout(
+    prisma.$queryRaw<{ locality: string; sub_locality: string | null; city: string; pin_code: string }[]>`
+      SELECT DISTINCT locality, sub_locality, city, pin_code
+      FROM listings
+      WHERE status = 'ACTIVE' AND (locality ILIKE ${pattern} ${pinCondition})
+      LIMIT 10`,
+    DB_TIMEOUT_MS,
+    'Listing locality query'
+  );
+
+  const qNorm = normalizePlaceText(q);
+  return rows
+    .map((r) => {
+      const listingCity = clean(r.city);
+      // Some listings save the locality as "Baner, Pune": drop a trailing city name.
+      let locality = clean(r.locality);
+      const parts = locality.split(',').map((x) => x.trim()).filter(Boolean);
+      if (parts.length > 1 && cityKey(parts[parts.length - 1]) === cityKey(listingCity)) {
+        locality = parts.slice(0, -1).join(', ');
+      }
+      const sub = clean(r.sub_locality);
+      const n = normalizePlaceText(locality);
+      return {
+        place: {
+          id: `listing:${normalizePlaceText(locality)}:${normalizePlaceText(sub)}:${normalizePlaceText(listingCity)}:${r.pin_code}`,
+          name: locality,
+          locality,
+          // Keep the society only when it is a different name from the locality.
+          subLocality: sub && normalizePlaceText(sub) !== n ? sub : undefined,
+          city: listingCity,
+          state: '',
+          pinCode: validPin(r.pin_code),
+          lat: null,
+          lng: null,
+          source: 'listing' as const,
+        },
+        score: (city && cityMatches(listingCity, city) ? 0 : 2) + (n.startsWith(qNorm) ? 0 : 1),
+      };
+    })
+    .sort((a, b) => a.score - b.score)
+    .slice(0, limit)
+    .map((r) => r.place);
+}
+
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
+
+/** City key for de-duplication only (Bengaluru = Bangalore, Gurugram = Gurgaon). */
+function cityKey(city: string): string {
+  const n = normalizePlaceText(city);
+  if (n === 'bengaluru') return 'bangalore';
+  if (n === 'gurugram') return 'gurgaon';
+  if (n === 'bombay') return 'mumbai';
+  return n;
+}
 
 function dedupe(places: Place[]): Place[] {
   const seen = new Set<string>();
   const out: Place[] = [];
   for (const p of places) {
-    const key = `${normalizePlaceText(p.name)}|${normalizePlaceText(p.locality)}|${normalizePlaceText(p.city)}`;
+    const key = `${normalizePlaceText(p.name)}|${normalizePlaceText(p.locality)}|${cityKey(p.city)}`;
     if (!p.name || seen.has(key)) continue;
     seen.add(key);
     out.push(p);
@@ -561,15 +732,21 @@ function dedupe(places: Place[]): Place[] {
   return out;
 }
 
-export async function searchPlaces({ q, city, limit = DEFAULT_LIMIT }: SearchPlacesOptions): Promise<Place[]> {
+export interface PlaceSearchResult {
+  places: Place[];
+  /** True when a provider failed: the answer may be incomplete, so callers should cache it briefly. */
+  degraded: boolean;
+}
+
+export async function searchPlacesDetailed({ q, city, limit = DEFAULT_LIMIT }: SearchPlacesOptions): Promise<PlaceSearchResult> {
   const query = clean(q).slice(0, 100);
   const cityBias = clean(city).slice(0, 100) || undefined;
   const max = Math.min(MAX_LIMIT, Math.max(1, Math.floor(limit) || DEFAULT_LIMIT));
-  if (query.length < 2) return [];
+  if (query.length < 2) return { places: [], degraded: false };
 
   const google = isGoogleEnabled();
   const cacheKey = `search|${google ? 'g' : 'p'}|${query.toLowerCase()}|${(cityBias || '').toLowerCase()}|${max}`;
-  const cached = cacheGet<Place[]>(cacheKey);
+  const cached = cacheGet<PlaceSearchResult>(cacheKey);
   if (cached) return cached;
 
   const pin = /^\d{6}$/.test(query.replace(/\s/g, '')) ? query.replace(/\s/g, '') : null;
@@ -590,7 +767,7 @@ export async function searchPlaces({ q, city, limit = DEFAULT_LIMIT }: SearchPla
       return await searchPhoton(geoQuery, cityBias, max);
     } catch (err) {
       failed = true;
-      console.error('[places] Photon search failed:', err);
+      console.error('[places] Photon search failed:', err instanceof Error ? err.message : err);
       return [];
     }
   };
@@ -606,11 +783,41 @@ export async function searchPlaces({ q, city, limit = DEFAULT_LIMIT }: SearchPla
     }
   };
 
-  const [geo, post] = await Promise.all([geoSearch(), postSearch()]);
-  // For a PIN, the map's area name comes first, then the post offices.
-  const merged = dedupe([...geo, ...post]).slice(0, pin ? MAX_LIMIT : max);
+  // Our own listings: cheap, read-only, and run on every search so a real
+  // listing's locality is always findable.
+  const listingSearch = async (): Promise<Place[]> => {
+    try {
+      return await searchOwnListings(query, pin, cityBias, max);
+    } catch (err) {
+      failed = true;
+      console.error('[places] Listing locality lookup failed:', err instanceof Error ? err.message : err);
+      return [];
+    }
+  };
+
+  const [geo, post, own] = await Promise.all([geoSearch(), postSearch(), listingSearch()]);
+
+  // India Post name search only when the map providers failed or found too little.
+  let postByName: Place[] = [];
+  if (!pin && dedupe([...geo, ...own]).length < Math.ceil(max / 2)) {
+    try {
+      postByName = await searchIndiaPostByName(query, cityBias, max);
+    } catch (err) {
+      failed = true;
+      console.error('[places] India Post name search failed:', err instanceof Error ? err.message : err);
+    }
+  }
+
+  // Preference: Google/Photon, then our listings, then India Post. For a PIN,
+  // the map's area name comes first, then listings in that PIN, then the post offices.
+  const merged = dedupe([...geo, ...own, ...postByName, ...post]).slice(0, pin ? MAX_LIMIT : max);
 
   // Do not keep a provider outage in the cache for a day.
-  cacheSet(cacheKey, merged, failed ? 2 * 60 * 1000 : CACHE_TTL_MS);
-  return merged;
+  const result: PlaceSearchResult = { places: merged, degraded: failed };
+  cacheSet(cacheKey, result, failed ? 2 * 60 * 1000 : CACHE_TTL_MS);
+  return result;
+}
+
+export async function searchPlaces(options: SearchPlacesOptions): Promise<Place[]> {
+  return (await searchPlacesDetailed(options)).places;
 }

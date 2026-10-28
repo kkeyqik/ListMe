@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchPlaces } from '@/lib/places';
+import { searchPlacesDetailed } from '@/lib/places';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { getClientIp } from '@/lib/request-ip';
 
@@ -32,13 +32,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const places = await searchPlaces({ q, city: city || undefined, limit });
+    const { places, degraded } = await searchPlacesDetailed({ q, city: city || undefined, limit });
     return NextResponse.json(
       { success: true, places },
       {
         headers: {
-          // Same query, same answer: let the CDN serve repeats for a day.
-          'Cache-Control': 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800',
+          // Same query, same answer: let the CDN serve repeats for a day. A fallback
+          // answer (a provider was down) is cached only briefly so it heals quickly.
+          'Cache-Control': degraded
+            ? 'public, max-age=60, s-maxage=120'
+            : 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800',
         },
       }
     );
