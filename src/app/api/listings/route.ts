@@ -198,8 +198,39 @@ export async function GET(request: NextRequest) {
       // "Delhi NCR" also covers Noida, Gurgaon, Ghaziabad, ...; Bangalore matches Bengaluru.
       where.AND = [...(where.AND || []), listingCityWhere(city)];
     }
-    if (locality) {
-      where.locality = { contains: locality, mode: 'insensitive' };
+    if (locality && locality.trim()) {
+      // Case-insensitive, partial match on locality or sub-locality. Also ignore
+      // spaces and punctuation so "Indiranagar" finds "Indira Nagar" (and vice versa).
+      const term = locality.trim().slice(0, 150);
+      const compact = term.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const localityConditions: Prisma.ListingWhereInput[] = [
+        { locality: { contains: term, mode: 'insensitive' } },
+        { subLocality: { contains: term, mode: 'insensitive' } },
+      ];
+      if (compact.length >= 3) {
+        try {
+          // `compact` only holds [a-z0-9], so it cannot inject LIKE wildcards.
+          // Matches both ways: "Indira Nagar" finds "Indiranagar 2nd Stage", and
+          // a picked "Indiranagar 2nd Stage" / "Baner Gaon" still finds a listing saved as
+          // "Indiranagar" / "Baner" (stored names of 4+ letters only, to avoid noise).
+          const pattern = `%${compact}%`;
+          const rows = await prisma.$queryRaw<{ id: string }[]>`
+            SELECT id::text AS id FROM (
+              SELECT id,
+                     regexp_replace(lower(locality), '[^a-z0-9]', '', 'g') AS loc,
+                     regexp_replace(lower(coalesce(sub_locality, '')), '[^a-z0-9]', '', 'g') AS sub
+              FROM listings
+            ) l
+            WHERE l.loc LIKE ${pattern}
+               OR l.sub LIKE ${pattern}
+               OR (length(l.loc) >= 4 AND l.loc !~ '[0-9]$' AND strpos(${compact}, l.loc) > 0)
+            LIMIT 2000`;
+          if (rows.length > 0) localityConditions.push({ id: { in: rows.map((r) => r.id) } });
+        } catch (err) {
+          console.error('[listings] Normalised locality match failed:', err);
+        }
+      }
+      where.AND = [...(where.AND || []), { OR: localityConditions }];
     }
     if (pinCode) {
       where.pinCode = pinCode;

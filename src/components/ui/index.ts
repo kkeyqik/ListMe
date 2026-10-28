@@ -7,4 +7,5 @@ export { ToastProvider, useToast, type ToastItem, type ToastType } from './Toast
 export { default as Skeleton, type SkeletonProps } from './Skeleton';
 export { OtpInput } from './OtpInput';
 export { Breadcrumbs } from './Breadcrumbs';
+export { default as LocalityAutocomplete, type LocalityAutocompleteProps, type Place } from './LocalityAutocomplete';
 export { Select, Combobox, type SelectProps, type ComboboxProps, type SelectOption } from './Select';

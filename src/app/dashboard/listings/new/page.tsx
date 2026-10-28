@@ -20,7 +20,7 @@ import {
   X,
   Video
 } from 'lucide-react';
-import { useToast, Button, Input, Card, Select, Combobox } from '@/components/ui';
+import { useToast, Button, Input, Card, Select, LocalityAutocomplete, type Place } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
 import {
@@ -30,6 +30,7 @@ import {
   validateVideo,
   processImage,
 } from '@/lib/upload';
+import { applyPlaceToListingForm } from '../locality-pick';
 import styles from './new.module.css';
 
 import { RESIDENTIAL_PROPERTY_CATEGORIES, COMMERCIAL_PROPERTY_CATEGORIES, PROPERTY_CATEGORY_VALUES, isLandType, DOCUMENT_TYPE_OPTIONS } from '../property-types';
@@ -350,6 +351,36 @@ export default function NewListing() {
       };
     }
   }, [formData.pinCode, cities, showToast]);
+
+  // Locality autocomplete: typing keeps free text; coordinates from an earlier pick no longer apply.
+  const handleLocalityTextChange = (val: string) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      locality: val,
+      ...(prev.latitude != null ? { latitude: null, longitude: null } : {}),
+    }));
+  };
+
+  // A picked suggestion fills locality, sub-locality, city, PIN and coordinates.
+  const handleLocalityPick = (place: Place) => {
+    const { patch, changes, city, pinCode } = applyPlaceToListingForm(formData, place);
+    if (city) {
+      // Mark the city as already handled so the city effect does not wipe locality/PIN,
+      // and make sure the dropdown can show a city that is not in the list yet.
+      prevCityRef.current = city;
+      setCities((prev) =>
+        prev.some((c) => c.name?.toLowerCase() === city.toLowerCase())
+          ? prev
+          : [...prev, { id: `auto-${city}`, name: city, localities: [] }]
+      );
+    }
+    // The picked place already gave the city: do not let the India Post lookup override it.
+    if (pinCode) lastResolvedPinRef.current = pinCode;
+    setFormData((prev: any) => ({ ...prev, ...patch }));
+    if (changes.length > 0) {
+      showToast('Location updated', changes.join(' · '), 'success');
+    }
+  };
 
   // Input change handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -1047,21 +1078,16 @@ export default function NewListing() {
                 </div>
               </div>
 
-              <Combobox
+              <LocalityAutocomplete
                 label="Locality"
-                subLabel={localities.length > 0 ? "(Select or type custom)" : undefined}
+                subLabel="(area, sector, society or PIN)"
                 name="locality"
                 value={formData.locality}
-                onChange={(val) => setFormData((prev: any) => ({ ...prev, locality: val }))}
-                options={localities.map((loc) => (typeof loc === 'string' ? loc : loc.name))}
-                placeholder={
-                  !formData.city
-                    ? 'Select City or enter PIN code first'
-                    : localities.length > 0
-                    ? 'Select or type locality...'
-                    : 'Enter locality (e.g. Indiranagar, HSR Layout)'
-                }
-                disabled={!formData.city && localities.length === 0}
+                onChange={handleLocalityTextChange}
+                onSelect={handleLocalityPick}
+                city={formData.city || undefined}
+                presetOptions={localities.map((loc) => (typeof loc === 'string' ? loc : loc.name))}
+                placeholder="Search locality, e.g. Indiranagar, Sector 62, Baner"
                 required
                 fullWidth
               />
