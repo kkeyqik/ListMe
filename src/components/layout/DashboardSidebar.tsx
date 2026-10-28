@@ -8,6 +8,7 @@ import {
   Building2, 
   Plus, 
   Heart, 
+  Bookmark,
   User, 
   Bell, 
   LogOut,
@@ -63,6 +64,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     { label: 'My Listings', href: '/dashboard/listings', icon: <Building2 size={18} className={styles.icon} /> },
     { label: 'Add Listing', href: '/dashboard/listings/new', icon: <Plus size={18} className={styles.icon} /> },
     { label: 'Interests Received', href: '/dashboard/interests', icon: <Heart size={18} className={styles.icon} /> },
+    { label: 'Saved Properties', href: '/dashboard/saved', icon: <Bookmark size={18} className={styles.icon} /> },
     { label: 'Profile', href: '/dashboard/profile', icon: <User size={18} className={styles.icon} /> },
     { label: 'Notifications', href: '/dashboard/notifications', icon: <Bell size={18} className={styles.icon} /> },
   ];

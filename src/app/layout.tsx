@@ -6,6 +6,7 @@ import { MobileMenuProvider } from '@/context/MobileMenuContext';
 import { MobileMenuDrawer } from '@/components/layout/MobileMenuDrawer';
 import { MobileSearchDrawer } from '@/components/search/MobileSearchDrawer';
 import { AuthProvider } from "@/context/AuthContext";
+import { SavedListingsProvider } from "@/context/SavedListingsContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { SITE_URL } from "@/lib/site-url";
 import { DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
@@ -86,6 +87,7 @@ export default function RootLayout({
         <SettingsProvider>
           <GoogleAnalytics />
           <AuthProvider>
+            <SavedListingsProvider>
             <ToastProvider>
               <MobileMenuProvider>
                 <ErrorMonitor />
@@ -97,6 +99,7 @@ export default function RootLayout({
                 </div>
               </MobileMenuProvider>
             </ToastProvider>
+            </SavedListingsProvider>
           </AuthProvider>
         </SettingsProvider>
         <Analytics />

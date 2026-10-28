@@ -8,6 +8,8 @@ import { Search, Building, Building2, ShieldCheck, Heart, Check, Tag, ArrowUp, M
 import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
 import { SearchCapsule } from '../components/search';
+import { SaveButton } from '@/components/ui/SaveButton';
+import { isUuid } from '@/lib/ids';
 import styles from './Home.module.css';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -628,49 +630,7 @@ export default function Home() {
 
   const [featuredProperties, setFeaturedProperties] = useState<any[]>(staticHandpickedProperties);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
-  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
-  // Load initial favorites from localStorage
-  useEffect(() => {
-    try {
-      const savedFavs = localStorage.getItem('listme_favorites');
-      if (savedFavs) {
-        const parsed = JSON.parse(savedFavs);
-        if (parsed && typeof parsed === 'object') {
-          setFavorites(parsed);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load favorites from localStorage:', err);
-    }
-  }, []);
-
-  const toggleFavorite = (id: string) => {
-    setFavorites((prev) => {
-      const isCurrentlyFav = !!prev[id];
-      const nextState = !isCurrentlyFav;
-      const newFavs = { ...prev, [id]: nextState };
-
-      try {
-        localStorage.setItem('listme_favorites', JSON.stringify(newFavs));
-      } catch (err) {
-        console.error('Failed to save favorites to localStorage:', err);
-      }
-
-      // If user is logged in, optionally call /api/users/shortlist in the background (fire and forget)
-      if (user?.id) {
-        fetch('/api/users/shortlist', {
-          method: nextState ? 'POST' : 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ listingId: id }),
-        }).catch((apiErr) => {
-          console.warn('Background shortlist sync failed:', apiErr);
-        });
-      }
-
-      return newFavs;
-    });
-  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -1492,7 +1452,6 @@ export default function Home() {
               ) : (
                 displayedProperties.slice(0, 4).map((prop) => {
                   const isRent = prop.tag === 'For Rent';
-                  const isFav = !!favorites[prop.id];
                 
                 return (
                   <div 
@@ -1562,16 +1521,14 @@ export default function Home() {
                         <CheckCircle size={15} className={styles.verifiedIcon} />
                         <span>Owner Verified</span>
                       </div>
-                      <button 
-                        className={`${styles.heartButton} ${isFav ? styles.heartActive : ''}`} 
-                        aria-label="Add to shortlist"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(prop.id);
-                        }}
-                      >
-                        <Heart size={18} fill={isFav ? "currentColor" : "none"} className={styles.heartIcon} />
-                      </button>
+                      {isUuid(prop.id) && (
+                        <SaveButton
+                          listingId={prop.id}
+                          className={styles.heartButton}
+                          activeClassName={styles.heartActive}
+                          iconClassName={styles.heartIcon}
+                        />
+                      )}
                     </div>
                   </div>
                 );

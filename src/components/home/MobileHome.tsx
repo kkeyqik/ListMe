@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   Search,
-  Heart,
   Calculator,
   Percent,
   TrendingUp,
@@ -18,13 +17,12 @@ import {
   ArrowRight,
   Sparkles
 } from 'lucide-react';
+import { SaveButton } from '@/components/ui/SaveButton';
 import styles from './MobileHome.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useToast } from '@/components/ui';
-import { useAuth } from '@/context/AuthContext';
 
-const FAVORITES_KEY = 'listme_favorites';
 
 interface ListingItem {
   id: string;
@@ -100,8 +98,6 @@ export const MobileHome: React.FC = () => {
   const { openMenu, openSearch } = useMobileMenu();
   const { settings } = useSettings();
   const { showToast } = useToast();
-  const { user } = useAuth();
-  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loadingListings, setLoadingListings] = useState(true);
@@ -143,44 +139,6 @@ export const MobileHome: React.FC = () => {
       window.removeEventListener('resize', handleScroll);
     };
   }, []);
-
-  // Saved properties are shared with the desktop home (same localStorage key)
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(FAVORITES_KEY);
-      const parsed: unknown = saved ? JSON.parse(saved) : null;
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        setFavorites(parsed as Record<string, boolean>);
-      }
-    } catch {
-      // Ignore localStorage errors
-    }
-  }, []);
-
-  const toggleFavorite = (id: string) => {
-    const nextState = !favorites[id];
-    const updated = { ...favorites, [id]: nextState };
-    setFavorites(updated);
-    try {
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
-    } catch {
-      // Ignore localStorage errors
-    }
-    if (user?.id) {
-      fetch('/api/users/shortlist', {
-        method: nextState ? 'POST' : 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ listingId: id }),
-      }).catch((err) => console.warn('Shortlist sync failed:', err));
-    }
-    showToast(
-      nextState ? 'Saved' : 'Removed',
-      nextState
-        ? user?.id ? 'Property added to your shortlist.' : 'Property saved on this device. Log in to keep it across devices.'
-        : 'Property removed from your saved list.',
-      nextState ? 'success' : 'info'
-    );
-  };
 
   // Fetch live properties from database
   useEffect(() => {
@@ -368,19 +326,7 @@ export const MobileHome: React.FC = () => {
                     className={styles.propertyImage}
                   />
                   {isLive && (
-                    <button
-                      type="button"
-                      className={styles.heartIcon}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleFavorite(property.id);
-                      }}
-                      aria-label={favorites[property.id] ? `Remove ${property.title} from saved` : `Save ${property.title}`}
-                      aria-pressed={!!favorites[property.id]}
-                    >
-                      <Heart size={16} fill={favorites[property.id] ? 'currentColor' : 'none'} aria-hidden="true" />
-                    </button>
+                    <SaveButton listingId={property.id} className={styles.heartIcon} size={16} />
                   )}
                   <div className={styles.priceTag}>
                     {formatPrice(property.askingPrice, property.listingFor)}

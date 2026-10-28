@@ -750,3 +750,37 @@
   color: var(--color-secondary);
   margin-top: 0.25rem;
 }
+
+/* Save (heart) button under the contact actions */
+.saveButton {
+  margin-top: 0.75rem;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--color-text-primary, inherit);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.saveButton:hover {
+  border-color: var(--color-neutral-400);
+  background: var(--color-neutral-50);
+}
+
+.saveButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.saveButtonActive {
+  color: #e11d48;
+  border-color: #fecdd3;
+}

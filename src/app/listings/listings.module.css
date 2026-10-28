@@ -241,6 +241,44 @@
 }
 
 /* Whole card is a real link so crawlers, middle-click and "open in new tab" work */
+.cardWrap {
+  position: relative;
+  height: 100%;
+}
+
+/* Sits over the card image (top right); a sibling of the card link, not inside it. */
+.saveButton {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  z-index: 2;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-neutral-700);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.saveButton:hover {
+  transform: scale(1.08);
+}
+
+.saveButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.saveButtonActive {
+  color: #e11d48;
+}
+
 .cardLink {
   display: block;
   height: 100%;

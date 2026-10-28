@@ -67,7 +67,7 @@ export const Header: React.FC = () => {
   const getActivityLinks = () => [
     { label: 'Search Listings', href: '/listings' },
     { label: 'Contacted Properties', href: '/dashboard/interests' },
-    { label: 'My Interests', href: '/dashboard/interests' },
+    { label: 'Saved Properties', href: '/dashboard/saved' },
     { label: 'My Listings', href: '/dashboard/listings' },
   ];
 
