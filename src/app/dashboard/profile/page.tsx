@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast, Card, Input, Button, Badge } from '@/components/ui';
 import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
 import styles from '../dashboard.module.css';
+import { isSyntheticEmail } from '@/lib/ids';
 
 export default function Profile() {
   const { profile, refreshProfile } = useAuth();
@@ -19,14 +20,22 @@ export default function Profile() {
   // Phone verification modal control
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
 
-  // Sync state with loaded profile
+  // Fill the form when the profile first loads (or the account changes). A
+  // background profile refresh must not wipe what the user is typing.
+  const syncedProfileId = React.useRef<string | null>(null);
   useEffect(() => {
-    if (profile) {
+    if (profile && syncedProfileId.current !== profile.id) {
+      syncedProfileId.current = profile.id;
       setName(profile.name || '');
       setAddress(profile.address || '');
-      setPhone(profile.phone ? profile.phone.replace('+91', '').trim() : '');
     }
   }, [profile]);
+
+  // The phone can change through OTP verification, so keep it in sync.
+  const profilePhone = profile?.phone || '';
+  useEffect(() => {
+    setPhone(profilePhone ? profilePhone.replace('+91', '').trim() : '');
+  }, [profilePhone]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,9 +191,11 @@ export default function Profile() {
 
             {/* Email (Read Only) */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>Email Address</label>
+              <label className={styles.label} htmlFor="profile-email">Email Address</label>
               <Input
-                value={profile?.email || ''}
+                id="profile-email"
+                value={profile?.email && !isSyntheticEmail(profile.email) ? profile.email : ''}
+                placeholder="No email added"
                 readOnly
                 disabled
                 leftIcon={<Mail size={18} />}
@@ -194,13 +205,18 @@ export default function Profile() {
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}>Communication Address</label>
+            <label className={styles.label} htmlFor="profile-address">Postal Address (optional)</label>
+            <p id="profile-address-note" style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', margin: '0 0 0.375rem' }}>
+              Kept on your account only. It is not shown on your listings or to other users.
+            </p>
             <textarea
+              id="profile-address"
+              aria-describedby="profile-address-note"
               name="address"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               className={styles.textarea}
-              placeholder="Enter your billing/postal address..."
+              placeholder="Enter your postal address (optional)"
               rows={3}
               disabled={submitting}
             />

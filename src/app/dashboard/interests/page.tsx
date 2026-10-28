@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast, Button, Card, Badge, Modal, Input } from '@/components/ui';
 import styles from '../dashboard.module.css';
+import { isSyntheticEmail } from '@/lib/ids';
 
 interface InterestItem {
   id: string;
@@ -75,16 +76,23 @@ export default function Interests() {
   const [selectedLead, setSelectedLead] = useState<InterestItem | null>(null);
   const [soldPriceInput, setSoldPriceInput] = useState<string>('');
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const fetchInterests = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch(`/api/interests?mode=${mode}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setInterests(data.interests || []);
+      } else {
+        setInterests([]);
+        setLoadError(data.message || `Inquiries could not be loaded (error ${res.status}).`);
       }
     } catch (err) {
       console.error('Error fetching interests:', err);
+      setLoadError('Inquiries could not be loaded. Check your connection and try again.');
       showToast('Error', 'Failed to retrieve interest requests', 'error');
     } finally {
       setLoading(false);
@@ -221,6 +229,13 @@ export default function Interests() {
       {/* Grid List */}
       {loading ? (
         <Card padding="md">Loading inquiries...</Card>
+      ) : loadError ? (
+        <div className={styles.errorBanner} role="alert">
+          <span>{loadError}</span>
+          <Button variant="outline" size="sm" onClick={() => fetchInterests()}>
+            Try again
+          </Button>
+        </div>
       ) : interests.length === 0 ? (
         <div className={styles.emptyState}>
           <Heart size={48} style={{ opacity: 0.3 }} />
@@ -304,15 +319,15 @@ export default function Interests() {
                             SEEKER CONTACT DETAILS
                           </div>
                           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.937rem', color: 'var(--color-neutral-900)' }}>
-                            {item.user.name || 'Genuine Verified Seeker'}
+                            {item.user?.name || 'Genuine Verified Seeker'}
                           </div>
                           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                            {item.user.phone && (
+                            {item.user?.phone && (
                               <a href={`tel:${item.user.phone}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--color-primary)', fontWeight: 600 }}>
                                 <Phone size={14} /> {item.user.phone}
                               </a>
                             )}
-                            {item.user.email && (
+                            {item.user?.email && !isSyntheticEmail(item.user.email) && (
                               <a href={`mailto:${item.user.email}`} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <Mail size={14} /> {item.user.email}
                               </a>

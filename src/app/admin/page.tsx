@@ -17,6 +17,18 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Card, Badge, Modal } from '@/components/ui';
 import styles from './admin.module.css';
 
+/** Human-readable age of a pending submission, e.g. "3 days". */
+function waitingFor(dateValue: string | Date | undefined): string {
+  if (!dateValue) return '';
+  const ms = Date.now() - new Date(dateValue).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return 'just now';
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 1) return 'under an hour';
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'}`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
+
 export default function AdminHome() {
   const { user, loading: authLoading } = useAuth();
   const { showToast } = useToast();
@@ -35,6 +47,7 @@ export default function AdminHome() {
   const [loading, setLoading] = useState(true);
   const [loadErrors, setLoadErrors] = useState<string[]>([]);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [interestsForbidden, setInterestsForbidden] = useState(false);
 
   // Rejection modal states
   const [rejectListingId, setRejectListingId] = useState<string | null>(null);
@@ -51,7 +64,7 @@ export default function AdminHome() {
       const [metricsRes, listingsRes, interestsRes] = await Promise.all([
         fetch('/api/admin/metrics'),
         fetch('/api/listings?admin=true&status=PENDING_REVIEW&limit=5&sort=oldest'),
-        fetch('/api/interests?mode=all')
+        fetch('/api/admin/interests?limit=5')
       ]);
 
       // Handle each response on its own so one failure does not blank the
@@ -77,9 +90,10 @@ export default function AdminHome() {
         const listingsData = await listingsRes.json();
         setPendingListings(listingsData.listings || []);
       }
+      setInterestsForbidden(interestsRes.status === 403);
       if (interestsRes.ok) {
         const interestsData = await interestsRes.json();
-        setRecentInterests((interestsData.interests || []).slice(0, 5));
+        setRecentInterests(interestsData.interests || []);
       }
     } catch (err) {
       console.error('Error fetching admin home data:', err);
@@ -252,7 +266,7 @@ export default function AdminHome() {
         <div>
           <div className={styles.sectionTitle}>
             <span>Pending Approvals Queue</span>
-            <Link href="/admin/listings" className={styles.viewLink}>
+            <Link href="/admin/listings?status=PENDING_REVIEW&sort=oldest" className={styles.viewLink}>
               View All Queue <ArrowRight size={14} style={{ display: 'inline', marginLeft: '3px' }} />
             </Link>
           </div>
@@ -299,6 +313,9 @@ export default function AdminHome() {
                           <div className={styles.titleText}>{listing.title}</div>
                           <div className={styles.subTextInfo}>
                             {listing.propertyType.replace('_', ' ')} · {listing.locality}, {listing.city}
+                          </div>
+                          <div className={styles.subTextInfo} title={new Date(listing.updatedAt || listing.createdAt).toLocaleString('en-IN')}>
+                            Waiting {waitingFor(listing.updatedAt || listing.createdAt)}
                           </div>
                         </td>
                         <td className={styles.td}>{formatPrice(listing.askingPrice)}</td>
@@ -354,6 +371,9 @@ export default function AdminHome() {
                         <div className={styles.mobileCardPrice}>{formatPrice(listing.askingPrice)}</div>
                         <div className={styles.mobileCardMeta}>
                           <span>{listing.propertyType.replace('_', ' ')} · {listing.locality}, {listing.city}</span>
+                        </div>
+                        <div className={styles.mobileCardMeta}>
+                          <span>Waiting {waitingFor(listing.updatedAt || listing.createdAt)}</span>
                         </div>
                       </div>
                       <Badge variant="warning" size="sm">Pending Review</Badge>
@@ -413,6 +433,8 @@ export default function AdminHome() {
 
           {loading ? (
             <Card padding="md">Loading log...</Card>
+          ) : interestsForbidden ? (
+            <Card padding="md">Your admin account does not have the Interests permission.</Card>
           ) : recentInterests.length === 0 ? (
             <div className={styles.emptyStateCard}>
               <div className={styles.emptyIllustrationWrapper}>
@@ -433,10 +455,10 @@ export default function AdminHome() {
                 <div key={interest.id} className={styles.listItem}>
                   <div>
                     <div style={{ fontWeight: 700, color: 'var(--color-neutral-900)' }}>
-                      {interest.user.name || 'Anonymous User'}
+                      {interest.user?.name || 'Anonymous User'}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-                      Interested in: <strong>{interest.listing.title}</strong>
+                      Interested in: <strong>{interest.listing?.title || 'Deleted listing'}</strong>
                     </div>
                     {interest.commissionAmount && (
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 700, marginTop: '4px' }}>

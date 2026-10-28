@@ -473,6 +473,7 @@ export default function AdminSettings() {
                   <Input
                     name="commissionPercentage"
                     label="Commission Rate (%)"
+                    helperText="Not used yet: commissions are currently always recorded at a flat 2%."
                     placeholder="e.g. 2"
                     value={formData.commissionPercentage}
                     onChange={handleInputChange}
@@ -485,6 +486,7 @@ export default function AdminSettings() {
                   <Input
                     name="pricingPlanRate"
                     label="Premium Listing Price Rate (INR)"
+                    helperText="Not used by the site yet: changing this has no effect."
                     placeholder="e.g. 0"
                     value={formData.pricingPlanRate}
                     onChange={handleInputChange}
@@ -497,6 +499,7 @@ export default function AdminSettings() {
                   <Input
                     name="promoRibbonText"
                     label="Promo Ribbon Header Text"
+                    helperText="Not used by the site yet: changing this has no effect."
                     placeholder="e.g. Launch Offer: 100% Free Listing"
                     value={formData.promoRibbonText}
                     onChange={handleInputChange}
@@ -535,7 +538,8 @@ export default function AdminSettings() {
                 </div>
 
                 <div>
-                  <label 
+                  <label
+                    htmlFor="setting-enableIntercom" 
                     style={{ 
                       fontFamily: 'var(--font-heading)', 
                       fontSize: '0.875rem', 
@@ -548,6 +552,8 @@ export default function AdminSettings() {
                     Enable Intercom Support Widget
                   </label>
                   <select
+                    id="setting-enableIntercom"
+                    aria-describedby="setting-enableIntercom-note"
                     name="enableIntercom"
                     value={formData.enableIntercom}
                     onChange={handleInputChange}
@@ -566,10 +572,14 @@ export default function AdminSettings() {
                     <option value="false">Disabled</option>
                     <option value="true">Enabled</option>
                   </select>
+                  <p id="setting-enableIntercom-note" style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.375rem' }}>
+                    Not used by the site yet: changing this has no effect.
+                  </p>
                 </div>
 
                 <div>
-                  <label 
+                  <label
+                    htmlFor="setting-enableRecaptcha" 
                     style={{ 
                       fontFamily: 'var(--font-heading)', 
                       fontSize: '0.875rem', 
@@ -582,6 +592,8 @@ export default function AdminSettings() {
                     Enable Google Recaptcha v3
                   </label>
                   <select
+                    id="setting-enableRecaptcha"
+                    aria-describedby="setting-enableRecaptcha-note"
                     name="enableRecaptcha"
                     value={formData.enableRecaptcha}
                     onChange={handleInputChange}
@@ -600,6 +612,9 @@ export default function AdminSettings() {
                     <option value="false">Disabled</option>
                     <option value="true">Enabled</option>
                   </select>
+                  <p id="setting-enableRecaptcha-note" style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.375rem' }}>
+                    Not used by the site yet: changing this has no effect.
+                  </p>
                 </div>
               </div>
 

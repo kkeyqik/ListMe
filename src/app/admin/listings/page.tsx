@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Building, 
@@ -26,16 +27,43 @@ import styles from '../admin.module.css';
 import { downloadCSV } from '@/lib/export-utils';
 import { recordAdminExport } from '@/lib/admin-export-audit';
 
+const STATUS_VALUES = ['ACTIVE', 'PENDING_REVIEW', 'REJECTED', 'DEACTIVATED', 'EXPIRED', 'DRAFT'];
+const SORT_FROM_PARAM: Record<string, 'LATEST' | 'OLDEST' | 'PRICE_ASC' | 'PRICE_DESC'> = {
+  newest: 'LATEST',
+  oldest: 'OLDEST',
+  price_asc: 'PRICE_ASC',
+  price_desc: 'PRICE_DESC',
+};
+const EXPORT_PAGE_SIZE = 100;
+
+// useSearchParams needs a Suspense boundary for the production build.
 export default function AdminListings() {
+  return (
+    <Suspense fallback={<Card padding="md">Loading listings...</Card>}>
+      <AdminListingsContent />
+    </Suspense>
+  );
+}
+
+function AdminListingsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Deep links: /admin/listings?status=PENDING_REVIEW&sort=oldest, ?search=..., ?owner=<userId>
+  const initialStatus = (() => {
+    const v = (searchParams.get('status') || '').toUpperCase();
+    return STATUS_VALUES.includes(v) ? v : 'ALL';
+  })();
+  const ownerFilter = searchParams.get('owner') || '';
   const { showToast } = useToast();
   
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [forFilter, setForFilter] = useState('ALL');
   const [cityFilter, setCityFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -47,7 +75,9 @@ export default function AdminListings() {
   const [exporting, setExporting] = useState(false);
   
   // Sort and mobile UI states
-  const [sortBy, setSortBy] = useState<'LATEST' | 'OLDEST' | 'PRICE_ASC' | 'PRICE_DESC'>('LATEST');
+  const [sortBy, setSortBy] = useState<'LATEST' | 'OLDEST' | 'PRICE_ASC' | 'PRICE_DESC'>(
+    () => SORT_FROM_PARAM[(searchParams.get('sort') || '').toLowerCase()] || 'LATEST'
+  );
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [showDateModal, setShowDateModal] = useState(false);
   const [citiesList, setCitiesList] = useState<string[]>([
@@ -124,49 +154,44 @@ export default function AdminListings() {
     return listing.title || 'Property';
   };
 
+  // Filters shared by the table and the CSV export. Served by the
+  // permission-checked admin endpoint, which also matches listing IDs and
+  // owner name/phone/email, and does not log admin searches as user activity.
+  const buildFilterParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (statusFilter !== 'ALL') params.append('status', statusFilter);
+    if (typeFilter !== 'ALL') {
+      if (typeFilter === 'COMMERCIAL') {
+        params.append('type', 'commercial');
+      } else {
+        params.append('property_type', typeFilter);
+      }
+    }
+    if (forFilter !== 'ALL') params.append('listing_for', forFilter.toLowerCase());
+    if (cityFilter.trim()) params.append('city', cityFilter.trim());
+    if (searchQuery.trim()) params.append('query', searchQuery.trim());
+    if (ownerFilter) params.append('ownerId', ownerFilter);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    let sortParam = 'newest';
+    if (sortBy === 'OLDEST') sortParam = 'oldest';
+    else if (sortBy === 'PRICE_ASC') sortParam = 'price_asc';
+    else if (sortBy === 'PRICE_DESC') sortParam = 'price_desc';
+    params.append('sort', sortParam);
+    return params;
+  }, [statusFilter, typeFilter, forFilter, cityFilter, searchQuery, ownerFilter, startDate, endDate, sortBy]);
+
   const fetchListings = useCallback(async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const params = new URLSearchParams({
-        admin: 'true',
-        page: targetPage.toString(),
-        limit: targetPageSize.toString(),
-      });
+      const params = buildFilterParams();
+      params.set('page', targetPage.toString());
+      params.set('limit', targetPageSize.toString());
 
-      if (statusFilter !== 'ALL') params.append('status', statusFilter);
-      if (typeFilter !== 'ALL') {
-        if (typeFilter === 'COMMERCIAL') {
-          params.append('type', 'commercial');
-        } else {
-          params.append('property_type', typeFilter);
-        }
-      }
-      if (forFilter !== 'ALL') {
-        params.append('listing_for', forFilter.toLowerCase());
-        params.append('type', forFilter.toLowerCase());
-      }
-      if (cityFilter.trim()) {
-        params.append('city', cityFilter.trim());
-      }
-      if (searchQuery.trim()) {
-        params.append('query', searchQuery.trim());
-      }
-      if (startDate) {
-        params.append('startDate', startDate);
-      }
-      if (endDate) {
-        params.append('endDate', endDate);
-      }
-
-      // Map sortBy to API sort parameter
-      let sortParam = 'newest';
-      if (sortBy === 'OLDEST') sortParam = 'oldest';
-      else if (sortBy === 'PRICE_ASC') sortParam = 'price_asc';
-      else if (sortBy === 'PRICE_DESC') sortParam = 'price_desc';
-      params.append('sort', sortParam);
-        
-      const res = await fetch(`/api/listings?${params.toString()}`);
-      const data = await res.json();
+      const res = await fetch(`/api/admin/listings?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setListings(data.listings || []);
         if (data.meta) {
@@ -174,15 +199,19 @@ export default function AdminListings() {
           setTotalPages(data.meta.totalPages || 1);
         }
       } else {
+        setListings([]);
+        setLoadError(data.message || `Listings could not be loaded (error ${res.status}).`);
         showToast('Error', data.message || 'Failed to retrieve listings', 'error');
       }
     } catch (err) {
       console.error('Error fetching admin listings:', err);
+      setListings([]);
+      setLoadError('Listings could not be loaded. Check your connection and try again.');
       showToast('Error', 'Failed to retrieve property listings database', 'error');
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, statusFilter, typeFilter, forFilter, cityFilter, searchQuery, sortBy, startDate, endDate, showToast]);
+  }, [page, pageSize, buildFilterParams, showToast]);
 
   // Initial and pagination fetch
   useEffect(() => {
@@ -220,7 +249,7 @@ export default function AdminListings() {
     return () => clearTimeout(timer);
   }, [searchQuery, cityFilter]);
 
-  const handleModerate = async (id: string, newStatus: 'ACTIVE' | 'REJECTED', reason?: string): Promise<boolean> => {
+  const handleModerate = async (id: string, newStatus: 'ACTIVE' | 'REJECTED' | 'DEACTIVATED', reason?: string): Promise<boolean> => {
     setActionId(id);
     try {
       const res = await fetch(`/api/listings/${id}`, {
@@ -305,116 +334,66 @@ export default function AdminListings() {
     return `₹${val.toLocaleString('en-IN')}`;
   };
 
-  // Filter listings by text search
-  const filteredListings = listings.filter((l) => {
-    const searchLower = searchQuery.toLowerCase().trim();
-    const matchesSearch = !searchLower ||
-      (l.title || '').toLowerCase().includes(searchLower) ||
-      (l.id || '').toLowerCase().includes(searchLower) ||
-      (l.city || '').toLowerCase().includes(searchLower) ||
-      (l.locality || '').toLowerCase().includes(searchLower);
-    
-    const matchesStatus = statusFilter === 'ALL' || l.status === statusFilter;
-    const matchesType =
-      typeFilter === 'ALL' ||
-      l.propertyType === typeFilter ||
-      (typeFilter === 'COMMERCIAL' && ['OFFICE', 'SHOP', 'WAREHOUSE', 'COMMERCIAL_LAND'].includes(l.propertyType));
-    const matchesFor = forFilter === 'ALL' || l.listingFor === forFilter;
-    const matchesCity = cityFilter === '' || (l.city || '').toLowerCase().includes(cityFilter.toLowerCase());
+  // Filtering and sorting happen on the server; re-filtering the page here
+  // used to hide valid matches (e.g. words found only in the description).
+  const filteredListings = listings;
+  const sortedListings = listings;
 
-    let matchesDate = true;
-    if (startDate || endDate) {
-      const lDate = new Date(l.createdAt);
-      if (!isNaN(lDate.getTime())) {
-        if (startDate) {
-          const sDate = new Date(startDate);
-          if (!isNaN(sDate.getTime())) {
-            sDate.setHours(0, 0, 0, 0);
-            if (lDate < sDate) matchesDate = false;
-          }
-        }
-        if (endDate) {
-          const eDate = new Date(endDate);
-          if (!isNaN(eDate.getTime())) {
-            eDate.setHours(23, 59, 59, 999);
-            if (lDate > eDate) matchesDate = false;
-          }
-        }
-      }
-    }
+  const handleStatusChange = async (listing: any, newStatus: 'ACTIVE' | 'DEACTIVATED') => {
+    const verb = newStatus === 'DEACTIVATED' ? 'Take down' : 'Reinstate';
+    const detail =
+      newStatus === 'DEACTIVATED'
+        ? 'It will be hidden from search and its page until reinstated. Leads are kept.'
+        : 'It will be live and searchable again.';
+    if (!window.confirm(`${verb} "${listing.title}"? ${detail}`)) return;
+    await handleModerate(listing.id, newStatus);
+  };
 
-    return matchesSearch && matchesStatus && matchesType && matchesFor && matchesCity && matchesDate;
-  });
+  const clearOwnerFilter = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('owner');
+    const qs = params.toString();
+    router.replace(qs ? `/admin/listings?${qs}` : '/admin/listings');
+  };
 
-  const sortedListings = [...filteredListings].sort((a, b) => {
-    if (sortBy === 'OLDEST') {
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  // Owner filter comes from the URL, so refetch when it changes.
+  const isOwnerMounted = React.useRef(false);
+  useEffect(() => {
+    if (!isOwnerMounted.current) {
+      isOwnerMounted.current = true;
+      return;
     }
-    if (sortBy === 'PRICE_ASC') {
-      return Number(a.askingPrice) - Number(b.askingPrice);
+    if (page === 1) {
+      fetchListings(1, pageSize);
+    } else {
+      setPage(1);
     }
-    if (sortBy === 'PRICE_DESC') {
-      return Number(b.askingPrice) - Number(a.askingPrice);
-    }
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownerFilter]);
 
   const handleExportCSV = async () => {
     setExporting(true);
     try {
       showToast('Info', 'Preparing full listings dataset for CSV export...', 'info');
-      const params = new URLSearchParams({
-        admin: 'true',
-        limit: '10000',
-        page: '1',
-      });
-
-      if (statusFilter !== 'ALL') params.append('status', statusFilter);
-      if (typeFilter !== 'ALL') {
-        if (typeFilter === 'COMMERCIAL') {
-          params.append('type', 'commercial');
-        } else {
-          params.append('property_type', typeFilter);
+      // The API returns at most 100 rows per page, so walk every page;
+      // otherwise the file silently stopped at 100 rows.
+      const exportItems: any[] = [];
+      let exportPage = 1;
+      let exportTotalPages = 1;
+      do {
+        const params = buildFilterParams();
+        params.set('page', String(exportPage));
+        params.set('limit', String(EXPORT_PAGE_SIZE));
+        const res = await fetch(`/api/admin/listings?${params.toString()}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast('Error', data.message || 'Failed to load listings for export', 'error');
+          return;
         }
-      }
-      if (forFilter !== 'ALL') {
-        params.append('listing_for', forFilter.toLowerCase());
-        params.append('type', forFilter.toLowerCase());
-      }
-      if (cityFilter.trim()) {
-        params.append('city', cityFilter.trim());
-      }
-      if (searchQuery.trim()) {
-        params.append('query', searchQuery.trim());
-      }
-      if (startDate) {
-        params.append('startDate', startDate);
-      }
-      if (endDate) {
-        params.append('endDate', endDate);
-      }
-
-      const res = await fetch(`/api/listings?${params.toString()}`);
-      const data = await res.json();
-      
-      let exportItems = (data.listings && Array.isArray(data.listings)) ? data.listings : listings;
-      
-      if (startDate || endDate) {
-        exportItems = exportItems.filter((l: any) => {
-          const lDate = new Date(l.createdAt);
-          if (startDate) {
-            const sDate = new Date(startDate);
-            sDate.setHours(0, 0, 0, 0);
-            if (lDate < sDate) return false;
-          }
-          if (endDate) {
-            const eDate = new Date(endDate);
-            eDate.setHours(23, 59, 59, 999);
-            if (lDate > eDate) return false;
-          }
-          return true;
-        });
-      }
+        exportItems.push(...(data.listings || []));
+        exportTotalPages = data.meta?.totalPages || 1;
+        exportPage += 1;
+      } while (exportPage <= exportTotalPages && exportPage <= 500);
 
       const exportData = exportItems.map((l: any) => ({
         ID: l.id,
@@ -426,11 +405,12 @@ export default function AdminListings() {
         AskingPrice: l.askingPrice,
         Status: l.status,
         RejectionReason: l.rejectionReason || 'None',
+        OwnerName: l.owner?.name || '',
         CreatedAt: new Date(l.createdAt).toISOString()
       }));
 
       if (!(await recordAdminExport('LISTINGS', exportData.length, {
-        query: searchQuery, city: cityFilter, listingFor: forFilter, startDate, endDate,
+        query: searchQuery, city: cityFilter, listingFor: forFilter, status: statusFilter, type: typeFilter, owner: ownerFilter, startDate, endDate,
       }))) {
         showToast('Error', 'Export could not be recorded, so it was not downloaded', 'error');
         return;
@@ -730,8 +710,31 @@ export default function AdminListings() {
       </Card>
       </div>
 
+      {ownerFilter && (
+        <div
+          role="status"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.625rem 0.875rem', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-primary-fade, #eef2ff)', fontSize: '0.875rem' }}
+        >
+          <span>
+            Showing listings owned by <strong>{listings[0]?.owner?.name || 'the selected user'}</strong>
+          </span>
+          <Button variant="outline" size="sm" onClick={clearOwnerFilter}>
+            Show all owners
+          </Button>
+        </div>
+      )}
+
       {/* Table grid */}
-      {loading ? (
+      {loadError && !loading ? (
+        <div className={styles.emptyState} role="alert">
+          <Building size={48} style={{ opacity: 0.3 }} />
+          <h3>Listings could not be loaded</h3>
+          <p>{loadError}</p>
+          <Button variant="outline" size="sm" onClick={() => fetchListings(page, pageSize)}>
+            Retry
+          </Button>
+        </div>
+      ) : loading ? (
         <Card padding="md">Loading listings...</Card>
       ) : filteredListings.length === 0 ? (
         <div className={styles.emptyState}>
@@ -761,6 +764,14 @@ export default function AdminListings() {
                       <div className={styles.subTextInfo}>
                         {listing.locality}, {listing.city} · ID: {listing.id.substring(0, 8)}
                       </div>
+                      {listing.owner && (
+                        <div className={styles.subTextInfo}>
+                          Owner: {listing.owner.name || 'Unknown'}
+                          {listing.owner.status && listing.owner.status !== 'ACTIVE' && (
+                            <span style={{ color: 'var(--color-error)', fontWeight: 700 }}> ({listing.owner.status.toLowerCase()})</span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className={styles.td}>
                       <Badge variant="neutral" size="sm">
@@ -817,6 +828,33 @@ export default function AdminListings() {
                           </>
                         )}
                         
+                        {listing.status === 'ACTIVE' && (
+                          <Button
+                            onClick={() => handleStatusChange(listing, 'DEACTIVATED')}
+                            variant="outline"
+                            size="sm"
+                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                            disabled={actionId === listing.id}
+                            aria-label={`Take down listing: ${listing.title}`}
+                            title="Take down (deactivate) without deleting"
+                          >
+                            Take down
+                          </Button>
+                        )}
+                        {(listing.status === 'DEACTIVATED' || listing.status === 'REJECTED') && (
+                          <Button
+                            onClick={() => handleStatusChange(listing, 'ACTIVE')}
+                            variant="outline"
+                            size="sm"
+                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                            disabled={actionId === listing.id}
+                            aria-label={`Reinstate listing: ${listing.title}`}
+                            title="Make this listing live again"
+                          >
+                            Reinstate
+                          </Button>
+                        )}
+
                         <Button href={`/property/${listing.id}`} variant="ghost" size="sm" style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }} aria-label="View property" title="View Property">
                           <Eye size={14} />
                         </Button>
@@ -975,6 +1013,33 @@ export default function AdminListings() {
                                     <X size={14} /> Reject
                                   </button>
                                 </>
+                              )}
+                              {listing.status === 'ACTIVE' && (
+                                <button
+                                  type="button"
+                                  className={styles.cardDropdownItem}
+                                  disabled={actionId === listing.id}
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    handleStatusChange(listing, 'DEACTIVATED');
+                                  }}
+                                >
+                                  <X size={14} /> Take down
+                                </button>
+                              )}
+                              {(listing.status === 'DEACTIVATED' || listing.status === 'REJECTED') && (
+                                <button
+                                  type="button"
+                                  className={styles.cardDropdownItem}
+                                  style={{ color: '#10b981' }}
+                                  disabled={actionId === listing.id}
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    handleStatusChange(listing, 'ACTIVE');
+                                  }}
+                                >
+                                  <Check size={14} /> Reinstate
+                                </button>
                               )}
                               <Link
                                 href={`/dashboard/listings/${listing.id}/edit`}

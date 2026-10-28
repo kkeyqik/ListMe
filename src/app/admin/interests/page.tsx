@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Heart, IndianRupee, Clock, ArrowRight, ShieldCheck, Check } from 'lucide-react';
 import { useToast, Card, Badge, Button, Modal, Input } from '@/components/ui';
 import styles from '../admin.module.css';
+
+const PAGE_SIZE = 50;
 
 export default function AdminInterests() {
   const { showToast } = useToast();
@@ -25,43 +27,78 @@ export default function AdminInterests() {
   const [soldPrice, setSoldPrice] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const fetchInterests = async () => {
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filteredTotal, setFilteredTotal] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Admin notes modal
+  const [notesInterest, setNotesInterest] = useState<any | null>(null);
+  const [notesText, setNotesText] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+
+  const fetchInterests = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const res = await fetch('/api/interests?mode=all');
-      const data = await res.json();
+      // Paginated, permission-checked admin endpoint; status is filtered on the
+      // server and the summary is computed over all leads, not just this page.
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
+      const res = await fetch(`/api/admin/interests?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const fetchedInterests = data.interests || [];
-        setInterests(fetchedInterests);
-
-        // Compute metrics
-        const total = fetchedInterests.length;
-        const closed = fetchedInterests.filter((i: any) => i.status === 'SOLD').length;
-        const active = fetchedInterests.filter((i: any) => i.status !== 'SOLD' && i.status !== 'CLOSED').length;
-        
-        const commissions = fetchedInterests.reduce((sum: number, item: any) => {
-          const comm = item.commissionAmount ? parseFloat(item.commissionAmount.toString()) : 0;
-          return sum + comm;
-        }, 0);
-
+        setInterests(data.interests || []);
+        setFilteredTotal(data.meta?.total || 0);
+        setTotalPages(data.meta?.totalPages || 1);
         setSummary({
-          totalCount: total,
-          closedDeals: closed,
-          activeMatches: active,
-          totalCommissions: commissions,
+          totalCount: data.summary?.total || 0,
+          closedDeals: data.summary?.closedDeals || 0,
+          activeMatches: data.summary?.activeLeads || 0,
+          totalCommissions: data.summary?.commissionEarned || 0,
         });
+      } else {
+        setLoadError(data.message || `Leads could not be loaded (error ${res.status}).`);
       }
     } catch (err) {
       console.error('Error fetching admin interests:', err);
+      setLoadError('Leads could not be loaded. Check your connection and try again.');
       showToast('Error', 'Failed to retrieve connection logs', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, statusFilter, showToast]);
 
   useEffect(() => {
     fetchInterests();
-  }, []);
+  }, [fetchInterests]);
+
+  const handleSaveNotes = async () => {
+    if (!notesInterest) return;
+    setNotesSaving(true);
+    try {
+      const res = await fetch(`/api/interests/${notesInterest.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes: notesText.trim() }),
+      });
+      if (res.ok) {
+        showToast('Saved', 'Admin notes updated', 'success');
+        setInterests((prev) =>
+          prev.map((i) => (i.id === notesInterest.id ? { ...i, adminNotes: notesText.trim() } : i))
+        );
+        setNotesInterest(null);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast('Error', data.message || 'Failed to save notes', 'error');
+      }
+    } catch (err) {
+      console.error('Save notes error:', err);
+      showToast('Error', 'Something went wrong saving the notes', 'error');
+    } finally {
+      setNotesSaving(false);
+    }
+  };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     if (newStatus === 'SOLD') {
@@ -85,6 +122,7 @@ export default function AdminInterests() {
       }
     } catch (err) {
       console.error('Status update error:', err);
+      showToast('Error', 'Something went wrong updating the status', 'error');
     }
   };
 
@@ -127,10 +165,8 @@ export default function AdminInterests() {
     return `₹${val.toLocaleString('en-IN')}`;
   };
 
-  const filteredInterests = interests.filter((i) => {
-    if (statusFilter === 'ALL') return true;
-    return i.status === statusFilter;
-  });
+  // Status filtering happens on the server.
+  const filteredInterests = interests;
 
   return (
     <div>
@@ -191,7 +227,7 @@ export default function AdminInterests() {
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Filter by Status:</span>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             className={styles.filterSelect}
             title="Filter by Status"
             aria-label="Filter by Status"
@@ -208,7 +244,7 @@ export default function AdminInterests() {
             <button
               type="button"
               className={styles.clearFilterBtn}
-              onClick={() => setStatusFilter('ALL')}
+              onClick={() => { setStatusFilter('ALL'); setPage(1); }}
               title="Reset status filter"
               aria-label="Reset status filter"
             >
@@ -219,7 +255,16 @@ export default function AdminInterests() {
       </Card>
 
       {/* Data Table */}
-      {loading ? (
+      {loadError && !loading ? (
+        <div className={styles.emptyState} role="alert">
+          <Heart size={48} style={{ opacity: 0.3 }} />
+          <h3>Leads could not be loaded</h3>
+          <p>{loadError}</p>
+          <Button variant="outline" size="sm" onClick={() => fetchInterests()}>
+            Retry
+          </Button>
+        </div>
+      ) : loading ? (
         <Card padding="md">Loading log files...</Card>
       ) : filteredInterests.length === 0 ? (
         <div className={styles.emptyState}>
@@ -243,13 +288,18 @@ export default function AdminInterests() {
               {filteredInterests.map((interest) => (
                 <tr key={interest.id} className={styles.tr}>
                   <td className={styles.td}>
-                    <div className={styles.titleText}>{interest.user.name || 'Anonymous seeker'}</div>
-                    <div className={styles.subTextInfo}>{interest.user.phone}</div>
+                    <div className={styles.titleText}>{interest.user?.name || 'Anonymous seeker'}</div>
+                    <div className={styles.subTextInfo}>{interest.user?.phone || 'No phone on file'}</div>
+                    {interest.adminNotes && (
+                      <div className={styles.subTextInfo} title={interest.adminNotes} style={{ fontStyle: 'italic' }}>
+                        Note: {interest.adminNotes.length > 60 ? `${interest.adminNotes.slice(0, 60)}…` : interest.adminNotes}
+                      </div>
+                    )}
                   </td>
                   <td className={styles.td}>
-                    <div className={styles.titleText}>{interest.listing.title}</div>
+                    <div className={styles.titleText}>{interest.listing?.title || 'Deleted listing'}</div>
                     <div className={styles.subTextInfo}>
-                      Owner Price: {formatPrice(interest.listing.askingPrice)}
+                      Owner Price: {formatPrice(interest.listing?.askingPrice)}{interest.listing?.listingFor === 'RENT' ? ' / month' : ''}
                     </div>
                   </td>
                   <td className={styles.td}>
@@ -269,40 +319,61 @@ export default function AdminInterests() {
                       : '—'}
                   </td>
                   <td className={styles.td} style={{ textAlign: 'right' }}>
-                    {interest.status !== 'SOLD' && (
-                      <div className={styles.actionBtnGroup} style={{ justifyContent: 'flex-end' }}>
-                        {interest.status === 'NEW' && (
-                          <Button
-                            onClick={() => handleUpdateStatus(interest.id, 'ADMIN_CONTACTED')}
-                            variant="ghost"
-                            size="sm"
-                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
-                          >
-                            Contacted
-                          </Button>
-                        )}
-                        {interest.status === 'ADMIN_CONTACTED' && (
-                          <Button
-                            onClick={() => handleUpdateStatus(interest.id, 'IN_PROGRESS')}
-                            variant="ghost"
-                            size="sm"
-                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
-                          >
-                            Progress
-                          </Button>
-                        )}
-                        {interest.status !== 'SOLD' && (
-                          <Button
-                            onClick={() => handleUpdateStatus(interest.id, 'SOLD')}
-                            variant="outline"
-                            size="sm"
-                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', color: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                          >
-                            Mark Sold
-                          </Button>
-                        )}
-                      </div>
-                    )}
+                    <div className={styles.actionBtnGroup} style={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      {interest.status === 'NEW' && (
+                        <Button
+                          onClick={() => handleUpdateStatus(interest.id, 'ADMIN_CONTACTED')}
+                          variant="ghost"
+                          size="sm"
+                          style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                        >
+                          Contacted
+                        </Button>
+                      )}
+                      {interest.status === 'ADMIN_CONTACTED' && (
+                        <Button
+                          onClick={() => handleUpdateStatus(interest.id, 'IN_PROGRESS')}
+                          variant="ghost"
+                          size="sm"
+                          style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                        >
+                          Progress
+                        </Button>
+                      )}
+                      {interest.status !== 'SOLD' && interest.status !== 'CLOSED' && (
+                        <Button
+                          onClick={() => handleUpdateStatus(interest.id, 'CLOSED')}
+                          variant="ghost"
+                          size="sm"
+                          style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                          aria-label={`Mark lead from ${interest.user?.name || 'seeker'} as lost`}
+                        >
+                          Mark Lost
+                        </Button>
+                      )}
+                      {interest.status !== 'SOLD' && (
+                        <Button
+                          onClick={() => handleUpdateStatus(interest.id, 'SOLD')}
+                          variant="outline"
+                          size="sm"
+                          style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', color: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                        >
+                          Mark Sold
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => {
+                          setNotesInterest(interest);
+                          setNotesText(interest.adminNotes || '');
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                        aria-label={`Edit admin notes for lead from ${interest.user?.name || 'seeker'}`}
+                      >
+                        Notes
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -310,6 +381,54 @@ export default function AdminInterests() {
           </table>
         </div>
       )}
+
+      {!loading && !loadError && totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+          <span className={styles.subTextInfo}>
+            Page {page} of {totalPages} ({filteredTotal} leads)
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Notes Modal */}
+      <Modal
+        isOpen={!!notesInterest}
+        onClose={() => setNotesInterest(null)}
+        title="Admin Notes"
+        size="sm"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+            Internal notes for this lead. Only admins can see them.
+          </p>
+          <label htmlFor="admin-lead-notes" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+            Notes
+          </label>
+          <textarea
+            id="admin-lead-notes"
+            value={notesText}
+            onChange={(e) => setNotesText(e.target.value.slice(0, 2000))}
+            rows={5}
+            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-border)', fontFamily: 'inherit', fontSize: '0.875rem', resize: 'vertical' }}
+          />
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <Button onClick={() => setNotesInterest(null)} variant="ghost" disabled={notesSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveNotes} variant="primary" loading={notesSaving}>
+              Save Notes
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Sold Price Inputs Modal */}
       <Modal
@@ -320,7 +439,7 @@ export default function AdminInterests() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <p style={{ fontSize: '0.937rem', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
-            Please enter the final closed sale price (INR). The system will automatically compute the flat 2% commission fee and deactivate the property listing.
+            Enter the final closing price (INR). The system records a 2% commission on it and deactivates the property listing.
           </p>
 
           <Input

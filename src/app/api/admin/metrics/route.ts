@@ -25,33 +25,22 @@ export async function GET() {
       prisma.listing.count({ where: { status: ListingStatus.DEACTIVATED } }),
       prisma.profile.count({ where: { role: 'USER' } }),
       prisma.interest.count(),
-      prisma.interest.findMany({
+      prisma.interest.aggregate({
         where: { status: InterestStatus.SOLD },
-        select: { commissionAmount: true },
+        _sum: { commissionAmount: true },
       }),
     ]);
 
     // Calculate total earned commission
-    const totalCommissionEarned = soldInterests.reduce((sum, item) => {
-      return sum + parseFloat(item.commissionAmount?.toString() || '0');
-    }, 0);
+    const totalCommissionEarned = Number(soldInterests._sum.commissionAmount?.toString() || '0');
 
-    // Calculate potential pipeline commission from active listings that have active interests
-    const activeInterestsWithListings = await prisma.interest.findMany({
+    // Open leads (no amounts: the old "pipeline" estimate loaded every open
+    // lead with its listing price and was never shown).
+    const openInterestsCount = await prisma.interest.count({
       where: {
         status: { in: [InterestStatus.NEW, InterestStatus.ADMIN_CONTACTED, InterestStatus.IN_PROGRESS] },
       },
-      select: {
-        listing: {
-          select: { askingPrice: true },
-        },
-      },
     });
-
-    const potentialPipeline = activeInterestsWithListings.reduce((sum, item) => {
-      const price = parseFloat(item.listing.askingPrice.toString());
-      return sum + (price * 0.02); // 2% potential commission
-    }, 0);
 
     return NextResponse.json({
       metrics: {
@@ -67,10 +56,10 @@ export async function GET() {
         },
         interests: {
           total: totalInterestsCount,
+          open: openInterestsCount,
         },
         finance: {
           commissionEarned: totalCommissionEarned,
-          pipelinePotential: potentialPipeline,
         },
       },
     });
