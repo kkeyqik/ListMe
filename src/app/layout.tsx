@@ -8,6 +8,7 @@ import { MobileSearchDrawer } from '@/components/search/MobileSearchDrawer';
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { SITE_URL } from "@/lib/site-url";
+import { DEFAULT_OG_IMAGE } from "@/lib/page-metadata";
 import "./globals.css";
 
 const inter = Inter({
@@ -42,11 +43,13 @@ export const metadata: Metadata = {
     siteName: "ListMe",
     locale: "en_IN",
     type: "website",
+    images: [DEFAULT_OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "ListMe — List it. Find it. Own it.",
     description: "Free real estate platform across India. No brokers, no spam.",
+    images: [DEFAULT_OG_IMAGE.url],
   },
   manifest: '/manifest.json',
 };

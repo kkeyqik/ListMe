@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { X, Search, LocateFixed, MapPin, ChevronRight, Clock } from 'lucide-react';
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import styles from './MobileSearchDrawer.module.css';
+import { useBodyScrollLock, useDialogFocus, useCloseAboveBreakpoint } from '@/lib/use-dialog';
 
 type SearchTabType = 'Buy' | 'Rent/PG' | 'Commercial';
 
@@ -153,7 +154,9 @@ function matchCitySynonym(rawText: string): string | null {
   return null;
 }
 
-async function detectCityFromCoords(latitude: number, longitude: number): Promise<string> {
+// Only called after the user taps "Use current location"; returns null when the
+// position is outside the cities we cover (rather than guessing one).
+async function detectCityFromCoords(latitude: number, longitude: number): Promise<string | null> {
   const boundingMatch = resolveCityFromCoords(latitude, longitude);
   if (boundingMatch) return boundingMatch;
 
@@ -174,7 +177,16 @@ async function detectCityFromCoords(latitude: number, longitude: number): Promis
   } catch {
     // Ignore network or abort errors
   }
-  return 'Ghaziabad';
+  return null;
+}
+
+// Map a typed query that is just a city name ("mumbai", "Delhi NCR", "gurugram") to that city.
+function cityFromQuery(query: string): string | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  if (q === 'ncr' || q === 'delhi ncr') return 'Delhi';
+  const synonyms = ['ghaziabad', 'noida', 'greater noida', 'gurgaon', 'gurugram', 'delhi', 'new delhi', 'mumbai', 'bombay', 'bangalore', 'bengaluru', 'pune', 'hyderabad', 'kolkata', 'calcutta'];
+  return synonyms.includes(q) ? matchCitySynonym(q) : null;
 }
 
 export const MobileSearchDrawer: React.FC = () => {
@@ -184,13 +196,13 @@ export const MobileSearchDrawer: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<SearchTabType>('Buy');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCity, setSelectedCity] = useState('Ghaziabad');
-  const [hasLocationAccess, setHasLocationAccess] = useState<boolean>(true);
+  // Empty until the user picks a city or explicitly shares their location.
+  const [selectedCity, setSelectedCity] = useState('');
   const [isLocating, setIsLocating] = useState(false);
+  const [locateMessage, setLocateMessage] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const previousActiveElement = useRef<HTMLElement | null>(null);
   const touchStartY = useRef<number | null>(null);
 
   // Auto-close only when pathname actually changes (navigation occurred)
@@ -240,145 +252,35 @@ export const MobileSearchDrawer: React.FC = () => {
     }
   };
 
-  // Body scroll lock, autofocus & focus restoration
+  // Ref-counted scroll lock, Tab trap, focus restore and Escape (shared dialog hooks);
+  // close if the viewport grows to desktop width, where this drawer is hidden by CSS.
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  useBodyScrollLock(isSearchOpen);
+  useDialogFocus(isSearchOpen, drawerRef, closeSearch, { autoFocus: false });
+  useCloseAboveBreakpoint(isSearchOpen, closeSearch);
+
+  // Clear the query and focus the input when the drawer opens
   useEffect(() => {
-    if (isSearchOpen) {
-      previousActiveElement.current = document.activeElement as HTMLElement | null;
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      setSearchQuery('');
-      const timer = setTimeout(() => {
-        inputRef.current?.focus({ preventScroll: true });
-      }, 150);
-      return () => {
-        clearTimeout(timer);
-        document.body.style.overflow = originalOverflow;
-        previousActiveElement.current?.focus({ preventScroll: true });
-      };
-    }
+    if (!isSearchOpen) return;
+    setSearchQuery('');
+    const timer = setTimeout(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    }, 150);
+    return () => clearTimeout(timer);
   }, [isSearchOpen]);
 
-  // Escape key listener
+  // Restore the city the user chose or located earlier. Location is never requested
+  // automatically: only when the user taps the locate button.
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isSearchOpen) {
-        closeSearch();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSearchOpen, closeSearch]);
-
-  // Check location permission & auto-detect user's confirmed city
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    let isMounted = true;
-
-    // 1. Initialize from localStorage cache if available
     try {
-      const cachedAccess = localStorage.getItem('listme_location_access');
       const cachedCity = localStorage.getItem('listme_user_city');
-      if (cachedAccess === 'false') {
-        setHasLocationAccess(false);
-      } else if (cachedCity && POPULAR_LOCALITIES_BY_CITY[cachedCity]) {
+      if (cachedCity && POPULAR_LOCALITIES_BY_CITY[cachedCity]) {
         setSelectedCity(cachedCity);
-        setHasLocationAccess(true);
       }
     } catch {
       // Ignore localStorage errors
     }
-
-    const nav = window.navigator;
-    if (!nav?.geolocation) {
-      setHasLocationAccess(false);
-      return;
-    }
-
-    const processCoords = async (latitude: number, longitude: number) => {
-      setHasLocationAccess(true);
-      try { localStorage.setItem('listme_location_access', 'true'); } catch {}
-
-      const finalCity = await detectCityFromCoords(latitude, longitude);
-      if (isMounted) {
-        setSelectedCity(finalCity);
-        try { localStorage.setItem('listme_user_city', finalCity); } catch {}
-      }
-    };
-
-    const requestPosition = () => {
-      nav.geolocation.getCurrentPosition(
-        (position: GeolocationPosition) => {
-          if (!isMounted) return;
-          processCoords(position.coords.latitude, position.coords.longitude);
-        },
-        (error: GeolocationPositionError) => {
-          if (!isMounted) return;
-          if (error.code === error.PERMISSION_DENIED) {
-            setHasLocationAccess(false);
-            try { localStorage.setItem('listme_location_access', 'false'); } catch {}
-          }
-        },
-        { timeout: 6000, maximumAge: 300000 }
-      );
-    };
-
-    let permissionStatus: PermissionStatus | null = null;
-    if ('permissions' in nav && typeof nav.permissions.query === 'function') {
-      nav.permissions.query({ name: 'geolocation' }).then((status) => {
-        if (!isMounted) return;
-        permissionStatus = status;
-        const evaluatePermission = () => {
-          if (!isMounted) return;
-          if (status.state === 'denied') {
-            setHasLocationAccess(false);
-            try { localStorage.setItem('listme_location_access', 'false'); } catch {}
-          } else if (status.state === 'granted') {
-            setHasLocationAccess(true);
-            try { localStorage.setItem('listme_location_access', 'true'); } catch {}
-            requestPosition();
-          } else {
-            requestPosition();
-          }
-        };
-
-        evaluatePermission();
-        status.onchange = evaluatePermission;
-      }).catch(() => {
-        requestPosition();
-      });
-    } else {
-      requestPosition();
-    }
-
-    return () => {
-      isMounted = false;
-      if (permissionStatus) {
-        permissionStatus.onchange = null;
-      }
-    };
   }, []);
-
-  // Re-verify permission whenever search drawer opens
-  useEffect(() => {
-    if (!isSearchOpen || typeof window === 'undefined') return;
-    const nav = window.navigator;
-    if (!nav?.geolocation) {
-      setHasLocationAccess(false);
-      return;
-    }
-    if ('permissions' in nav && typeof nav.permissions.query === 'function') {
-      nav.permissions.query({ name: 'geolocation' }).then((status) => {
-        if (status.state === 'denied') {
-          setHasLocationAccess(false);
-          try { localStorage.setItem('listme_location_access', 'false'); } catch {}
-        } else if (status.state === 'granted') {
-          setHasLocationAccess(true);
-          try { localStorage.setItem('listme_location_access', 'true'); } catch {}
-        }
-      }).catch(() => {});
-    }
-  }, [isSearchOpen]);
 
   const getListingTypeParam = (tab: SearchTabType) => {
     if (tab === 'Rent/PG') return 'rent';
@@ -390,7 +292,8 @@ export const MobileSearchDrawer: React.FC = () => {
     const typeParam = getListingTypeParam(activeTab);
     saveRecentSearch(city);
     closeSearch();
-    router.push(`/listings?type=${typeParam}&city=${encodeURIComponent(city)}`);
+    const cityParam = city === 'Delhi NCR' ? 'Delhi' : city;
+    router.push(`/listings?type=${typeParam}&city=${encodeURIComponent(cityParam)}`);
   };
 
   const handleSearchSubmit = (e?: React.FormEvent) => {
@@ -398,14 +301,26 @@ export const MobileSearchDrawer: React.FC = () => {
     const typeParam = getListingTypeParam(activeTab);
     const query = searchQuery.trim();
 
+    if (!query && !selectedCity) {
+      inputRef.current?.focus();
+      return;
+    }
+
     saveRecentSearch(query || selectedCity);
 
     const params = new URLSearchParams();
     params.set('type', typeParam);
-    if (query) {
-      params.set('query', query);
-    } else if (selectedCity) {
-      params.set('city', selectedCity);
+    const typedCity = cityFromQuery(query);
+    if (typedCity) {
+      // The query is just a city name: search that city rather than free text.
+      params.set('city', typedCity);
+    } else {
+      if (query) params.set('query', query);
+      // Keep the selected city unless the query itself names a different city.
+      const mentionedCity = query ? matchCitySynonym(query) : null;
+      if (selectedCity && (!mentionedCity || mentionedCity === selectedCity)) {
+        params.set('city', selectedCity);
+      }
     }
 
     closeSearch();
@@ -441,7 +356,8 @@ export const MobileSearchDrawer: React.FC = () => {
       }
     }
     if (ALL_CITIES.includes(term) || POPULAR_CITIES_INDIA.includes(term)) {
-      router.push(`/listings?type=${typeParam}&city=${encodeURIComponent(term)}`);
+      const cityParam = term === 'Delhi NCR' ? 'Delhi' : term;
+      router.push(`/listings?type=${typeParam}&city=${encodeURIComponent(cityParam)}`);
       return;
     }
     router.push(`/listings?type=${typeParam}&query=${encodeURIComponent(term)}`);
@@ -449,31 +365,34 @@ export const MobileSearchDrawer: React.FC = () => {
 
   const handleGeolocation = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
-      setHasLocationAccess(false);
+      setLocateMessage('Location is not available on this device.');
       return;
     }
     setIsLocating(true);
+    setLocateMessage('');
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          setHasLocationAccess(true);
-          try { localStorage.setItem('listme_location_access', 'true'); } catch {}
-
           const finalCity = await detectCityFromCoords(latitude, longitude);
-          setSelectedCity(finalCity);
-          setSearchQuery('');
-          try { localStorage.setItem('listme_user_city', finalCity); } catch {}
+          if (finalCity) {
+            setSelectedCity(finalCity);
+            setSearchQuery('');
+            try { localStorage.setItem('listme_user_city', finalCity); } catch {}
+          } else {
+            setLocateMessage("We couldn't match your location to a city we cover yet. Pick a city below.");
+          }
         } finally {
           setIsLocating(false);
         }
       },
       (error) => {
         setIsLocating(false);
-        if (error.code === error.PERMISSION_DENIED) {
-          setHasLocationAccess(false);
-          try { localStorage.setItem('listme_location_access', 'false'); } catch {}
-        }
+        setLocateMessage(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location access is blocked. Pick a city below instead.'
+            : "Couldn't get your location. Pick a city below instead."
+        );
       },
       { timeout: 8000 }
     );
@@ -527,7 +446,7 @@ export const MobileSearchDrawer: React.FC = () => {
     }
   }
 
-  const currentLocalities = POPULAR_LOCALITIES_BY_CITY[selectedCity] || POPULAR_LOCALITIES_BY_CITY['Ghaziabad'];
+  const currentLocalities = selectedCity ? POPULAR_LOCALITIES_BY_CITY[selectedCity] || [] : [];
 
   return (
     <div 
@@ -542,7 +461,7 @@ export const MobileSearchDrawer: React.FC = () => {
       aria-hidden={!isSearchOpen}
       aria-label="Property Search Drawer"
     >
-      <div className={styles.drawer}>
+      <div className={styles.drawer} ref={drawerRef}>
         {/* Top Header Bar */}
         <div 
           className={styles.headerBar}
@@ -610,7 +529,7 @@ export const MobileSearchDrawer: React.FC = () => {
               enterKeyHint="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={hasLocationAccess ? `Search in ${selectedCity}...` : "Try - Delhi NCR"}
+              placeholder={selectedCity ? `Search in ${selectedCity}...` : 'Search city or locality'}
               className={styles.searchInput}
               aria-label="Search city, locality, or project"
               autoComplete="off"
@@ -639,6 +558,9 @@ export const MobileSearchDrawer: React.FC = () => {
               <LocateFixed size={20} strokeWidth={2.2} aria-hidden="true" />
             </button>
           </form>
+          {locateMessage && (
+            <p className={styles.locateMessage} role="status">{locateMessage}</p>
+          )}
         </div>
 
         {/* Drawer Body */}
@@ -679,7 +601,7 @@ export const MobileSearchDrawer: React.FC = () => {
           {/* Popular Section: Localities (if location accessible) OR Cities in India (if location blocked) */}
           {queryLower.length < 2 && (
             <div className={styles.popularCard}>
-              {hasLocationAccess ? (
+              {selectedCity && currentLocalities.length > 0 ? (
                 <>
                   <div className={styles.popularTitle}>
                     <span>

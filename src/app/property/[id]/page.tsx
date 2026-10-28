@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { cache } from 'react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
@@ -7,6 +7,7 @@ import { Breadcrumbs } from '@/components/ui';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { serializeJsonLd } from '@/lib/json-ld';
 import { absoluteUrl } from '@/lib/site-url';
+import { DEFAULT_OG_IMAGE } from '@/lib/page-metadata';
 import styles from './page.module.css';
 
 interface PropertyPageProps {
@@ -15,6 +16,31 @@ interface PropertyPageProps {
 
 // Listing.id is a Postgres UUID; Prisma throws (500) on anything else, so treat it as not found.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// One query per request, shared by generateMetadata and the page (React cache dedupes it).
+const getListing = cache(async (id: string) =>
+  prisma.listing.findUnique({
+    where: { id },
+    include: {
+      images: { orderBy: { displayOrder: 'asc' } },
+      videos: true,
+      documents: true,
+      amenities: {
+        include: {
+          amenity: true,
+        },
+      },
+      owner: {
+        select: {
+          id: true,
+          name: true,
+          phoneVerified: true,
+          role: true,
+        },
+      },
+    },
+  })
+);
 
 // 1. Generate Server-side SEO Metadata
 export async function generateMetadata({ params }: PropertyPageProps): Promise<Metadata> {
@@ -27,16 +53,7 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     };
   }
 
-  const listing = await prisma.listing.findUnique({
-    where: { id },
-    include: {
-      images: {
-        // Prefer the primary image, else fall back to the first one
-        orderBy: [{ isPrimary: 'desc' }, { displayOrder: 'asc' }],
-        take: 1
-      }
-    }
-  });
+  const listing = await getListing(id);
 
   if (!listing) {
     return {
@@ -55,15 +72,17 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   }
 
   const formatVal = parseFloat(listing.askingPrice.toString());
-  const priceStr = formatVal >= 10000000 
-    ? `₹${(formatVal / 10000000).toFixed(2)} Cr` 
-    : formatVal >= 100000 
-    ? `₹${(formatVal / 100000).toFixed(2)} Lk` 
+  const priceStr = formatVal >= 10000000
+    ? `₹${(formatVal / 10000000).toFixed(2)} Cr`
+    : formatVal >= 100000
+    ? `₹${(formatVal / 100000).toFixed(2)} Lk`
     : `₹${formatVal.toLocaleString('en-IN')}`;
 
   const title = `${listing.title} — ${priceStr}${listing.listingFor === 'RENT' ? '/month' : ''} | ListMe`;
   const description = listing.description || `Verified owner property listed directly on ListMe in ${listing.locality}, ${listing.city}. Zero brokerage fees!`;
-  const imageUrl = listing.images[0]?.imageUrl ? absoluteUrl(listing.images[0].imageUrl) : '';
+  // Prefer the primary image, else fall back to the first one
+  const ogImage = listing.images.find((img) => img.isPrimary) || listing.images[0];
+  const imageUrl = ogImage?.imageUrl ? absoluteUrl(ogImage.imageUrl) : '';
 
   return {
     title,
@@ -76,13 +95,13 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
       description,
       type: 'website',
       url: `/property/${id}`,
-      ...(imageUrl && { images: [{ url: imageUrl }] }),
+      images: imageUrl ? [{ url: imageUrl }] : [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      ...(imageUrl && { images: [imageUrl] }),
+      images: [imageUrl || DEFAULT_OG_IMAGE.url],
     },
   };
 }
@@ -95,27 +114,8 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     notFound();
   }
 
-  // Fetch listing details including nested amenities
-  const listing = await prisma.listing.findUnique({
-    where: { id },
-    include: {
-      images: { orderBy: { displayOrder: 'asc' } },
-      documents: true,
-      amenities: {
-        include: {
-          amenity: true,
-        },
-      },
-      owner: {
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-        },
-      },
-    },
-  });
+  // Fetch listing details including nested amenities (cached, shared with generateMetadata)
+  const listing = await getListing(id);
 
   // If listing doesn't exist or is not active (except for owners/admins, but here we can check public status)
   if (!listing) {
@@ -139,8 +139,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   const sanitizedListing = {
     ...listing,
     owner: {
-      id: listing.owner.id,
       name: listing.owner.name,
+      // Only a yes/no for the badge: the owner's id and role are not sent to the browser
+      verified: Boolean(listing.owner.phoneVerified),
       phone: '[Hidden — Click Interested to Contact]',
       email: '[Hidden — Click Interested to Contact]',
     },
@@ -200,10 +201,15 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
-      <div className={styles.breadcrumbBar}>
-        <Breadcrumbs items={breadcrumbs} />
-      </div>
-      <PropertyClient listingId={id} initialListing={sanitizedListing} />
+      <PropertyClient
+        listingId={id}
+        initialListing={sanitizedListing}
+        breadcrumbs={
+          <div className={styles.breadcrumbBar}>
+            <Breadcrumbs items={breadcrumbs} />
+          </div>
+        }
+      />
     </>
   );
 }

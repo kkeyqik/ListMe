@@ -226,6 +226,7 @@ function ListingsSearchContent() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+              aria-label="Search keyword"
               placeholder="Search keyword..."
               leftIcon={<Search size={16} />}
               fullWidth
@@ -234,10 +235,11 @@ function ListingsSearchContent() {
 
           {/* Buy / Rent / Commercial */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>Looking To</label>
+            <label className={styles.filterTitle} htmlFor="filter-looking-to">Looking To</label>
             <Select
               size="sm"
               fullWidth
+              id="filter-looking-to"
               value={listingType}
               onChange={(e) => setListingType(e.target.value)}
               options={[
@@ -251,8 +253,9 @@ function ListingsSearchContent() {
 
           {/* City */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>City</label>
+            <label className={styles.filterTitle} htmlFor="filter-city">City</label>
             <Input
+              id="filter-city"
               value={cityInput}
               onChange={(e) => setCityInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
@@ -264,10 +267,11 @@ function ListingsSearchContent() {
 
           {/* Property Type */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>Property Type</label>
+            <label className={styles.filterTitle} htmlFor="filter-property-type">Property Type</label>
             <Select
               size="sm"
               fullWidth
+              id="filter-property-type"
               value={propertyType}
               onChange={(e) => setPropertyType(e.target.value)}
               options={[
@@ -279,13 +283,15 @@ function ListingsSearchContent() {
 
           {/* Pricing Range */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>Price Range (INR)</label>
+            <span className={styles.filterTitle} id="filter-price-label">Price Range (INR)</span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <Input
                 value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ''))}
                 onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
                 placeholder="Min"
+                aria-label="Minimum price (INR)"
+                inputMode="numeric"
                 fullWidth
               />
               <Input
@@ -293,6 +299,8 @@ function ListingsSearchContent() {
                 onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ''))}
                 onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
                 placeholder="Max"
+                aria-label="Maximum price (INR)"
+                inputMode="numeric"
                 fullWidth
               />
             </div>
@@ -300,10 +308,11 @@ function ListingsSearchContent() {
 
           {/* BHK Configuration */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>Configuration</label>
+            <label className={styles.filterTitle} htmlFor="filter-bhk">Configuration</label>
             <Select
               size="sm"
               fullWidth
+              id="filter-bhk"
               value={bhk}
               onChange={(e) => setBhk(e.target.value)}
               options={[
@@ -319,10 +328,11 @@ function ListingsSearchContent() {
 
           {/* Furnishing Status */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterTitle}>Furnishing</label>
+            <label className={styles.filterTitle} htmlFor="filter-furnishing">Furnishing</label>
             <Select
               size="sm"
               fullWidth
+              id="filter-furnishing"
               value={furnishing}
               onChange={(e) => setFurnishing(e.target.value)}
               options={[
@@ -352,6 +362,7 @@ function ListingsSearchContent() {
               <Select
                 size="sm"
                 value={sort}
+                aria-label="Sort listings"
                 onChange={(e) => handleSortChange(e.target.value)}
                 options={[
                   { value: 'newest', label: 'Newest First' },

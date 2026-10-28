@@ -1,7 +1,7 @@
 .toastContainer {
   position: fixed;
-  top: 1.5rem;
-  right: 1.5rem;
+  top: calc(1.5rem + env(safe-area-inset-top, 0px));
+  right: calc(1.5rem + env(safe-area-inset-right, 0px));
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -109,4 +109,15 @@
 @keyframes fadeOut {
   from { opacity: 1; transform: scale(1); }
   to { opacity: 0; transform: scale(0.9); }
+}
+
+/* Phones: span the screen with a gutter instead of overflowing the left edge */
+@media (max-width: 480px) {
+  .toastContainer {
+    top: calc(0.75rem + env(safe-area-inset-top, 0px));
+    left: calc(0.75rem + env(safe-area-inset-left, 0px));
+    right: calc(0.75rem + env(safe-area-inset-right, 0px));
+    width: auto;
+    max-width: none;
+  }
 }

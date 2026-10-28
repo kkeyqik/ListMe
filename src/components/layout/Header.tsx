@@ -1,23 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   Menu,
   X,
   Home,
   User,
-  Search,
-  Eye,
   ChevronRight,
-  Landmark,
-  Lightbulb,
-  Newspaper,
   Info,
   HelpCircle,
-  Download,
-  LogOut,
+  Newspaper,
 } from 'lucide-react';
 import { Button } from '../ui';
 import styles from './Header.module.css';
@@ -25,8 +20,20 @@ import { useAuth } from '@/context/AuthContext';
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import dynamic from 'next/dynamic';
 import { getWhatsAppLink } from '@/lib/contact-info';
+import { useBodyScrollLock, useDialogFocus, useCloseAboveBreakpoint } from '@/lib/use-dialog';
 
 const whatsappHref = getWhatsAppLink('Hi ListMe, I want to post a property');
+
+// Reports the current query string. Kept in its own Suspense boundary so useSearchParams
+// doesn't force every statically rendered page that shows the header into client rendering.
+function SearchParamsSync({ onChange }: { onChange: (search: string) => void }) {
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
+  useEffect(() => {
+    onChange(search);
+  }, [search, onChange]);
+  return null;
+}
 
 const AuthModal = dynamic(() => import('../auth/AuthModal').then((mod) => mod.AuthModal), {
   ssr: false,
@@ -40,6 +47,13 @@ export const Header: React.FC = () => {
   const [postPropDrawerOpen, setPostPropDrawerOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const pathname = usePathname();
+  // Query string of the current URL, so Buy (?type=sale) and Rent (?type=rent) aren't both
+  // highlighted on /listings (filled in by <SearchParamsSync />).
+  const [currentSearch, setCurrentSearch] = useState('');
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
+  const ppDrawerRef = useRef<HTMLElement>(null);
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), []);
+  const closePostPropDrawer = useCallback(() => setPostPropDrawerOpen(false), []);
 
   const getHeaderLinks = (isAdmin: boolean) => [
     { label: 'Post Property', href: '/post-property', badge: 'FREE' },
@@ -76,33 +90,12 @@ export const Header: React.FC = () => {
     setPostPropDrawerOpen(false);
   }, [pathname]);
 
-  // Lock body scroll when a drawer is open
-  useEffect(() => {
-    if (postPropDrawerOpen || mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [postPropDrawerOpen, mobileMenuOpen]);
-
-  // Close drawer on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setPostPropDrawerOpen(false);
-        setMobileMenuOpen(false);
-      }
-    };
-    if (postPropDrawerOpen || mobileMenuOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [postPropDrawerOpen, mobileMenuOpen]);
+  // Ref-counted body scroll lock, focus trap/restore and Escape handling for both drawers
+  useBodyScrollLock(postPropDrawerOpen || mobileMenuOpen);
+  useDialogFocus(mobileMenuOpen, mobileDrawerRef, closeMobileMenu);
+  useDialogFocus(postPropDrawerOpen, ppDrawerRef, closePostPropDrawer);
+  // The standard mobile drawer is hidden by CSS at 1024px+; close it so it can't keep the page locked.
+  useCloseAboveBreakpoint(mobileMenuOpen, closeMobileMenu);
 
   const navLinks = [
     { label: 'Buy', href: '/listings?type=sale' },
@@ -113,9 +106,16 @@ export const Header: React.FC = () => {
   ];
 
   const isActive = (href: string) => {
-    if (href === '/' && pathname === '/') return true;
-    if (href !== '/' && pathname.startsWith(href.split('?')[0])) return true;
-    return false;
+    if (href === '/') return pathname === '/';
+    const [path, query] = href.split('?');
+    if (!pathname.startsWith(path)) return false;
+    if (!query) return true;
+    const wanted = new URLSearchParams(query);
+    const current = new URLSearchParams(currentSearch);
+    for (const [key, value] of wanted) {
+      if (current.get(key) !== value) return false;
+    }
+    return true;
   };
 
   const isHome = pathname === '/';
@@ -255,9 +255,11 @@ export const Header: React.FC = () => {
 
             {/* Hamburger Button */}
             <button
+              type="button"
               className={styles.ppIconButton}
               onClick={() => setPostPropDrawerOpen(true)}
               aria-label="Open navigation menu"
+              aria-expanded={postPropDrawerOpen}
             >
               <Menu size={22} />
             </button>
@@ -265,13 +267,15 @@ export const Header: React.FC = () => {
         </header>
 
         {/* ── Full-height Side Drawer ── */}
-        {postPropDrawerOpen && (
+        {postPropDrawerOpen && createPortal(
           <>
             <div
               className={styles.ppDrawerOverlay}
               onClick={() => setPostPropDrawerOpen(false)}
+              aria-hidden="true"
             />
             <aside
+              ref={ppDrawerRef}
               className={styles.ppDrawer}
               role="dialog"
               aria-modal="true"
@@ -348,19 +352,14 @@ export const Header: React.FC = () => {
 
                 <div className={styles.ppDrawerDivider} />
 
-                {/* Services Group */}
-                <Link href="#" className={styles.ppDrawerLink} onClick={(e) => e.preventDefault()}>
-                  <Landmark size={16} />
-                  <span>Home Loans</span>
-                </Link>
-                <Link href="#" className={styles.ppDrawerLink} onClick={(e) => e.preventDefault()}>
-                  <ChevronRight size={16} />
-                  <span>Insights</span>
-                  <span className={styles.ppDrawerNewBadge}>NEW</span>
-                </Link>
-                <Link href="#" className={styles.ppDrawerLink} onClick={(e) => e.preventDefault()}>
-                  <ChevronRight size={16} />
+                {/* Content Group (unbuilt items such as Home Loans and the app download are hidden) */}
+                <Link href="/blog" className={styles.ppDrawerLink} onClick={() => setPostPropDrawerOpen(false)}>
+                  <Newspaper size={16} />
                   <span>Articles & News</span>
+                </Link>
+                <Link href="/faq" className={styles.ppDrawerLink} onClick={() => setPostPropDrawerOpen(false)}>
+                  <HelpCircle size={16} />
+                  <span>FAQ</span>
                 </Link>
 
                 <div className={styles.ppDrawerDivider} />
@@ -374,13 +373,10 @@ export const Header: React.FC = () => {
                   <ChevronRight size={16} />
                   <span>Get Help</span>
                 </Link>
-                <Link href="#" className={styles.ppDrawerLink} onClick={(e) => e.preventDefault()}>
-                  <Download size={16} />
-                  <span>Download App</span>
-                </Link>
               </nav>
             </aside>
-          </>
+          </>,
+          document.body
         )}
         <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       </div>
@@ -390,6 +386,9 @@ export const Header: React.FC = () => {
   // ─── STANDARD HEADER (all other routes) ──────────────────
   return (
     <div className={`${styles.headerWrapper} ${isHome ? styles.homeHeaderWrapper : ''}`}>
+      <Suspense fallback={null}>
+        <SearchParamsSync onChange={setCurrentSearch} />
+      </Suspense>
       <header className={`${styles.header} ${scrolled ? styles.scrolled : ''} ${isHome ? styles.homeHeader : ''}`}>
         {/* Logo */}
         <Link href="/" className={styles.logo}>
@@ -502,18 +501,21 @@ export const Header: React.FC = () => {
 
         {/* Mobile Menu Button */}
         <button
+          type="button"
           onClick={() => setMobileMenuOpen(true)}
           className={styles.mobileMenuButton}
           aria-label="Open navigation menu"
+          aria-expanded={mobileMenuOpen}
         >
           <Menu size={24} />
         </button>
 
-        {/* Mobile Nav Overlay & Drawer */}
-        {mobileMenuOpen && (
+        {/* Mobile Nav Overlay & Drawer: portalled to <body> so the header's
+            backdrop-filter/transform can't become their containing block */}
+        {mobileMenuOpen && createPortal(
           <>
-            <div className={styles.mobileOverlay} onClick={() => setMobileMenuOpen(false)} />
-            <div className={styles.mobileDrawer} role="dialog" aria-modal="true">
+            <div className={styles.mobileOverlay} onClick={() => setMobileMenuOpen(false)} aria-hidden="true" />
+            <div ref={mobileDrawerRef} className={styles.mobileDrawer} role="dialog" aria-modal="true" aria-label="Navigation menu">
               <div className={styles.drawerHeader}>
                 <span className={`${styles.drawerLogo} text-gradient`}>ListMe</span>
                 <button
@@ -618,7 +620,8 @@ export const Header: React.FC = () => {
                 </Button>
               </div>
             </div>
-          </>
+          </>,
+          document.body
         )}
       </header>
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />

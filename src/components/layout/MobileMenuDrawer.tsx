@@ -7,40 +7,30 @@ import { useMobileMenu } from '@/context/MobileMenuContext';
 import { getWhatsAppLink, getWhatsAppNumber } from '@/lib/contact-info';
 import { useToast } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  Plus, 
-  MessageCircle, 
-  Crown, 
-  ArrowUp, 
-  HardHat, 
-  Building, 
-  Home, 
-  BedDouble, 
-  PlusSquare, 
-  Info, 
-  Store, 
-  Map, 
-  Factory, 
-  TrendingUp, 
-  BarChart2, 
-  Calculator, 
-  Maximize, 
-  FileText, 
-  BookOpen, 
-  Globe, 
-  MapPin, 
-  MessageSquare, 
-  PhoneCall, 
-  Heart, 
-  Eye, 
-  User, 
-  Headset, 
-  Headphones, 
-  HelpCircle, 
-  Bell, 
+import { useBodyScrollLock, useDialogFocus, useCloseAboveBreakpoint } from '@/lib/use-dialog';
+import {
+  Plus,
+  MessageCircle,
+  Building,
+  Home,
+  BedDouble,
+  PlusSquare,
+  Info,
+  Store,
+  Map,
+  Factory,
+  FileText,
+  BookOpen,
+  Globe,
+  MessageSquare,
+  PhoneCall,
+  User,
+  Headset,
+  Headphones,
+  HelpCircle,
   Key,
   LogOut,
-  X
+  X,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -49,7 +39,7 @@ const CATEGORIES = [
   { id: 'rent_pg', label: 'Rent / PG', icon: <Key size={20} /> },
   { id: 'buy_commercial', label: 'Buy Commercial', icon: <Store size={20} /> },
   { id: 'lease_commercial', label: 'Lease Commercial', icon: <Store size={20} /> },
-  { id: 'price_insights', label: 'Price & Insights', icon: <TrendingUp size={20} /> },
+  { id: 'price_insights', label: 'Guides & Help', icon: <BookOpen size={20} /> },
   { id: 'activity_support', label: 'Activity & Support', icon: <Info size={20} /> },
 ];
 
@@ -63,7 +53,7 @@ type SubOptionItem = {
   iconBg: string;
   fullWidth?: boolean;
   href?: string;
-  action?: 'whatsapp' | 'toast';
+  action?: 'whatsapp';
 };
 
 type SubOptionSection = {
@@ -81,14 +71,6 @@ const SUB_OPTIONS: SubOptionsType = {
         { label: 'Post Property', icon: <Plus size={18} color="white" strokeWidth={2.5} />, bg: '#0078db', iconBg: '#0078db', href: '/post-property' },
         { label: 'Post via WhatsApp', icon: <MessageCircle size={18} color="white" />, bg: '#25d366', iconBg: '#25d366', action: 'whatsapp' }
       ]
-    },
-    {
-      title: 'Stand out with higher visibility',
-      items: [
-        { label: 'Owner Plans', icon: <Crown size={22} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', href: '/post-property#pricing' },
-        { label: 'Dealer Plans', icon: <ArrowUp size={22} color="#22c55e" strokeWidth={2.5} />, bg: 'transparent', iconBg: 'transparent', href: '/post-property#pricing' },
-        { label: 'Builder Plans', icon: <HardHat size={22} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/post-property#pricing' }
-      ]
     }
   ],
   buy_residential: [
@@ -100,8 +82,7 @@ const SUB_OPTIONS: SubOptionsType = {
         { label: 'Independent House / Villa', icon: <Home size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=sale&property_type=VILLA' },
         { label: 'Builder Floor', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=sale&property_type=BUILDER_FLOOR' },
         { label: 'Studio Apartment', icon: <BedDouble size={20} color="#2f855a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=sale&property_type=STUDIO' },
-        { label: 'Farm House', icon: <Home size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=sale&property_type=FARM_HOUSE' },
-        { label: 'Serviced Apartments', icon: <BedDouble size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/listings?type=sale&property_type=APARTMENT' }
+        { label: 'Farm House', icon: <Home size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/listings?type=sale&property_type=FARM_HOUSE' }
       ]
     }
   ],
@@ -113,8 +94,7 @@ const SUB_OPTIONS: SubOptionsType = {
         { label: 'Independent House / Villa', icon: <Home size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=rent&property_type=VILLA' },
         { label: 'Builder Floor', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=rent&property_type=BUILDER_FLOOR' },
         { label: 'Studio Apartment', icon: <BedDouble size={20} color="#2f855a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=rent&property_type=STUDIO' },
-        { label: 'Serviced Apartments', icon: <BedDouble size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=rent&property_type=APARTMENT' },
-        { label: 'Farm House', icon: <Home size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=rent&property_type=FARM_HOUSE' }
+        { label: 'Farm House', icon: <Home size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/listings?type=rent&property_type=FARM_HOUSE' }
       ]
     },
     {
@@ -129,12 +109,10 @@ const SUB_OPTIONS: SubOptionsType = {
       title: 'Property Options',
       items: [
         { label: 'Retail Shops / Showrooms', icon: <Store size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=buy&property_type=SHOP' },
-        { label: 'Ready to move Offices', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=buy&property_type=OFFICE' },
-        { label: 'Bare shell Offices', icon: <Building size={20} color="#2f855a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=buy&property_type=OFFICE' },
+        { label: 'Offices', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=buy&property_type=OFFICE' },
         { label: 'Plot / Land', icon: <Map size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=buy&property_type=COMMERCIAL_LAND' },
-        { label: 'Factory Manufacturing', icon: <Factory size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=buy&property_type=WAREHOUSE' },
-        { label: 'Warehouse', icon: <Factory size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=buy&property_type=WAREHOUSE' },
-        { label: 'Others', icon: <Home size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/listings?type=commercial&commercial_trade=buy' }
+        { label: 'Warehouse / Factory', icon: <Factory size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=buy&property_type=WAREHOUSE' },
+        { label: 'All Commercial', icon: <Home size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/listings?type=commercial&commercial_trade=buy' }
       ]
     }
   ],
@@ -142,52 +120,35 @@ const SUB_OPTIONS: SubOptionsType = {
     {
       title: 'Property Options',
       items: [
-        { label: 'Ready to move Offices', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=OFFICE' },
-        { label: 'Bare shell Offices', icon: <Building size={20} color="#2f855a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=OFFICE' },
-        { label: 'Co-working Offices', icon: <Building size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=OFFICE' },
+        { label: 'Offices', icon: <Building size={20} color="#553c9a" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=OFFICE' },
         { label: 'Retail Shops / Showrooms', icon: <Store size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=SHOP' },
-        { label: 'Warehouse', icon: <Factory size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=WAREHOUSE' },
-        { label: 'Factory / Manufacturing', icon: <Factory size={20} color="#b7791f" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=WAREHOUSE' },
+        { label: 'Warehouse / Factory', icon: <Factory size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=WAREHOUSE' },
         { label: 'Plot / Land', icon: <Map size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease&property_type=COMMERCIAL_LAND' },
-        { label: 'Others', icon: <Home size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/listings?type=commercial&commercial_trade=lease' }
+        { label: 'All Commercial', icon: <Home size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/listings?type=commercial&commercial_trade=lease' }
       ]
     }
   ],
   price_insights: [
     {
-      title: 'Insights',
-      items: [
-        { label: 'Real Estate Insights', icon: <BarChart2 size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' },
-        { label: 'Price Trends', icon: <TrendingUp size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' }
-      ]
-    },
-    {
-      title: 'Tools',
-      items: [
-        { label: 'Budget Calculator', icon: <Calculator size={20} color="#48bb78" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' },
-        { label: 'Area Converter', icon: <Maximize size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' }
-      ]
-    },
-    {
       title: 'Articles & Guides',
       items: [
-        { label: 'Articles', icon: <FileText size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' },
-        { label: 'Home Buying Guide', icon: <BookOpen size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' },
-        { label: 'Home Interiors Guide', icon: <BookOpen size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' },
-        { label: 'Seller Guide', icon: <BookOpen size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' }
+        { label: 'Articles', icon: <FileText size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/blog' },
+        { label: 'Buying & Selling Tips', icon: <BookOpen size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', href: '/tips' },
+        { label: 'FAQ', icon: <HelpCircle size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/faq' },
+        { label: 'About ListMe', icon: <Info size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/about' }
       ]
     },
     {
       title: 'Discover',
       items: [
-        { label: 'All India Homepage', icon: <Globe size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/' },
-        { label: 'NRI Homepage', icon: <MapPin size={20} color="#d69e2e" />, bg: 'transparent', iconBg: 'transparent', action: 'toast' }
+        { label: 'All India Homepage', icon: <Globe size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/' }
       ]
     },
     {
-      title: 'Review your Society or Locality',
+      title: 'Legal',
       items: [
-        { label: 'Share reviews', icon: <MessageSquare size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, action: 'toast' }
+        { label: 'Privacy Policy', icon: <FileText size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/privacy' },
+        { label: 'Terms of Service', icon: <FileText size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/terms' }
       ]
     }
   ],
@@ -196,8 +157,7 @@ const SUB_OPTIONS: SubOptionsType = {
       title: 'Activity',
       items: [
         { label: 'Contacted', icon: <PhoneCall size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/dashboard/interests' },
-        { label: 'Shortlisted', icon: <Heart size={20} color="#c53030" />, bg: 'transparent', iconBg: 'transparent', href: '/dashboard/interests' },
-        { label: 'Viewed', icon: <Eye size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', fullWidth: true, href: '/dashboard' }
+        { label: 'My Listings', icon: <Building size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', href: '/dashboard/listings' }
       ]
     },
     {
@@ -207,8 +167,7 @@ const SUB_OPTIONS: SubOptionsType = {
         { label: 'Customer Service', icon: <Headset size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/contact' },
         { label: 'Contact Us', icon: <Headphones size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/contact' },
         { label: 'Request Info', icon: <HelpCircle size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/contact' },
-        { label: 'Give Feedback', icon: <MessageSquare size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/contact' },
-        { label: 'Communication Settings', icon: <Bell size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/dashboard/profile' }
+        { label: 'Give Feedback', icon: <MessageSquare size={20} color="#0f172a" />, bg: 'transparent', iconBg: 'transparent', href: '/contact' }
       ]
     }
   ]
@@ -237,32 +196,12 @@ export const MobileMenuDrawer: React.FC = () => {
     setAvatarError(false);
   }, [profile?.avatarUrl]);
 
-  // Lock body scroll when drawer is open
-  useEffect(() => {
-    if (isMenuOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [isMenuOpen]);
-
-  // Close drawer on Escape key with proper listener attachment
-  useEffect(() => {
-    if (!isMenuOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeMenu();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isMenuOpen, closeMenu]);
+  // Ref-counted scroll lock, focus trap/restore and Escape; close if the viewport
+  // grows to desktop width, where this drawer is hidden by CSS.
+  const drawerRef = useRef<HTMLDivElement>(null);
+  useBodyScrollLock(isMenuOpen);
+  useDialogFocus(isMenuOpen, drawerRef, closeMenu);
+  useCloseAboveBreakpoint(isMenuOpen, closeMenu);
 
   // Scroll content area to top whenever active category tab changes so Login Card is always visible
   const contentAreaRef = useRef<HTMLDivElement>(null);
@@ -285,14 +224,9 @@ export const MobileMenuDrawer: React.FC = () => {
       return;
     }
 
-    if (item.action === 'toast') {
-      showToast('Coming Soon', `${item.label} will be available in a future update!`, 'info');
-      return;
-    }
-
     if (item.href) {
-      if ((item.href === '/dashboard/profile' || item.label === 'Manage Profile') && !user) {
-        router.push('/login');
+      if (item.href.startsWith('/dashboard') && !user) {
+        router.push(`/login?redirect=${encodeURIComponent(item.href)}`);
       } else {
         router.push(item.href);
       }
@@ -301,7 +235,8 @@ export const MobileMenuDrawer: React.FC = () => {
 
   return (
     <div className={styles.drawerOverlay} onClick={closeMenu}>
-      <div 
+      <div
+        ref={drawerRef}
         className={styles.drawerContent} 
         onClick={(e) => e.stopPropagation()}
         role="dialog"
