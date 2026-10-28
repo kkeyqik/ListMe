@@ -43,27 +43,47 @@ export async function GET(request: NextRequest) {
 
     const user = data.user;
 
-    // Sync with database — find existing profile or create new one
-    let profile = await prisma.profile.findFirst({
-      where: {
-        OR: [
-          { id: user.id },
-          ...(user.email ? [{ email: user.email }] : []),
-        ]
-      }
-    });
+    // Sync with database. Match by auth user id only: matching by email could
+    // bind this session to a different profile that merely claims the same
+    // address.
+    let profile = await prisma.profile.findUnique({ where: { id: user.id } });
 
     if (!profile) {
+      const email = user.email ? user.email.toLowerCase() : null;
+      const emailOwner = email
+        ? await prisma.profile.findFirst({
+            where: { email: { equals: email, mode: 'insensitive' } },
+            select: { id: true },
+          })
+        : null;
+      if (emailOwner) {
+        console.warn('[OAuth Callback] Email already belongs to another profile; creating profile without email');
+      }
+
       profile = await prisma.profile.create({
         data: {
           id: user.id,
-          email: user.email || null,
+          email: emailOwner ? null : email,
           name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
           avatarUrl: user.user_metadata?.avatar_url || null,
           role: 'USER',
           status: 'ACTIVE',
         }
       });
+    }
+
+    if (profile.status === 'SUSPENDED' || profile.status === 'BANNED') {
+      const blocked = NextResponse.redirect(new URL('/login?error=suspended', request.url));
+      // Drop the Supabase session cookies that exchangeCodeForSession just set.
+      for (const cookie of response.cookies.getAll()) {
+        blocked.cookies.set(cookie.name, '', { path: '/', maxAge: 0 });
+      }
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name.startsWith('sb-') || cookie.name === SESSION_COOKIE_NAME) {
+          blocked.cookies.set(cookie.name, '', { path: '/', maxAge: 0 });
+        }
+      }
+      return blocked;
     }
 
     // Set signed session cookie

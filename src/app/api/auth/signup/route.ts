@@ -4,13 +4,14 @@ import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { validatePhone, validateEmail, validateName } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
-  // Rate limiting: 3 attempts per hour per IP
+  // Rate limiting: 10 checks per hour per IP (the sign-up form calls this
+  // before creating the account, so typo corrections count too)
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
-  const rateLimitResult = rateLimit(`signup:${ip}`, 3, 60 * 60 * 1000);
+  const rateLimitResult = rateLimit(`signup:${ip}`, 10, 60 * 60 * 1000);
   if (!rateLimitResult.allowed) {
     return NextResponse.json(
       { message: 'Too many signup attempts. Please try again later.' },
-      { status: 429, headers: getRateLimitHeaders(rateLimitResult, 3) }
+      { status: 429, headers: getRateLimitHeaders(rateLimitResult, 10) }
     );
   }
 
@@ -46,8 +47,10 @@ export async function POST(request: NextRequest) {
     const formattedPhone = phoneResult.normalized;
 
     // 1. Check if phone is already registered
-    const existingPhone = await prisma.profile.findUnique({
-      where: { phone: formattedPhone },
+    const localNum = formattedPhone.slice(-10);
+    const existingPhone = await prisma.profile.findFirst({
+      where: { OR: [{ phone: formattedPhone }, { phone: localNum }, { phone: `91${localNum}` }] },
+      select: { id: true },
     });
 
     if (existingPhone) {
@@ -58,8 +61,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Check if email is already registered
-    const existingEmail = await prisma.profile.findUnique({
-      where: { email },
+    const existingEmail = await prisma.profile.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
+      select: { id: true },
     });
 
     if (existingEmail) {

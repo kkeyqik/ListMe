@@ -6,6 +6,9 @@ import { createPasswordResetSessionToken } from '@/lib/session';
 import { validateEmail } from '@/lib/validation';
 import { logUserActivity } from '@/lib/activity-logger';
 import { verifyFirebasePhoneToken } from '@/lib/firebase/verify-id-token';
+import { isMockAuthEnabled } from '@/lib/mock-auth';
+
+const MAX_ATTEMPTS = 5;
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
@@ -27,6 +30,10 @@ export async function POST(request: NextRequest) {
 
     if (typeof otp !== 'string' || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
       return NextResponse.json({ message: 'OTP must be exactly 6 digits' }, { status: 400 });
+    }
+
+    if (channel !== 'sms' && channel !== 'email') {
+      return NextResponse.json({ message: 'Channel must be either "sms" or "email"' }, { status: 400 });
     }
 
     const channelUpper = channel.toUpperCase();
@@ -78,14 +85,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check max attempts
-    if (matchingToken.attempts >= 5) {
-      await prisma.passwordResetToken.delete({ where: { id: matchingToken.id } });
+    // Claim an attempt atomically before checking the code, so concurrent
+    // requests cannot get past the 5-attempt cap.
+    const claimed = await prisma.passwordResetToken.updateMany({
+      where: { id: matchingToken.id, attempts: { lt: MAX_ATTEMPTS }, usedAt: null },
+      data: { attempts: { increment: 1 } },
+    });
+    if (claimed.count === 0) {
+      await prisma.passwordResetToken.deleteMany({ where: { id: matchingToken.id, usedAt: null } });
       return NextResponse.json(
         { message: 'Too many incorrect attempts. Please request a new OTP code.' },
         { status: 400 }
       );
     }
+    const attemptsUsed = matchingToken.attempts + 1;
 
     // Verify OTP — via Firebase token (for SMS) or SHA-256 hash comparison
     let isVerified = false;
@@ -98,7 +111,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!isVerified) {
+    // The server never delivers the SMS-channel code itself (Firebase sends the
+    // SMS), so outside local mock mode an SMS reset is proven only by a
+    // Firebase ID token for the account's number.
+    const acceptStoredCode = channelUpper === 'EMAIL' || isMockAuthEnabled();
+
+    if (!isVerified && acceptStoredCode) {
       const inputHash = crypto.createHash('sha256').update(otp).digest('hex');
       const inputBuf = Buffer.from(inputHash, 'hex');
       const tokenBuf = Buffer.from(matchingToken.tokenHash, 'hex');
@@ -108,23 +126,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isVerified) {
-      // Increment attempts
-      await prisma.passwordResetToken.update({
-        where: { id: matchingToken.id },
-        data: { attempts: matchingToken.attempts + 1 },
-      });
-      const remaining = 4 - matchingToken.attempts;
+      const remaining = Math.max(0, MAX_ATTEMPTS - attemptsUsed);
       return NextResponse.json(
         { message: `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.` },
         { status: 400 }
       );
     }
 
-    // Mark token as used
-    await prisma.passwordResetToken.update({
-      where: { id: matchingToken.id },
+    // Mark token as used (only once, even under concurrent requests)
+    const consumed = await prisma.passwordResetToken.updateMany({
+      where: { id: matchingToken.id, usedAt: null },
       data: { usedAt: now },
     });
+    if (consumed.count === 0) {
+      return NextResponse.json(
+        { message: 'OTP has expired or does not exist. Please request a new code.' },
+        { status: 400 }
+      );
+    }
 
     // Issue a signed 15-minute reset token tied to this token id
     const resetToken = createPasswordResetSessionToken(matchingToken.userId, matchingToken.id);

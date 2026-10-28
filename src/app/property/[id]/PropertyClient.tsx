@@ -3,15 +3,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  Building, 
-  MapPin, 
-  Bed, 
-  Square, 
-  Check, 
-  ArrowLeft, 
-  Phone, 
-  Mail, 
+import {
+  Building,
+  MapPin,
+  Bed,
+  Square,
+  Check,
+  ArrowLeft,
+  Phone,
+  Mail,
   Calendar,
   AlertCircle,
   ShieldCheck,
@@ -22,9 +22,32 @@ import {
   Camera,
   Image as ImageIcon,
   ExternalLink,
-  Play
+  Play,
+  Activity,
+  ArrowUpDown,
+  Award,
+  BatteryCharging,
+  Car,
+  CloudRain,
+  Droplet,
+  Dumbbell,
+  Fence,
+  Filter,
+  Flame,
+  FlameKindling,
+  Footprints,
+  Gamepad2,
+  PhoneCall,
+  Shield,
+  Smile,
+  Target,
+  Trash2,
+  Trees,
+  Users,
+  Waves,
+  Wrench,
+  Zap,
 } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Header, Footer } from '@/components/layout';
 import { useToast, Card, Button, Badge } from '@/components/ui';
@@ -34,6 +57,112 @@ import styles from '../property.module.css';
 interface PropertyClientProps {
   listingId: string;
   initialListing: any;
+  /** Rendered inside <main>, below the fixed header (outside it they were hidden behind the header) */
+  breadcrumbs?: React.ReactNode;
+}
+
+// Explicit map of the amenity icons used in the database. Importing the whole lucide
+// namespace for a dynamic lookup pulled every icon (~650 KB) into this page's bundle.
+const AMENITY_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
+  Activity,
+  ArrowUpDown,
+  Award,
+  BatteryCharging,
+  Building,
+  Car,
+  CloudRain,
+  Droplet,
+  Dumbbell,
+  Fence,
+  Filter,
+  Flame,
+  FlameKindling,
+  Footprints,
+  Gamepad2,
+  PhoneCall,
+  Shield,
+  ShieldCheck,
+  Smile,
+  Target,
+  Trash2,
+  Trees,
+  Users,
+  Video,
+  Waves,
+  Wrench,
+  Zap,
+};
+
+// Accounts created with a phone number get a synthetic phone_<digits>@listme.com address;
+// it is not a real mailbox, so never show it as a contact email.
+const PLACEHOLDER_EMAIL_RE = /^phone_\d+@listme\.com$/i;
+
+const ENUM_LABELS: Record<string, string> = {
+  FURNISHED: 'Furnished',
+  SEMI_FURNISHED: 'Semi-furnished',
+  UNFURNISHED: 'Unfurnished',
+  READY: 'Ready to move',
+  UNDER_CONSTRUCTION: 'Under construction',
+  FREEHOLD: 'Freehold',
+  LEASEHOLD: 'Leasehold',
+  COOPERATIVE: 'Co-operative society',
+  POA: 'Power of attorney',
+  COVERED: 'Covered',
+  OPEN: 'Open',
+  BOTH: 'Covered and open',
+  NONE: 'None',
+};
+
+function toNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatRupees(value: unknown): string | null {
+  const n = toNumber(value);
+  return n === null || n <= 0 ? null : `₹${n.toLocaleString('en-IN')}`;
+}
+
+function formatArea(value: unknown): string | null {
+  const n = toNumber(value);
+  return n === null || n <= 0 ? null : `${n.toLocaleString('en-IN')} sqft`;
+}
+
+/** Details the owner filled in that aren't shown elsewhere on the page. */
+function getPropertyDetails(listing: any): { label: string; value: string }[] {
+  const rows: { label: string; value: string | null | undefined }[] = [
+    { label: 'Bathrooms', value: toNumber(listing.bathrooms) ? String(listing.bathrooms) : null },
+    { label: 'Balconies', value: toNumber(listing.balconies) ? String(listing.balconies) : null },
+    { label: 'Built-up Area', value: formatArea(listing.builtUpArea) },
+    { label: 'Super Built-up Area', value: formatArea(listing.superBuiltUpArea) },
+    { label: 'Plot Area', value: formatArea(listing.plotArea) },
+    { label: 'Furnishing', value: listing.furnishing ? ENUM_LABELS[listing.furnishing] || listing.furnishing : null },
+    {
+      label: 'Floor',
+      value: toNumber(listing.floorNumber) !== null
+        ? `${listing.floorNumber === 0 ? 'Ground' : listing.floorNumber}${toNumber(listing.totalFloors) ? ` of ${listing.totalFloors}` : ''}`
+        : null,
+    },
+    { label: 'Facing', value: listing.facing },
+    { label: 'Possession', value: listing.possession ? ENUM_LABELS[listing.possession] || listing.possession : null },
+    { label: 'Possession Date', value: listing.possessionDate },
+    { label: 'Age of Property', value: listing.ageOfProperty },
+    { label: 'Ownership', value: listing.ownership ? ENUM_LABELS[listing.ownership] || listing.ownership : null },
+    {
+      label: 'Parking',
+      value: listing.parking
+        ? `${ENUM_LABELS[listing.parking] || listing.parking}${toNumber(listing.parkingCount) ? ` (${listing.parkingCount})` : ''}`
+        : null,
+    },
+    { label: 'Water Supply', value: listing.waterSupply },
+    { label: 'Power Backup', value: listing.powerBackup },
+    { label: 'Maintenance', value: formatRupees(listing.maintenanceCharges) ? `${formatRupees(listing.maintenanceCharges)}/month` : null },
+    { label: 'Security Deposit', value: formatRupees(listing.securityDeposit) },
+    { label: 'Landmark', value: listing.landmark },
+    { label: 'RERA Number', value: listing.reraNumber },
+  ];
+  return rows.filter((r): r is { label: string; value: string } => typeof r.value === 'string' && r.value.trim() !== '');
 }
 
 function getEmbedUrl(rawUrl: string): { type: 'iframe' | 'video' | 'link' | 'invalid'; url: string } {
@@ -143,11 +272,11 @@ function getEmbedUrl(rawUrl: string): { type: 'iframe' | 'video' | 'link' | 'inv
   return { type: 'invalid', url: '' };
 }
 
-export default function PropertyClient({ listingId, initialListing }: PropertyClientProps) {
+export default function PropertyClient({ listingId, initialListing, breadcrumbs }: PropertyClientProps) {
   const router = useRouter();
   const { showToast } = useToast();
   const { user, profile } = useAuth();
-  
+
   const [listing, setListing] = useState<any>(initialListing);
   const [interestLoading, setInterestLoading] = useState(false);
   const [hasExpressedInterest, setHasExpressedInterest] = useState(false);
@@ -172,6 +301,7 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
   const currentVideo = hasVideos ? videos[0] : null;
 
   const isOwnerVerified = Boolean(
+    listing?.owner?.verified ||
     listing?.owner?.phoneVerified ||
     listing?.owner?.role === 'ADMIN' ||
     listing?.owner?.role === 'SUPER_ADMIN'
@@ -245,10 +375,10 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
           const matchingInterest = (expressedData.interests || []).find(
             (i: any) => i.listingId === listingId
           );
-          
+
           if (matchingInterest) {
             setHasExpressedInterest(true);
-            
+
             // If interest exists, pull contact details
             if (matchingInterest.listing?.ownerPhone && !matchingInterest.listing.ownerPhone.startsWith('[Hidden')) {
               setOwnerContact({
@@ -284,7 +414,7 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
       const existing = localStorage.getItem('listme_recent_views');
       let views = existing ? JSON.parse(existing) : [];
       if (!Array.isArray(views)) views = [];
-      
+
       const newView = {
         id: initialListing.id,
         title: initialListing.title,
@@ -292,14 +422,14 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
         city: initialListing.city,
         timestamp: Date.now()
       };
-      
+
       // Remove duplicate
       views = views.filter((v: any) => v.id !== initialListing.id);
       // Add to start
       views.unshift(newView);
       // Limit to 5
       views = views.slice(0, 5);
-      
+
       localStorage.setItem('listme_recent_views', JSON.stringify(views));
     } catch (e) {
       console.error(e);
@@ -330,7 +460,7 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
       if (res.ok) {
         showToast('Success', 'Interest expressed! You can now contact the owner.', 'success');
         setHasExpressedInterest(true);
-        
+
         // Re-fetch detail to get phone details
         const authorizedDetailRes = await fetch(`/api/listings/${listingId}`);
         if (authorizedDetailRes.ok) {
@@ -356,21 +486,28 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
 
   const formatPrice = (price: string) => {
     const val = parseFloat(price);
-    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr`;
-    if (val >= 100000) return `₹${(val / 100000).toFixed(2)} Lk`;
-    return `₹${val.toLocaleString('en-IN')}`;
+    const suffix = listing?.listingFor === 'RENT' ? '/month' : '';
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr${suffix}`;
+    if (val >= 100000) return `₹${(val / 100000).toFixed(2)} Lk${suffix}`;
+    return `₹${val.toLocaleString('en-IN')}${suffix}`;
   };
 
   const getIcon = (iconName: string) => {
-    const IconComponent = (LucideIcons as any)[iconName];
+    const IconComponent = AMENITY_ICONS[iconName];
     return IconComponent ? <IconComponent size={18} /> : <Check size={18} />;
   };
+
+  const keyHighlights: string[] = Array.isArray(listing?.keyHighlights)
+    ? listing.keyHighlights.filter((hl: unknown): hl is string => typeof hl === 'string' && hl.trim() !== '')
+    : [];
+  const propertyDetails = getPropertyDetails(listing);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
-      
+
       <main className={`${styles.container} container`} style={{ flex: 1 }}>
+        {breadcrumbs}
         <Link href="/listings" className={styles.backLink}>
           <ArrowLeft size={16} /> Back to search
         </Link>
@@ -666,13 +803,29 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
               </p>
             </div>
 
-            {listing.keyHighlights && listing.keyHighlights.length > 0 && (
+            {propertyDetails.length > 0 && (
+              <div>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>
+                  Property Details
+                </h2>
+                <dl className={styles.specsGrid} style={{ margin: 0 }}>
+                  {propertyDetails.map((row) => (
+                    <div key={row.label} className={styles.specCard}>
+                      <dt className={styles.specLabel}>{row.label}</dt>
+                      <dd className={styles.specValue} style={{ margin: 0, fontSize: '0.95rem' }}>{row.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+
+            {keyHighlights.length > 0 && (
               <div>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>
                   Property Highlights
                 </h2>
                 <div className={styles.highlightsList}>
-                  {listing.keyHighlights.map((hl: string, index: number) => (
+                  {keyHighlights.map((hl: string, index: number) => (
                     <div key={index} className={styles.highlightItem}>
                       <Check size={16} style={{ color: 'var(--color-success)', marginTop: '2px', flexShrink: 0 }} />
                       <span>{hl}</span>
@@ -743,7 +896,7 @@ export default function PropertyClient({ listingId, initialListing }: PropertyCl
                       {/* Phone sign-ups have no real email (the API sends null), and the server-rendered owner only has placeholders. */}
                       {(() => {
                         const ownerEmail = ownerContact?.email || listing.owner?.email;
-                        return ownerEmail && ownerEmail.includes('@') ? (
+                        return ownerEmail && ownerEmail.includes('@') && !PLACEHOLDER_EMAIL_RE.test(ownerEmail) ? (
                           <a href={`mailto:${ownerEmail}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.812rem' }}>
                             <Mail size={12} /> {ownerEmail}
                           </a>

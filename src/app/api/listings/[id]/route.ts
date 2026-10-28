@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
-import { Prisma, ListingStatus, InterestStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking } from '@prisma/client';
+import { Prisma, ListingStatus, InterestStatus, ListingFor, PropertyType, Furnishing, Possession, Ownership, Parking, UserStatus } from '@prisma/client';
 import { logUserActivity, logAdminActivity } from '@/lib/activity-logger';
+import { recordListingView } from '@/lib/listing-views';
+import { hasAdminAccess } from '@/lib/admin-permissions';
+import { isLikelyBot } from '@/lib/request-ip';
+import { validateListingInput, cleanKeyHighlights } from '@/lib/listing-input';
 import { isUuid, isSyntheticEmail } from '@/lib/ids';
 import { sendEmail } from '@/lib/email';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -135,6 +139,7 @@ export async function GET(
             avatarUrl: true,
             role: true,
             phoneVerified: true,
+            status: true,
           },
         },
       },
@@ -180,27 +185,23 @@ export async function GET(
       }
     }
 
-    if (!isOwnerOrAdmin && listing.status !== ListingStatus.ACTIVE) {
+    // Listings of suspended or banned owners are not public.
+    if (!isOwnerOrAdmin && (listing.status !== ListingStatus.ACTIVE || listing.owner.status !== UserStatus.ACTIVE)) {
       return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
     }
 
     // Logging and view counting must not hold up the response.
     after(async () => {
-      await logUserActivity({
-        userId: user?.id,
-        action: 'VIEW_PROPERTY',
-        entityId: id,
-        request,
-      });
-      if (!isOwnerOrAdmin && listing.status === ListingStatus.ACTIVE) {
-        try {
-          await prisma.listing.update({
-            where: { id },
-            data: { viewCount: { increment: 1 } },
-          });
-        } catch (err) {
-          console.error('[listings/id GET] viewCount update failed:', err);
-        }
+      if (!isLikelyBot(request)) {
+        await logUserActivity({
+          userId: user?.id,
+          action: 'VIEW_PROPERTY',
+          entityId: id,
+          request,
+        });
+      }
+      if (!isOwnerOrAdmin) {
+        await recordListingView(id, request, user?.id);
       }
     });
 
@@ -215,8 +216,13 @@ export async function GET(
     listing.latitude = null;
     listing.longitude = null;
 
-    // The owner's internal id is not needed by the public page.
-    const { id: _ownerId, ...owner } = listing.owner;
+    // The owner's internal id, role and account status are not for the public.
+    // Admin-posted listings still show as verified, as the page did with the role.
+    const { id: _ownerId, role: ownerRole, status: _ownerStatus, ...ownerFields } = listing.owner;
+    const owner = {
+      ...ownerFields,
+      phoneVerified: ownerFields.phoneVerified || ownerRole === 'ADMIN' || ownerRole === 'SUPER_ADMIN',
+    };
     if (canViewOwnerContact) {
       // Placeholder addresses for phone sign-ups are not a real way to reach anyone.
       if (isSyntheticEmail(owner.email)) owner.email = null;
@@ -225,9 +231,10 @@ export async function GET(
       owner.phone = '[Hidden - Click Interested to Contact]';
     }
 
+    const { ownerId: _listingOwnerId, rejectionReason: _rejectionReason, ...publicListing } = listing;
     return NextResponse.json({
       listing: {
-        ...listing,
+        ...publicListing,
         owner,
         // Ownership documents (including their file names) are for the owner and admins only.
         documents: [],
@@ -272,32 +279,34 @@ export async function PUT(
     let isAdmin = false;
     let requesterProfile = null;
 
-    if (userId === listing.ownerId) {
+    // Admin powers over listings need the 'listings' module permission, not just the role.
+    requesterProfile = await prisma.profile.findUnique({
+      where: { id: userId },
+      select: { role: true, name: true, roleMetadata: true },
+    });
+    if (hasAdminAccess(requesterProfile, 'listings')) {
       isAuthorized = true;
-      // Fetch profile to verify if owner is also admin
-      requesterProfile = await prisma.profile.findUnique({
-        where: { id: userId! },
-        select: { role: true, name: true },
-      });
-      if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {
-        isAdmin = true;
-      }
-    } else {
-      requesterProfile = await prisma.profile.findUnique({
-        where: { id: userId! },
-        select: { role: true, name: true },
-      });
-      if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {
-        isAuthorized = true;
-        isAdmin = true;
-      }
+      isAdmin = true;
+    } else if (userId === listing.ownerId) {
+      isAuthorized = true;
     }
 
     if (!isAuthorized) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
+    }
+    const validationError = validateListingInput(body, { requireCore: false });
+    if (validationError) {
+      return NextResponse.json({ message: validationError }, { status: 400 });
+    }
+    if (body.rejectionReason !== undefined && body.rejectionReason !== null && (typeof body.rejectionReason !== 'string' || body.rejectionReason.length > 1000)) {
+      return NextResponse.json({ message: 'Rejection reason must be text of at most 1000 characters' }, { status: 400 });
+    }
+
     const {
       listingFor,
       propertyType,
@@ -352,11 +361,11 @@ export async function PUT(
     };
 
     const updateData: Prisma.ListingUpdateInput = {};
-    if (has('title') && title) updateData.title = String(title);
+    if (has('title') && typeof title === 'string' && title.trim()) updateData.title = title.trim();
     if (has('description')) updateData.description = description ?? '';
     if (has('keyHighlights') && Array.isArray(keyHighlights)) {
       // Drop blank entries so the public page doesn't render empty bullets.
-      updateData.keyHighlights = keyHighlights.map((h: unknown) => String(h ?? '').trim()).filter(Boolean);
+      updateData.keyHighlights = cleanKeyHighlights(keyHighlights);
     }
     if (has('subLocality')) updateData.subLocality = subLocality;
     if (has('landmark')) updateData.landmark = landmark;
@@ -398,9 +407,9 @@ export async function PUT(
       if (has('pricePerSqft')) updateData.pricePerSqft = toFloat(pricePerSqft);
       if (has('maintenanceCharges')) updateData.maintenanceCharges = toFloat(maintenanceCharges);
       if (has('securityDeposit')) updateData.securityDeposit = toFloat(securityDeposit);
-      if (city) updateData.city = city;
-      if (locality) updateData.locality = locality;
-      if (pinCode) updateData.pinCode = pinCode;
+      if (city) updateData.city = String(city).trim();
+      if (locality) updateData.locality = String(locality).trim();
+      if (pinCode) updateData.pinCode = String(pinCode).trim();
       if (fullAddress) updateData.fullAddress = fullAddress;
     };
 
@@ -507,7 +516,8 @@ export async function PUT(
       ));
     }
 
-    // Log user activity if the owner made the edit (admins are logged separately above)
+    // Log user activity if the owner made the edit. Admin status changes are
+    // logged above; admin edits of the listing's content are logged here.
     if (!isAdmin && isAuthorized) {
       await logUserActivity({
         userId,
@@ -515,6 +525,17 @@ export async function PUT(
         entityId: id,
         request,
       });
+    } else if (isAdmin) {
+      const editedFields = Object.keys(updateData).filter((k) => k !== 'status' && k !== 'rejectionReason');
+      if (editedFields.length > 0) {
+        await logAdminActivity({
+          adminId: userId,
+          action: `${requesterProfile?.name || 'Admin'} edited Listing ${id}`,
+          entityType: 'LISTING',
+          entityId: id,
+          metadata: { fields: editedFields, ownListing: listing.ownerId === userId },
+        });
+      }
     }
 
     const sentForReview =
@@ -527,6 +548,10 @@ export async function PUT(
       sentForReview,
     });
   } catch (error: any) {
+    // An amenity id that does not exist fails the nested connect (the whole update rolls back).
+    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2025' || error.code === 'P2018')) {
+      return NextResponse.json({ message: 'One or more selected amenities do not exist' }, { status: 400 });
+    }
     console.error('[listings/id PUT] Error:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
@@ -562,9 +587,9 @@ export async function DELETE(
     // Verify if owner or admin
     const requesterProfile = await prisma.profile.findUnique({
       where: { id: userId },
-      select: { role: true, name: true },
+      select: { role: true, name: true, roleMetadata: true },
     });
-    const isAdmin = !!requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN');
+    const isAdmin = hasAdminAccess(requesterProfile, 'listings');
     const isOwner = userId === listing.ownerId;
 
     if (!isOwner && !isAdmin) {

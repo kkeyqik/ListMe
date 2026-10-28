@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ListMe
 
-## Getting Started
+Property listing site for India. Next.js 16 (App Router) + Prisma 7 (pg driver adapter) on Supabase Postgres, Supabase Auth and Storage, Firebase phone OTP. Deployed on Vercel (region `bom1`).
 
-First, run the development server:
+Production: https://listme-sable.vercel.app
+
+> Next.js 16 differs from older versions. Read `AGENTS.md` and the docs in `node_modules/next/dist/docs/` before changing framework code.
+
+## Setup
+
+Requires Node.js 20.9 or newer.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci                 # also runs `prisma generate`
+cp .env.example .env   # then fill in values
+npm run dev            # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Every environment variable the code reads is documented in `.env.example`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Use a separate development Supabase project.** Do not point a local `.env` at the production database: seed scripts and local testing write real rows.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint |
+| `npm run build` | Production build |
+| `npm run check` | typecheck + lint + build |
+| `npx prisma db seed` | Seed reference data (`prisma/seed.ts`); dev databases only |
 
-To learn more about Next.js, take a look at the following resources:
+## Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Schema: `prisma/schema.prisma`. CLI config: `prisma.config.ts` (uses `DIRECT_URL`, falling back to `DATABASE_URL`).
+- There is no migration history yet. RLS and storage policies live in `prisma/sql/*.sql` and are applied by hand in the Supabase SQL editor.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy
 
-## Deploy on Vercel
+Pushes to `main` deploy to Vercel. Set the same variables as `.env.example` in the Vercel project (never the dev-only mock-auth flags). Security headers (CSP in report-only mode, HSTS, nosniff, frame protection, Referrer-Policy, Permissions-Policy) are set in `next.config.ts`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## CI
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`.github/workflows/ci.yml` runs typecheck, lint and build on every pull request with placeholder env values. Dependabot opens weekly minor/patch update PRs.

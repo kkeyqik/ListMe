@@ -294,8 +294,10 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
       params.set('type', 'commercial');
       params.set('commercial_trade', commercialTrade.toLowerCase());
       
+      // 'Invest' and 'Buy' cover every commercial type (type=commercial already filters to
+      // OFFICE/SHOP/WAREHOUSE/COMMERCIAL_LAND); INVESTMENT/COMMERCIAL aren't real property types.
       if (commercialTrade === 'Invest') {
-        params.set('property_type', 'INVESTMENT');
+        // no extra property_type filter
       } else if (commercialTrade === 'Lease') {
         if (commercialType === 'Office Spaces') {
           params.set('property_type', 'OFFICE');
@@ -306,7 +308,6 @@ export const SearchCapsule: React.FC<SearchCapsuleProps> = ({ searchLocation }) 
         else if (commercialType === 'Other commercial spaces') params.set('property_type', 'WAREHOUSE');
         else if (commercialType === 'Factory & Manufacturing') params.set('property_type', 'WAREHOUSE');
       } else {
-        params.set('property_type', 'COMMERCIAL');
         if (selectedBuySubtypes.size > 0) {
           params.set('commercial_subtypes', Array.from(selectedBuySubtypes).join(','));
         }

@@ -5,6 +5,9 @@ import { Bell, BellOff, Check, Clock, Link as LinkIcon } from 'lucide-react';
 import { useToast, Card, Button, Badge } from '@/components/ui';
 import styles from '../dashboard.module.css';
 
+const PAGE_SIZE = 20;
+const MAX_LIMIT = 100;
+
 export default function Notifications() {
   const { showToast } = useToast();
   
@@ -12,15 +15,25 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
 
-  const fetchNotifications = async () => {
+  // The API returns the newest `limit` notifications (max 100).
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const fetchNotifications = async (nextLimit = limit) => {
+    setLoadError(null);
     try {
-      const res = await fetch('/api/notifications');
-      const data = await res.json();
+      const res = await fetch(`/api/notifications?limit=${nextLimit}`);
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setNotifications(data.notifications || []);
+        setLimit(nextLimit);
+      } else {
+        setLoadError(data.message || `Notifications could not be loaded (error ${res.status}).`);
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);
+      setLoadError('Notifications could not be loaded. Check your connection and try again.');
       showToast('Error', 'Failed to retrieve notification alerts', 'error');
     } finally {
       setLoading(false);
@@ -28,8 +41,15 @@ export default function Notifications() {
   };
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications(PAGE_SIZE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadOlder = async () => {
+    setLoadingMore(true);
+    await fetchNotifications(Math.min(MAX_LIMIT, limit + PAGE_SIZE));
+    setLoadingMore(false);
+  };
 
   const handleMarkAsRead = async (id: string, isRead: boolean) => {
     if (isRead) return; // already read
@@ -80,7 +100,7 @@ export default function Notifications() {
       <div className={styles.header}>
         <div>
           <h1 className={styles.welcomeText}>Notifications</h1>
-          <p className={styles.subText}>Stay updated on review approvals, listing views, and seeker interests.</p>
+          <p className={styles.subText}>Updates about your listing submissions and seeker interests.</p>
         </div>
         {hasUnread && (
           <Button
@@ -98,6 +118,13 @@ export default function Notifications() {
       {/* Notifications List */}
       {loading ? (
         <Card padding="md">Loading notifications...</Card>
+      ) : loadError && notifications.length === 0 ? (
+        <div className={styles.errorBanner} role="alert">
+          <span>{loadError}</span>
+          <Button variant="outline" size="sm" onClick={() => fetchNotifications(limit)}>
+            Try again
+          </Button>
+        </div>
       ) : notifications.length === 0 ? (
         <div className={styles.emptyState}>
           <BellOff size={48} style={{ opacity: 0.3 }} />
@@ -116,6 +143,15 @@ export default function Notifications() {
               <div 
                 key={item.id}
                 onClick={() => handleMarkAsRead(item.id, item.isRead)}
+                onKeyDown={(e) => {
+                  if (!item.isRead && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    handleMarkAsRead(item.id, item.isRead);
+                  }
+                }}
+                role={!item.isRead ? 'button' : undefined}
+                tabIndex={!item.isRead ? 0 : undefined}
+                aria-label={!item.isRead ? `Mark as read: ${item.title}` : undefined}
                 className={`${styles.notificationItem} ${!item.isRead ? styles.unreadNotification : ''}`}
                 style={{ cursor: !item.isRead ? 'pointer' : 'default' }}
               >
@@ -148,6 +184,13 @@ export default function Notifications() {
               </div>
             );
           })}
+          {notifications.length >= limit && limit < MAX_LIMIT && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+              <Button variant="outline" size="sm" onClick={loadOlder} loading={loadingMore}>
+                Show older notifications
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

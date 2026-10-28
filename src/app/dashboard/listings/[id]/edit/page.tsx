@@ -32,7 +32,27 @@ import {
 } from '@/lib/upload';
 import styles from '@/app/dashboard/listings/new/new.module.css';
 
+import { RESIDENTIAL_PROPERTY_CATEGORIES, COMMERCIAL_PROPERTY_CATEGORIES, isLandType, DOCUMENT_TYPE_OPTIONS } from '../../property-types';
+import { PhotoThumb } from '../../PhotoThumb';
+
 const MAX_PHOTOS = 20;
+const OPTIONAL_ATTRIBUTE_FIELDS = ['furnishing', 'facing', 'possession', 'ageOfProperty', 'ownership', 'parking', 'parkingCount', 'waterSupply', 'powerBackup'];
+
+/**
+ * Optional attribute selects default to "Not specified" (''), which is sent
+ * as null so the listing does not claim invented values (east-facing, full
+ * power backup, ...). Land has no furnishing.
+ */
+function optionalAttributes(formData: any) {
+  const out: Record<string, string | null> = {};
+  for (const key of OPTIONAL_ATTRIBUTE_FIELDS) {
+    const value = formData[key];
+    out[key] = value === undefined || value === null || value === '' ? null : String(value);
+  }
+  if (isLandType(formData.propertyType)) out.furnishing = null;
+  return out;
+}
+
 
 // Local, non-persisted id for a picked file (module counter keeps render pure)
 let localFileCounter = 0;
@@ -84,15 +104,15 @@ export default function EditListing({ params }: EditListingProps) {
     maintenanceCharges: '',
     securityDeposit: '',
     priceNegotiable: false,
-    furnishing: 'UNFURNISHED',
-    facing: 'EAST',
-    possession: 'READY',
-    ageOfProperty: '0_1_YEARS',
-    ownership: 'FREEHOLD',
-    parking: 'BOTH',
-    parkingCount: '1',
-    waterSupply: 'CORP_WELL',
-    powerBackup: 'FULL',
+    furnishing: '',
+    facing: '',
+    possession: '',
+    ageOfProperty: '',
+    ownership: '',
+    parking: '',
+    parkingCount: '',
+    waterSupply: '',
+    powerBackup: '',
     reraNumber: '',
     videoUrl: '',
     selectedAmenities: [], // array of ids
@@ -220,15 +240,15 @@ export default function EditListing({ params }: EditListingProps) {
             maintenanceCharges: listing.maintenanceCharges ? parseFloat(listing.maintenanceCharges.toString()).toString() : '',
             securityDeposit: listing.securityDeposit ? parseFloat(listing.securityDeposit.toString()).toString() : '',
             priceNegotiable: !!listing.priceNegotiable,
-            furnishing: listing.furnishing || 'UNFURNISHED',
-            facing: listing.facing || 'EAST',
-            possession: listing.possession || 'READY',
-            ageOfProperty: listing.ageOfProperty || '0_1_YEARS',
-            ownership: listing.ownership === 'POA' ? 'POWER_OF_ATTORNEY' : (listing.ownership || 'FREEHOLD'),
-            parking: listing.parking || 'BOTH',
-            parkingCount: listing.parkingCount?.toString() || '1',
-            waterSupply: listing.waterSupply || 'CORP_WELL',
-            powerBackup: listing.powerBackup || 'FULL',
+            furnishing: listing.furnishing || '',
+            facing: listing.facing || '',
+            possession: listing.possession || '',
+            ageOfProperty: listing.ageOfProperty || '',
+            ownership: listing.ownership === 'POA' ? 'POWER_OF_ATTORNEY' : (listing.ownership || ''),
+            parking: listing.parking || '',
+            parkingCount: listing.parkingCount?.toString() || '',
+            waterSupply: listing.waterSupply || '',
+            powerBackup: listing.powerBackup || '',
             reraNumber: listing.reraNumber || '',
             videoUrl: existingVideo,
             selectedAmenities: listing.amenities?.map((a: any) => a.amenityId) || [],
@@ -503,6 +523,7 @@ export default function EditListing({ params }: EditListingProps) {
         id: nextLocalFileId(),
         name: file.name,
         file,
+        docType: 'OTHER',
         progress: 0,
         completed: true,
         uploaded: false,
@@ -658,7 +679,7 @@ export default function EditListing({ params }: EditListingProps) {
       );
 
       documents.push({
-        docType: 'OTHER',
+        docType: doc.docType || 'OTHER',
         docName: doc.name,
         docUrl: path,
       });
@@ -925,6 +946,7 @@ export default function EditListing({ params }: EditListingProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          ...optionalAttributes(formData),
           // Don't save blank highlight bullets
           keyHighlights: (formData.keyHighlights || [])
             .map((h: unknown) => String(h ?? '').trim())
@@ -1055,13 +1077,16 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
-                <option value="APARTMENT">Apartment / Flat</option>
-                <option value="HOUSE">Independent House</option>
-                <option value="VILLA">Villa</option>
-                <option value="PLOT">Plot / Land</option>
-                <option value="OFFICE">Commercial Office</option>
-                <option value="SHOP">Shop / Retail Store</option>
-                <option value="PG">PG / Hostel</option>
+                <optgroup label="Residential">
+                  {RESIDENTIAL_PROPERTY_CATEGORIES.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Commercial">
+                  {COMMERCIAL_PROPERTY_CATEGORIES.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </optgroup>
               </Select>
             </div>
 
@@ -1266,7 +1291,7 @@ export default function EditListing({ params }: EditListingProps) {
             </div>
 
             {/* Rooms, Balconies & Furnishing */}
-            {formData.propertyType !== 'PLOT' && (
+            {!isLandType(formData.propertyType) && (
               <>
                 <div className={styles.formGrid}>
                   <Select
@@ -1322,6 +1347,7 @@ export default function EditListing({ params }: EditListingProps) {
                     onChange={handleInputChange}
                     fullWidth
                   >
+                    <option value="">Not specified</option>
                     <option value="FURNISHED">Fully Furnished</option>
                     <option value="SEMI_FURNISHED">Semi Furnished</option>
                     <option value="UNFURNISHED">Unfurnished</option>
@@ -1339,6 +1365,7 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="EAST">East</option>
                 <option value="NORTH">North</option>
                 <option value="WEST">West</option>
@@ -1356,6 +1383,7 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="READY">Ready to Move</option>
                 <option value="UNDER_CONSTRUCTION">Under Construction</option>
               </Select>
@@ -1370,6 +1398,7 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="0_1_YEARS">0-1 Years</option>
                 <option value="1_5_YEARS">1-5 Years</option>
                 <option value="5_10_YEARS">5-10 Years</option>
@@ -1383,6 +1412,7 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="FREEHOLD">Freehold</option>
                 <option value="LEASEHOLD">Leasehold</option>
                 <option value="COOPERATIVE">Co-operative Society</option>
@@ -1399,6 +1429,7 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="NONE">None</option>
                 <option value="COVERED">Covered</option>
                 <option value="OPEN">Open</option>
@@ -1412,6 +1443,7 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="0">0</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
@@ -1428,6 +1460,7 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="CORPORATION">Corporation / Municipal</option>
                 <option value="BOREWELL">Borewell</option>
                 <option value="CORP_WELL">Both Corporation & Borewell</option>
@@ -1440,6 +1473,7 @@ export default function EditListing({ params }: EditListingProps) {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="NONE">None</option>
                 <option value="PARTIAL">Partial</option>
                 <option value="FULL">Full 24x7</option>
@@ -1698,7 +1732,7 @@ export default function EditListing({ params }: EditListingProps) {
                   {selectedPhotos.map((photo, index) => (
                     <div key={photo.id} className={styles.fileItem}>
                       <div className={styles.fileInfo}>
-                        <FileText size={16} />
+                        <PhotoThumb file={photo.file} name={photo.name} />
                         <span className={styles.fileName}>{photo.name}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1982,6 +2016,24 @@ export default function EditListing({ params }: EditListingProps) {
                       <div className={styles.fileInfo}>
                         <FileText size={16} />
                         <span className={styles.fileName}>{doc.name}</span>
+                        <label htmlFor={`doc-type-${doc.id}`} className="visually-hidden">
+                          Document type for {doc.name}
+                        </label>
+                        <select
+                          id={`doc-type-${doc.id}`}
+                          value={doc.docType || 'OTHER'}
+                          disabled={(loading || submitting) && !doc.uploaded}
+                          onChange={(e) =>
+                            setSelectedDocs((prev) =>
+                              prev.map((d) => (d.id === doc.id ? { ...d, docType: e.target.value } : d))
+                            )
+                          }
+                          style={{ fontSize: '0.75rem', padding: '2px 4px', borderRadius: '6px', border: '1px solid var(--color-border)', maxWidth: '11rem' }}
+                        >
+                          {DOCUMENT_TYPE_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div className={styles.fileProgress}>

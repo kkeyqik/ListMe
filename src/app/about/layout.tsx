@@ -1,11 +1,11 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'About ListMe | Direct Owner Real Estate Platform in India',
   description: 'Learn how ListMe connects property owners directly with buyers and tenants across India, without brokers.',
-  alternates: { canonical: '/about' },
-  openGraph: { url: '/about', title: 'About ListMe' },
-};
+  path: '/about',
+  socialTitle: 'About ListMe',
+});
 
 export default function AboutLayout({ children }: { children: React.ReactNode }) {
   return children;

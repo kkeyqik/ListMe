@@ -222,8 +222,8 @@
   position: fixed;
   inset: 0;
   background-color: rgba(10, 17, 40, 0.55);
-  backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   z-index: var(--z-modal-backdrop);
   display: block;
 }

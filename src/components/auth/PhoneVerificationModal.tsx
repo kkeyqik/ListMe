@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Phone, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Modal, Input, Button, OtpInput } from '../ui';
-import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
+import { getFirebaseAuth, isFirebaseConfigured, signOutFirebase } from '@/lib/firebase/client';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import styles from './PhoneVerificationModal.module.css';
 
@@ -35,6 +35,41 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const verifierRef = useRef<RecaptchaVerifier | null>(null);
+
+  const isMockAuth = process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true' && process.env.NODE_ENV !== 'production';
+
+  // (Re)create the invisible reCAPTCHA verifier. A verifier that has been used
+  // for a failed send cannot be reused, so it is replaced after every error.
+  const resetVerifier = () => {
+    try {
+      verifierRef.current?.clear();
+    } catch {
+      // already cleared
+    }
+    verifierRef.current = null;
+    setRecaptchaVerifier(null);
+
+    if (!isFirebaseConfigured) return null;
+    try {
+      const auth = getFirebaseAuth();
+      if (!auth) return null;
+      const container = document.getElementById('recaptcha-container-verification');
+      if (container) container.innerHTML = '';
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-verification', {
+        size: 'invisible',
+        callback: () => {
+          // Recaptcha resolved
+        },
+      });
+      verifierRef.current = verifier;
+      setRecaptchaVerifier(verifier);
+      return verifier;
+    } catch (err) {
+      console.error('Failed to initialize recaptcha verifier:', err);
+      return null;
+    }
+  };
 
   // Set initial phone from props or profile
   useEffect(() => {
@@ -58,36 +93,24 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
     };
   }, [timer]);
 
-  // Initialize Recaptcha Verifier when modal opens
+  // Initialize Recaptcha Verifier when modal opens, and clear it on close
   useEffect(() => {
     if (!isOpen) return;
 
-    if (isFirebaseConfigured) {
-      try {
-        const auth = getFirebaseAuth();
-        if (auth) {
-          // Clear any stale recaptcha containers
-          const container = document.getElementById('recaptcha-container-verification');
-          if (container) {
-            container.innerHTML = '';
-          }
-
-          const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-verification', {
-            size: 'invisible',
-            callback: () => {
-              // Recaptcha resolved
-            },
-          });
-          setRecaptchaVerifier(verifier);
-        }
-      } catch (err) {
-        console.error('Failed to initialize recaptcha verifier:', err);
-      }
-    }
+    resetVerifier();
 
     // Reset step
     setStep('phone');
     setOtp('');
+
+    return () => {
+      try {
+        verifierRef.current?.clear();
+      } catch {
+        // already cleared
+      }
+      verifierRef.current = null;
+    };
   }, [isOpen]);
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
@@ -112,14 +135,18 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
         } catch (error: any) {
           console.error('Firebase SMS send error:', error);
           showToast('Failed to send OTP', error.message || 'Verification system error', 'error');
+          resetVerifier();
         }
       } else {
         showToast('Error', 'Firebase auth is not ready', 'error');
+        resetVerifier();
       }
-    } else {
-      // Mock / Simulated Flow for Development
+    } else if (isMockAuth) {
+      // Mock / Simulated Flow for local development only
       setStep('otp');
       setTimer(30);
+    } else {
+      showToast('Error', 'Phone verification is not available right now. Please try again later.', 'error');
     }
 
     setLoading(false);
@@ -178,6 +205,8 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
           }),
         });
 
+        // The ID token has been used; drop the Firebase browser session.
+        await signOutFirebase();
         if (res.ok) {
           await refreshProfile();
           showToast('Phone Verified', 'Your phone number has been verified successfully.', 'success');
@@ -210,9 +239,12 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
           setTimer(30);
         } catch (error: any) {
           showToast('Failed to resend OTP', error.message || 'Telephony error', 'error');
+          resetVerifier();
         }
+      } else {
+        resetVerifier();
       }
-    } else {
+    } else if (isMockAuth) {
       setTimer(30);
     }
 

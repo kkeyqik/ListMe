@@ -59,21 +59,24 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     );
 
     if (href) {
-      const anchorProps = props as React.AnchorHTMLAttributes<HTMLAnchorElement>;
+      // Pull onClick out so the caller's handler can't replace the disabled/loading guard.
+      const { onClick: anchorOnClick, ...anchorProps } = props as React.AnchorHTMLAttributes<HTMLAnchorElement>;
+      const inactive = Boolean(disabled || loading);
       return (
         <Link
+          {...anchorProps}
           href={href}
           ref={ref as React.ForwardedRef<HTMLAnchorElement>}
           className={classNames}
-          aria-disabled={disabled || loading}
+          aria-disabled={inactive || undefined}
+          tabIndex={inactive ? -1 : anchorProps.tabIndex}
           onClick={(e) => {
-            if (disabled || loading) {
+            if (inactive) {
               e.preventDefault();
-            } else if (anchorProps.onClick) {
-              anchorProps.onClick(e);
+              return;
             }
+            anchorOnClick?.(e);
           }}
-          {...anchorProps}
         >
           {content}
         </Link>

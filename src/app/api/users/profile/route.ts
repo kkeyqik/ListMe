@@ -3,7 +3,7 @@ import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
-import { validateName, validatePhone, validateEmail } from '@/lib/validation';
+import { validateName, validatePhone, validateEmail, isPlaceholderEmail } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,8 +29,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const formattedPhone = validatePhone(phone).normalized || phone;
-
     // Validate inputs
     const nameResult = validateName(name);
     if (!nameResult.valid) {
@@ -50,9 +48,24 @@ export async function POST(request: NextRequest) {
     const sanitizedName = nameResult.sanitized;
     const normalizedPhone = phoneResult.normalized;
 
+    // The email comes from the signed-in auth identity, never from the request
+    // body alone, so nobody can claim (and lock out) someone else's address.
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const authEmail = authUser?.id === userId && authUser.email ? authUser.email.toLowerCase() : null;
+    if (authEmail && authEmail !== String(email).trim().toLowerCase()) {
+      return NextResponse.json(
+        { message: 'This email does not match the account you are signed in with' },
+        { status: 400 }
+      );
+    }
+    const profileEmail = authEmail;
+
     const [phoneOwner, emailOwner] = await Promise.all([
       prisma.profile.findUnique({ where: { phone: normalizedPhone }, select: { id: true } }),
-      prisma.profile.findUnique({ where: { email }, select: { id: true } }),
+      profileEmail
+        ? prisma.profile.findFirst({ where: { email: { equals: profileEmail, mode: 'insensitive' } }, select: { id: true } })
+        : null,
     ]);
 
     if (phoneOwner && phoneOwner.id !== userId) {
@@ -79,27 +92,27 @@ export async function POST(request: NextRequest) {
       update: {
         name: sanitizedName,
         // An existing email is changed only through the auth provider, never here
-        ...(existingProfile?.email ? {} : { email }),
+        ...(existingProfile?.email || !profileEmail ? {} : { email: profileEmail }),
         ...(existingProfile?.phone === normalizedPhone ? {} : { phone: normalizedPhone, phoneVerified: false }),
         city: city || null,
       },
       create: {
         id: userId,
         name: sanitizedName,
-        email,
+        email: profileEmail,
         phone: normalizedPhone,
         phoneVerified: false,
         city: city || null,
       },
     });
 
-    if (!existingProfile) {
+    if (!existingProfile && profileEmail && !isPlaceholderEmail(profileEmail)) {
       const { sendEmail } = await import('@/lib/email');
       try {
         await sendEmail({
-          to: email,
+          to: profileEmail,
           subject: `Welcome to ${process.env.SMTP_FROM?.split('<')[0]?.trim() || 'ListMe'}!`,
-          text: `Hi ${name},\n\nWelcome to ListMe! Your account has been successfully created.\n\nNow you can explore properties, list yours for free, and connect directly with verified owners with no middlemen and no brokerage fees.\n\nHappy searching,\nThe ListMe Team`,
+          text: `Hi ${sanitizedName},\n\nWelcome to ListMe! Your account has been successfully created.\n\nNow you can explore properties, list yours for free, and connect directly with verified owners with no middlemen and no brokerage fees.\n\nHappy searching,\nThe ListMe Team`,
           metadata: { type: 'WELCOME_EMAIL', trigger: 'SIGNUP_FORM' },
         });
       } catch (emailErr) {

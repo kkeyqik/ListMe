@@ -122,7 +122,8 @@
 }
 
 .danger {
-  background: var(--color-error);
+  /* red-600: white text on the lighter --color-error (#EF4444) is only 3.8:1 */
+  background: #DC2626;
   color: #ffffff;
   box-shadow: var(--shadow-sm);
 }

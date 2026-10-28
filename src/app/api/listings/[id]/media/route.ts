@@ -6,8 +6,12 @@ import {
   LISTING_DOCUMENTS_BUCKET,
   LISTING_IMAGES_BUCKET,
   LISTING_VIDEOS_BUCKET,
+  MAX_LISTING_DOCUMENTS,
+  MAX_LISTING_IMAGES,
+  MAX_LISTING_VIDEOS,
 } from '@/lib/upload-rules';
 import { DocType } from '@prisma/client';
+import { hasAdminAccess } from '@/lib/admin-permissions';
 
 interface ImagePayload {
   imageUrl: string;
@@ -37,6 +41,9 @@ async function authorize(listingId: string): Promise<NextResponse | null> {
   if (!userId) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
+  if (!UUID_RE.test(listingId)) {
+    return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
+  }
 
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
@@ -49,9 +56,9 @@ async function authorize(listingId: string): Promise<NextResponse | null> {
 
   const requesterProfile = await prisma.profile.findUnique({
     where: { id: userId },
-    select: { role: true },
+    select: { role: true, roleMetadata: true },
   });
-  if (requesterProfile?.role === 'ADMIN' || requesterProfile?.role === 'SUPER_ADMIN') {
+  if (hasAdminAccess(requesterProfile, 'listings')) {
     return null;
   }
   return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
@@ -156,7 +163,10 @@ export async function POST(
     const denied = await authorize(id);
     if (denied) return denied;
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
+    }
     const rawImages = Array.isArray(body.images) ? (body.images as ImagePayload[]) : [];
     const rawDocuments = Array.isArray(body.documents) ? (body.documents as DocumentPayload[]) : [];
     const rawVideos = Array.isArray(body.videos) ? (body.videos as VideoPayload[]) : [];
@@ -204,6 +214,22 @@ export async function POST(
           );
         }
       }
+    }
+
+    // Per-listing caps, so the endpoint cannot be used to attach unbounded files.
+    const [imageCount, documentCount, videoCount] = await Promise.all([
+      images.length ? prisma.listingImage.count({ where: { listingId: id } }) : Promise.resolve(0),
+      documents.length ? prisma.listingDocument.count({ where: { listingId: id } }) : Promise.resolve(0),
+      validVideos.length && !body.replaceVideos ? prisma.listingVideo.count({ where: { listingId: id } }) : Promise.resolve(0),
+    ]);
+    if (imageCount + images.length > MAX_LISTING_IMAGES) {
+      return NextResponse.json({ message: `A listing can have at most ${MAX_LISTING_IMAGES} photos` }, { status: 400 });
+    }
+    if (documentCount + documents.length > MAX_LISTING_DOCUMENTS) {
+      return NextResponse.json({ message: `A listing can have at most ${MAX_LISTING_DOCUMENTS} documents` }, { status: 400 });
+    }
+    if (videoCount + validVideos.length > MAX_LISTING_VIDEOS) {
+      return NextResponse.json({ message: `A listing can have at most ${MAX_LISTING_VIDEOS} videos` }, { status: 400 });
     }
 
     // The server decides placement: new photos go after the existing ones, and

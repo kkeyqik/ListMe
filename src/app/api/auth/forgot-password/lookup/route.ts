@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
-import { validatePhone, validateEmail } from '@/lib/validation';
+import { validateEmail, isPlaceholderEmail } from '@/lib/validation';
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (emailValidation.valid) {
       profile = await prisma.profile.findFirst({
         where: { email: { equals: trimmed, mode: 'insensitive' } },
-        select: { id: true, name: true, email: true, phone: true },
+        select: { id: true, email: true, phone: true, phoneVerified: true },
       });
     } else {
       // Check as phone number
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
               { phone: `91${cleanDigits}` },
             ],
           },
-          select: { id: true, name: true, email: true, phone: true },
+          select: { id: true, email: true, phone: true, phoneVerified: true },
         });
       }
     }
@@ -73,8 +73,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const hasEmail = Boolean(profile.email);
-    const hasPhone = Boolean(profile.phone);
+    // Placeholder addresses (phone_<digits>@listme.com) are on a domain ListMe
+    // does not own, and an unverified phone may belong to someone else, so
+    // neither may receive a reset code.
+    const usableEmail = profile.email && !isPlaceholderEmail(profile.email) ? profile.email : null;
+    const usablePhone = profile.phone && profile.phoneVerified ? profile.phone : null;
+    const hasEmail = Boolean(usableEmail);
+    const hasPhone = Boolean(usablePhone);
 
     if (!hasEmail && !hasPhone) {
       return NextResponse.json({
@@ -85,12 +90,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       exists: true,
-      // First name only: this endpoint is unauthenticated.
-      name: profile.name?.trim().split(/\s+/)[0] || null,
+      // No name: this endpoint is unauthenticated.
       hasEmail,
-      maskedEmail: profile.email ? maskEmail(profile.email) : null,
+      maskedEmail: usableEmail ? maskEmail(usableEmail) : null,
       hasPhone,
-      maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
+      maskedPhone: usablePhone ? maskPhone(usablePhone) : null,
       // SMS needs the typed phone number (see send-otp), so an email lookup defaults to email.
       primaryChannel: hasPhone && (!emailValidation.valid || !hasEmail) ? 'sms' : 'email',
     });

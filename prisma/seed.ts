@@ -305,7 +305,8 @@ async function main() {
   for (const setting of settingsData) {
     await prisma.systemSetting.upsert({
       where: { key: setting.key },
-      update: { value: setting.value },
+      // Only fill missing keys: never overwrite what an admin has configured.
+      update: {},
       create: {
         key: setting.key,
         value: setting.value,

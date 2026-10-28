@@ -1,10 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { InterestStatus } from '@prisma/client';
 import { logUserActivity } from '@/lib/activity-logger';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
-import { isUuid } from '@/lib/ids';
+import { isUuid, isSyntheticEmail } from '@/lib/ids';
+import { hasAdminAccess } from '@/lib/admin-permissions';
+
+// Upper bounds on list sizes (the daily interest cap keeps a seeker's list far below this).
+const USER_MAX_ROWS = 500;
+const ADMIN_MAX_ROWS = 2000;
+
+class InterestConflict extends Error {
+  constructor(public readonly kind: 'duplicate' | 'daily-limit', public readonly recentCount = 0) {
+    super(kind);
+  }
+}
 
 // Each new interest unlocks one owner's phone number, so cap how many a single
 // account can express. The daily cap is counted in the database, so it holds
@@ -33,11 +44,17 @@ export async function GET(request: NextRequest) {
     }
     const listingFilter = listingIdParam ? { listingId: listingIdParam } : {};
 
+    // Bounded result sets: newest first, with an optional smaller ?limit=.
+    const maxRows = mode === 'all' ? ADMIN_MAX_ROWS : USER_MAX_ROWS;
+    const requestedLimit = parseInt(searchParams.get('limit') || '', 10);
+    const take = Number.isFinite(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, maxRows) : maxRows;
+
     if (mode === 'all') {
       const userProfile = await prisma.profile.findUnique({
         where: { id: userId },
       });
-      if (!userProfile || (userProfile.role !== 'ADMIN' && userProfile.role !== 'SUPER_ADMIN')) {
+      // Module permission, not just the role (same rule as the /admin/interests page).
+      if (!hasAdminAccess(userProfile, 'interests')) {
         return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
       }
 
@@ -64,6 +81,7 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take,
       });
 
       return NextResponse.json({ interests: allInterests });
@@ -98,9 +116,14 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take,
       });
-      
-      return NextResponse.json({ interests: received });
+
+      // Placeholder addresses for phone sign-ups are not a way to reach the seeker.
+      const interests = received.map((interest) =>
+        isSyntheticEmail(interest.user.email) ? { ...interest, user: { ...interest.user, email: null } } : interest
+      );
+      return NextResponse.json({ interests });
     } else {
       // Fetch interests expressed by the current user on other listings
       const expressed = await prisma.interest.findMany({
@@ -123,8 +146,9 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take,
       });
-      
+
       return NextResponse.json({ interests: expressed });
     }
   } catch (error: any) {
@@ -144,8 +168,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { listingId, connectionStatus = 'Call Initiated' } = body;
+    const body = await request.json().catch(() => null);
+    const { listingId, connectionStatus = 'Call Initiated' } = body || {};
 
     if (!listingId || typeof listingId !== 'string') {
       return NextResponse.json({ message: 'Listing ID is required' }, { status: 400 });
@@ -182,14 +206,14 @@ export async function POST(request: NextRequest) {
     // 2. Verify listing exists and is active
     const listing = await prisma.listing.findUnique({
       where: { id: listingId },
-      select: { ownerId: true, title: true, status: true },
+      select: { ownerId: true, title: true, status: true, owner: { select: { status: true } } },
     });
 
     if (!listing) {
       return NextResponse.json({ message: 'Listing not found' }, { status: 404 });
     }
 
-    if (listing.status !== 'ACTIVE') {
+    if (listing.status !== 'ACTIVE' || listing.owner.status !== 'ACTIVE') {
       return NextResponse.json(
         { message: 'You can only express interest in active listings' },
         { status: 400 }
@@ -204,33 +228,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Check for existing interest
-    const existingInterest = await prisma.interest.findFirst({
-      where: {
-        userId: userId,
-        listingId,
-      },
-    });
+    // 3-5. Duplicate check, daily cap (rolling 24 hours, stops bulk harvesting of
+    // owner contacts) and insert run under a per-user transaction lock, so two
+    // concurrent requests cannot both pass the checks. There is no unique
+    // (user_id, listing_id) constraint in the database to fall back on.
+    let newInterest;
+    try {
+      newInterest = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`interest:${userId}`}))`;
 
-    if (existingInterest) {
-      return NextResponse.json(
-        { message: 'You have already expressed interest in this property' },
-        { status: 400 }
-      );
-    }
+        const existingInterest = await tx.interest.findFirst({
+          where: { userId, listingId },
+          select: { id: true },
+        });
+        if (existingInterest) throw new InterestConflict('duplicate');
 
-    // 4. Daily cap (rolling 24 hours) to stop bulk harvesting of owner contacts
-    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentCount = await prisma.interest.count({
-      where: { userId, createdAt: { gte: dayAgo } },
-    });
-    if (recentCount >= INTEREST_DAILY_LIMIT) {
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recentCount = await tx.interest.count({
+          where: { userId, createdAt: { gte: dayAgo } },
+        });
+        if (recentCount >= INTEREST_DAILY_LIMIT) throw new InterestConflict('daily-limit', recentCount);
+
+        return tx.interest.create({
+          data: {
+            userId: userId,
+            listingId,
+            status: InterestStatus.NEW,
+          },
+        });
+      });
+    } catch (err) {
+      if (!(err instanceof InterestConflict)) throw err;
+      if (err.kind === 'duplicate') {
+        return NextResponse.json(
+          { message: 'You have already expressed interest in this property' },
+          { status: 400 }
+        );
+      }
       await logUserActivity({
         userId,
         action: 'INTEREST_LIMIT_REACHED',
         entityId: listingId,
         request,
-        metadata: { recentCount, limit: INTEREST_DAILY_LIMIT },
+        metadata: { recentCount: err.recentCount, limit: INTEREST_DAILY_LIMIT },
       });
       return NextResponse.json(
         {
@@ -240,35 +280,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Create the expression of interest
-    const newInterest = await prisma.interest.create({
-      data: {
+    // 6-7. Notify the owner and log. The interest is saved, so a failure here
+    // must not report an error (the seeker would retry and hit "already expressed").
+    const createdId = newInterest.id;
+    after(async () => {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: listing.ownerId,
+            title: 'New Interest in Your Property',
+            message: `${profile.name || 'A user'} expressed interest in your property "${listing.title}". View details to connect!`,
+            link: `/dashboard/interests`,
+          },
+        });
+      } catch (notifyErr) {
+        console.error('[interests] owner notification failed:', notifyErr);
+      }
+
+      await logUserActivity({
         userId: userId,
-        listingId,
-        status: InterestStatus.NEW,
-      },
-    });
-
-    // 6. Create notification for the property owner
-    await prisma.notification.create({
-      data: {
-        userId: listing.ownerId,
-        title: 'New Interest in Your Property',
-        message: `${profile.name || 'A user'} expressed interest in your property "${listing.title}". View details to connect!`,
-        link: `/dashboard/interests`,
-      },
-    });
-
-    // 7. Log the user activity
-    await logUserActivity({
-      userId: userId,
-      action: 'EXPRESS_INTEREST',
-      entityId: newInterest.id,
-      request,
-      metadata: {
-        listingId,
-        connectionStatus,
-      },
+        action: 'EXPRESS_INTEREST',
+        entityId: createdId,
+        request,
+        metadata: {
+          listingId,
+          connectionStatus: typeof connectionStatus === 'string' ? connectionStatus.slice(0, 50) : undefined,
+        },
+      });
     });
 
     const { adminNotes: _notes, commissionAmount: _commission, ...interest } = newInterest;

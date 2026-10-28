@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { isPlaceholderEmail, sanitizeInput, validatePhone } from '@/lib/validation';
 
 export async function GET(
   request: NextRequest,
@@ -31,39 +32,53 @@ export async function GET(
     });
     
     if (!profile && isSelf) {
-      // Auto-create profile using Supabase user details
+      // Auto-create the profile only for a live Supabase Auth user with this id.
+      // A leftover signed cookie for a deleted account must not bring it back.
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      
-      const metaName = user?.user_metadata?.name || user?.user_metadata?.full_name || 'User';
-      const metaEmail = user?.email || null;
-      const metaPhone = user?.phone || user?.user_metadata?.phone || null;
 
-      // All new auto-created profiles start as USER.
-      // Admin roles must be assigned manually via the admin panel.
-      profile = await prisma.profile.create({
-        data: {
-          id: userId,
-          name: metaName,
-          email: metaEmail,
-          phone: metaPhone,
-          phoneVerified: !!user?.phone,
-          role: 'USER',
-          city: user?.user_metadata?.city || null,
-        },
-      });
+      if (user && user.id === userId) {
+        const metaName = sanitizeInput(String(user.user_metadata?.name || user.user_metadata?.full_name || '')).slice(0, 100) || 'User';
+        const authEmail = user.email ? user.email.toLowerCase() : null;
+        // Only a phone Supabase itself confirmed counts; user_metadata is user-editable.
+        const confirmedPhone = user.phone && user.phone_confirmed_at ? validatePhone(user.phone) : null;
+        const phone = confirmedPhone?.valid ? confirmedPhone.normalized : null;
 
-      if (metaEmail) {
-        const { sendEmail } = await import('@/lib/email');
-        try {
-          await sendEmail({
-            to: metaEmail,
-            subject: `Welcome to ${process.env.SMTP_FROM?.split('<')[0]?.trim() || 'ListMe'}!`,
-            text: `Hi ${metaName},\n\nWelcome to ListMe! Your account has been successfully created.\n\nNow you can explore properties, list yours for free, and connect directly with verified owners with no middlemen and no brokerage fees.\n\nHappy searching,\nThe ListMe Team`,
-            metadata: { type: 'WELCOME_EMAIL', trigger: 'OAUTH_AUTO_CREATE' },
-          });
-        } catch (emailErr) {
-          console.error('Failed to send welcome email upon OAuth signup:', emailErr);
+        // Never take an email or phone that another profile already holds.
+        const [emailOwner, phoneOwner] = await Promise.all([
+          authEmail
+            ? prisma.profile.findFirst({ where: { email: { equals: authEmail, mode: 'insensitive' } }, select: { id: true } })
+            : null,
+          phone ? prisma.profile.findUnique({ where: { phone }, select: { id: true } }) : null,
+        ]);
+        const email = emailOwner ? null : authEmail;
+
+        // All new auto-created profiles start as USER.
+        // Admin roles must be assigned manually via the admin panel.
+        profile = await prisma.profile.create({
+          data: {
+            id: userId,
+            name: metaName,
+            email,
+            phone: phoneOwner ? null : phone,
+            phoneVerified: Boolean(phone && !phoneOwner),
+            role: 'USER',
+            city: typeof user.user_metadata?.city === 'string' ? sanitizeInput(user.user_metadata.city).slice(0, 100) : null,
+          },
+        });
+
+        if (email && !isPlaceholderEmail(email)) {
+          const { sendEmail } = await import('@/lib/email');
+          try {
+            await sendEmail({
+              to: email,
+              subject: `Welcome to ${process.env.SMTP_FROM?.split('<')[0]?.trim() || 'ListMe'}!`,
+              text: `Hi ${metaName},\n\nWelcome to ListMe! Your account has been successfully created.\n\nNow you can explore properties, list yours for free, and connect directly with verified owners with no middlemen and no brokerage fees.\n\nHappy searching,\nThe ListMe Team`,
+              metadata: { type: 'WELCOME_EMAIL', trigger: 'OAUTH_AUTO_CREATE' },
+            });
+          } catch (emailErr) {
+            console.error('Failed to send welcome email upon OAuth signup:', emailErr);
+          }
         }
       }
     }

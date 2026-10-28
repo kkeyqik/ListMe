@@ -39,10 +39,10 @@ export default function Terms() {
 
           <h2 className={styles.heading2}>3. Commission and Payments</h2>
           <p>
-            ListMe is a **Free-to-List** platform. Listing properties, browsing search results, and contacting owners is free of charge. However, in exchange for connecting owners directly to qualified seekers:
+            ListMe is a <strong>Free-to-List</strong> platform. Listing properties, browsing search results, and contacting owners is free of charge. However, in exchange for connecting owners directly to qualified seekers:
           </p>
           <ul className={styles.list}>
-            <li>If a seeker introduced by ListMe successfully purchases your listed property, you agree to pay a **2% commission fee** on the final closed sale amount.</li>
+            <li>If a seeker introduced by ListMe successfully purchases your listed property, you agree to pay a <strong>2% commission fee</strong> on the final closed sale amount.</li>
             <li>All commissions must be cleared within 15 days of sale closure.</li>
             <li>Premium listing subscriptions (optional location-based ranking boosts) will be charged separately under specified tier packages.</li>
           </ul>

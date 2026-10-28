@@ -18,11 +18,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false }, { status: 429, headers: getRateLimitHeaders(limit, 20) });
     }
 
-    const body = await request.json();
-    const { message, stack, source = 'frontend', url, metadata } = body;
+    const body = await request.json().catch(() => null);
+    const { message, stack, source = 'frontend', url: rawUrl, metadata } = body || {};
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ message: 'Error message is required' }, { status: 400 });
+    }
+
+    // The same error repeating (render loops, polling) is stored once per minute per client.
+    const dedupe = rateLimit(`log-error-dup:${userId || ipKey}:${message.slice(0, 200)}`, 1, 60 * 1000);
+    if (!dedupe.allowed) {
+      return NextResponse.json({ success: true, deduplicated: true });
+    }
+
+    // Page URLs can carry tokens or personal data in the query string or hash: keep the path only.
+    let url: string | null = null;
+    if (typeof rawUrl === 'string') {
+      try {
+        const parsed = new URL(rawUrl);
+        url = parsed.origin + parsed.pathname;
+      } catch {
+        url = rawUrl.split(/[?#]/)[0];
+      }
     }
 
     // Unauthenticated endpoint: cap sizes so it cannot be used to fill the database
@@ -35,7 +52,7 @@ export async function POST(request: NextRequest) {
       request.headers.get('x-real-ip') ||
       null;
 
-    const userAgent = request.headers.get('user-agent') || null;
+    const userAgent = request.headers.get('user-agent')?.slice(0, 500) || null;
 
     // Log system error into UserActivityLog database table with action: SYSTEM_ERROR
     const errorLog = await prisma.userActivityLog.create({

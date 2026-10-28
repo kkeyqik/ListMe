@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { signOutFirebase } from '@/lib/firebase/client';
 
 export interface DbProfile {
   id: string;
@@ -52,9 +53,12 @@ export const useAuth = () => {
   return context;
 };
 
-// Generate deterministic fallback profile from Supabase user object
+// Generate a temporary profile from the Supabase user object until the real
+// profile loads. It must not grant anything the server has not confirmed:
+// user_metadata is editable by the user, so the role comes only from
+// app_metadata, and the phone counts as verified only if Supabase confirmed it.
 function createFallbackProfile(user: User): DbProfile {
-  const userRole = user.app_metadata?.role || user.user_metadata?.role || 'USER';
+  const userRole = user.app_metadata?.role || 'USER';
   const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
 
   return {
@@ -62,7 +66,7 @@ function createFallbackProfile(user: User): DbProfile {
     name: user.user_metadata?.name || user.user_metadata?.full_name || 'User',
     email: user.email || null,
     phone: user.phone || null,
-    phoneVerified: true,
+    phoneVerified: Boolean(user.phone && user.phone_confirmed_at),
     avatarUrl: user.user_metadata?.avatar_url || null,
     city: user.user_metadata?.city || null,
     address: null,
@@ -196,8 +200,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes (Supabase real-time)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        setUser(session.user);
-        setProfile(createFallbackProfile(session.user));
+        const sessionUser = session.user;
+        setUser(sessionUser);
+        // Keep an already-loaded profile (e.g. on token refresh) instead of
+        // briefly replacing it with the fallback.
+        setProfile((prev) => (prev && prev.id === sessionUser.id ? prev : createFallbackProfile(sessionUser)));
         setLoading(false);
         fetchProfile(session.user.id);
       } else if (event === 'SIGNED_OUT') {
@@ -417,11 +424,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (name: string, phone: string, email: string, password: string, city?: string) => {
     setLoading(true);
     try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(
-          PENDING_SIGNUP_KEY,
-          JSON.stringify({ name, phone, email, city })
-        );
+      const formattedPhone = formatIndiaPhone(phone);
+
+      // Check the details first, so an already-registered phone or email is
+      // reported before a Supabase account is created.
+      const checkRes = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone: formattedPhone, email }),
+      });
+      if (!checkRes.ok) {
+        const checkData = await checkRes.json().catch(() => ({}));
+        return { error: { message: checkData.message || 'Could not validate your details. Please try again.' } };
       }
 
       const { data: signUpData, error } = await supabase.auth.signUp({
@@ -430,13 +444,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         options: {
           data: {
             name,
-            phone: formatIndiaPhone(phone),
+            phone: formattedPhone,
             city,
           },
         },
       });
 
-      if (!error && signUpData?.user) {
+      if (error) return { error };
+
+      if (signUpData?.user) {
         if (signUpData.session) {
           setUser(signUpData.user);
         }
@@ -446,21 +462,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name,
-              phone: formatIndiaPhone(phone),
+              phone: formattedPhone,
               email,
               city,
             }),
           });
-          if (profRes.ok) {
-            const pData = await profRes.json();
-            if (pData.profile) setProfile(pData.profile);
+          const pData = await profRes.json().catch(() => ({}));
+          if (!profRes.ok) {
+            return { error: { message: pData.message || 'Your account was created but your profile could not be saved. Please sign in and try again.' } };
           }
+          if (pData.profile) setProfile(pData.profile);
         } catch (syncErr) {
           console.warn('[signUp] Profile auto-sync error:', syncErr);
+          return { error: { message: 'Your account was created but your profile could not be saved. Please sign in and try again.' } };
         }
       }
 
-      return { error };
+      return { error: null };
     } catch (err: any) {
       return { error: err };
     } finally {
@@ -523,6 +541,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Sign out from Supabase
       await supabase.auth.signOut();
 
+      // Sign out of Firebase too (phone OTP), so its stored session cannot be
+      // reused on this device.
+      await signOutFirebase();
+
       // Destroy server-side session
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -532,6 +554,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Clean up client-side storage
       if (typeof window !== 'undefined') {
+        // Legacy key: sign-up details are no longer stored on the device.
         localStorage.removeItem(PENDING_SIGNUP_KEY);
         // Clean up any remaining mock cookies (dev cleanup)
         if (IS_MOCK_AUTH_ENABLED) {

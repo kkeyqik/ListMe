@@ -5,6 +5,7 @@ import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { verifyPasswordResetSessionToken, createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logUserActivity } from '@/lib/activity-logger';
+import { MIN_PASSWORD_LENGTH } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
@@ -28,8 +29,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Passwords do not match' }, { status: 400 });
     }
 
-    if (newPassword.length < 6) {
-      return NextResponse.json({ message: 'Password must be at least 6 characters long' }, { status: 400 });
+    if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long` }, { status: 400 });
     }
 
     if (newPassword.length > 128) {

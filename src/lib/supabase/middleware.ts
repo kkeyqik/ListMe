@@ -6,7 +6,7 @@ import { hasAdminAccess, isAdminRole, requiredAccessForAdminPath } from '@/lib/a
 
 /**
  * Reads the current role, status and module permissions from the database
- * for /admin page requests, so access follows Role Manager changes
+ * for /dashboard and /admin page requests, so access follows Role Manager changes
  * immediately and works for logins that carry no role in a cookie or in
  * app_metadata (e.g. email + password). Returns undefined if the lookup
  * fails, in which case the caller falls back to the cookie role.
@@ -103,6 +103,26 @@ export async function updateSession(request: NextRequest) {
 
   // 5. Authenticated user checks — role from database/session metadata only, no hardcoded values
   if (user) {
+    // Look the profile up once for protected pages: it decides admin access
+    // below and stops suspended or banned accounts, whichever way they signed
+    // in (Google, email + password, email OTP, or the signed cookie).
+    const dbProfile = isProtectedPath ? await loadAdminProfile(user.id) : undefined;
+
+    if (dbProfile && (dbProfile.status === 'SUSPENDED' || dbProfile.status === 'BANNED')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.search = '';
+      url.searchParams.set('error', 'suspended');
+      const response = NextResponse.redirect(url);
+      // End the session so /login does not bounce the user straight back.
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name === 'listme-session' || cookie.name.startsWith('sb-')) {
+          response.cookies.set(cookie.name, '', { path: '/', maxAge: 0 });
+        }
+      }
+      return response;
+    }
+
     // user_metadata is writable by the user themselves via the Supabase client,
     // so it must never decide access. app_metadata and the signed session are server-set.
     const userRole = (user.app_metadata?.role as string | undefined) || sessionRole || 'USER';
@@ -111,7 +131,6 @@ export async function updateSession(request: NextRequest) {
     // Admin route protection: Require ADMIN or SUPER_ADMIN role, checked
     // against the database, plus the module permission for the section.
     if (isAdminPath) {
-      const dbProfile = await loadAdminProfile(user.id);
       if (dbProfile !== undefined) {
         if (!dbProfile || !isAdminRole(dbProfile.role) || dbProfile.status !== 'ACTIVE') {
           const url = request.nextUrl.clone();

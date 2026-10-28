@@ -22,7 +22,8 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
-import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
+import { getFirebaseAuth, isFirebaseConfigured, signOutFirebase } from '@/lib/firebase/client';
+import { MIN_PASSWORD_LENGTH } from '@/lib/validation';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import styles from './AuthModal.module.css';
@@ -74,7 +75,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Forgot Password flow states
   const [fpIdentifier, setFpIdentifier] = useState('');
   const [fpAccountInfo, setFpAccountInfo] = useState<{
-    name: string;
     hasEmail: boolean;
     maskedEmail: string | null;
     hasPhone: boolean;
@@ -317,8 +317,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       showToast('Error', 'Please enter a valid email address', 'error');
       return;
     }
-    if (!signupPassword || signupPassword.length < 6) {
-      showToast('Error', 'Password must be at least 6 characters', 'error');
+    if (!signupPassword || signupPassword.length < MIN_PASSWORD_LENGTH) {
+      showToast('Error', `Password must be at least ${MIN_PASSWORD_LENGTH} characters`, 'error');
       return;
     }
 
@@ -400,7 +400,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     // 1. Check user registration status across both phone and email
     let isRegistered = false;
     try {
-      const checkRes = await fetch(`/api/auth/check-user?identifier=${encodeURIComponent(finalIdentifier)}`);
+      // POST keeps the typed email or phone out of request logs.
+      const checkRes = await fetch('/api/auth/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: finalIdentifier }),
+      });
       if (checkRes.ok) {
         const checkData = await checkRes.json();
         isRegistered = Boolean(checkData.registered);
@@ -536,7 +541,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       showToast('Error', 'Phone verification service is not configured. Please contact support.', 'error');
     }
 
-    if (verifySuccess) {
+    if (verifySuccess && identifierType === 'email') {
+      // Email OTP: Supabase already holds the session; just load the profile.
+      let role = 'USER';
+      try {
+        const profileRes = await fetch('/api/users/profile');
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          role = profileData?.profile?.role || 'USER';
+        }
+      } catch {}
+      await refreshProfile();
+      showToast('Welcome!', 'You are now logged in.', 'success');
+      onClose();
+      onSuccess?.();
+      window.location.href = role === 'ADMIN' || role === 'SUPER_ADMIN' ? '/admin' : redirectPath || '/dashboard';
+    } else if (verifySuccess) {
       // Sync auth status with our backend database session handler
       try {
         const res = await fetch('/api/auth/firebase-login', {
@@ -548,13 +568,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }),
         });
 
+        // The ID token has been exchanged; drop the Firebase browser session.
+        await signOutFirebase();
         if (res.ok) {
           const data = await res.json();
-          const isPlaceholder = 
-            process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ||
-            process.env.NEXT_PUBLIC_SUPABASE_URL === undefined ||
-            process.env.NEXT_PUBLIC_SUPABASE_URL === '';
-          
           await refreshProfile();
           showToast('Welcome!', 'You are now logged in and verified.', 'success');
           onClose();
@@ -657,15 +674,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         showToast('Failed', data.message || 'Could not send OTP', 'error');
         return;
       }
-      if (channel === 'sms' && isFirebaseConfigured && recaptchaVerifier && data.formattedPhone) {
-        try {
-          const auth = getFirebaseAuth();
-          if (auth) {
+      if (channel === 'sms') {
+        // Firebase delivers the SMS. If it cannot, no code exists anywhere, so
+        // stay on this step and suggest email instead.
+        const isMock = process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === 'true' && process.env.NODE_ENV !== 'production';
+        const auth = isFirebaseConfigured ? getFirebaseAuth() : null;
+        if (auth && recaptchaVerifier && data.formattedPhone) {
+          try {
             const confirmation = await signInWithPhoneNumber(auth, data.formattedPhone, recaptchaVerifier);
             setConfirmationResult(confirmation);
+          } catch (fbErr: any) {
+            console.warn('[AuthModal FP] Firebase SMS failed:', fbErr?.message);
+            showToast('SMS not sent', fpAccountInfo?.hasEmail ? 'We could not send the SMS. Please choose Email instead.' : 'We could not send the SMS. Please try again later.', 'error');
+            return;
           }
-        } catch (fbErr: any) {
-          console.warn('[AuthModal FP] Firebase SMS fallback:', fbErr.message);
+        } else if (!isMock) {
+          showToast('SMS unavailable', 'SMS codes are not available right now. Please choose Email instead.', 'error');
+          return;
         }
       }
       setFpSentTarget(data.target || '');
@@ -712,6 +737,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         showToast('Verification Failed', data.message || 'Incorrect code', 'error');
         return;
       }
+      await signOutFirebase();
       setFpResetToken(data.resetToken);
       setView('fp-new-password');
     } catch {
@@ -723,8 +749,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleFpResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fpNewPassword || fpNewPassword.length < 6) {
-      showToast('Error', 'Password must be at least 6 characters', 'error');
+    if (!fpNewPassword || fpNewPassword.length < MIN_PASSWORD_LENGTH) {
+      showToast('Error', `Password must be at least ${MIN_PASSWORD_LENGTH} characters`, 'error');
       return;
     }
     if (fpNewPassword !== fpConfirmPassword) {
@@ -1058,7 +1084,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               <h2 className={styles.welcomeBackTitle}>Welcome back. Enter the OTP sent to your {identifierType}</h2>
               <div className={styles.phoneChangeRow}>
-                <span className={styles.phoneDisplay}>{identifierType === 'email' ? email : `+91 ${phone}`}</span>
+                <span className={styles.phoneDisplay}>{identifierType === 'email' ? email : phone}</span>
                 <button
                   type="button"
                   className={styles.changeBtn}
@@ -1173,7 +1199,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <Input
                 label="Password"
                 type="password"
-                placeholder="Create a password (min 6 characters)"
+                placeholder={`Create a password (min ${MIN_PASSWORD_LENGTH} characters)`}
                 value={signupPassword}
                 onChange={(e) => setSignupPassword(e.target.value)}
                 fullWidth
@@ -1280,7 +1306,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className={styles.header}>
               <h2 className={styles.title}>Choose Verification Method</h2>
               <p className={styles.subtitle}>
-                Hi <strong>{fpAccountInfo.name}</strong>, select where you want to receive your OTP code:
+                Select where you want to receive your OTP code:
               </p>
             </div>
 
@@ -1432,7 +1458,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Input
                   label="New Password"
                   type={fpShowNewPassword ? 'text' : 'password'}
-                  placeholder="Minimum 6 characters"
+                  placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
                   value={fpNewPassword}
                   onChange={(e) => setFpNewPassword(e.target.value)}
                   fullWidth
@@ -1477,7 +1503,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 fullWidth
                 loading={loading}
                 rightIcon={<CheckCircle size={18} />}
-                disabled={fpNewPassword.length < 6 || fpNewPassword !== fpConfirmPassword}
+                disabled={fpNewPassword.length < MIN_PASSWORD_LENGTH || fpNewPassword !== fpConfirmPassword}
               >
                 Reset Password & Login
               </Button>

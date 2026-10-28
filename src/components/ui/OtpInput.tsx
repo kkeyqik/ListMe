@@ -43,6 +43,24 @@ export const OtpInput: React.FC<OtpInputProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const val = e.target.value;
+    const digits = val.replace(/\D/g, '');
+
+    // SMS/email one-time-code autofill (or a fast multi-digit entry) delivers the whole
+    // code into one box: spread it across the boxes from this index.
+    const previousLength = values[index] ? 1 : 0;
+    if (digits.length > previousLength + 1) {
+      const newValues = [...values];
+      digits
+        .slice(0, numInputs - index)
+        .split('')
+        .forEach((d, i) => {
+          newValues[index + i] = d;
+        });
+      onChange(newValues.join(''));
+      focusInput(Math.min(index + digits.length, numInputs - 1));
+      return;
+    }
+
     // Get only the last character entered
     const lastChar = val.substring(val.length - 1);
     
@@ -111,9 +129,11 @@ export const OtpInput: React.FC<OtpInputProps> = ({
           type="text"
           inputMode="numeric"
           pattern="\d*"
-          maxLength={1}
+          // The first box accepts the whole code so OS one-time-code autofill can fill it
+          autoComplete={index === 0 ? 'one-time-code' : 'off'}
+          maxLength={index === 0 ? numInputs : 1}
           value={val}
-          placeholder="0"
+          placeholder="•"
           onChange={(e) => handleInputChange(e, index)}
           onKeyDown={(e) => handleKeyDown(e, index)}
           onPaste={handlePaste}

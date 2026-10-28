@@ -13,6 +13,9 @@ import {
   MAX_IMAGE_SIZE,
   MAX_VIDEO_SIZE,
 } from '@/lib/upload-rules';
+import { isUuid } from '@/lib/ids';
+import { hasAdminAccess } from '@/lib/admin-permissions';
+import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 
 type UploadKind = 'images' | 'documents' | 'videos';
 
@@ -42,23 +45,28 @@ function isUploadKind(value: unknown): value is UploadKind {
  * Returns true when the signed-in user owns the listing or is an admin.
  * Responds with the HTTP status to return otherwise.
  */
-async function authorize(listingId: string): Promise<true | 401 | 403 | 404> {
+async function authorize(listingId: string): Promise<{ userId: string } | 401 | 403 | 404> {
   const userId = await getAuthenticatedUserId();
   if (!userId) return 401;
+  if (!isUuid(listingId)) return 404;
 
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
     select: { ownerId: true },
   });
   if (!listing) return 404;
-  if (listing.ownerId === userId) return true;
+  if (listing.ownerId === userId) return { userId };
 
   const profile = await prisma.profile.findUnique({
     where: { id: userId },
-    select: { role: true },
+    select: { role: true, roleMetadata: true },
   });
-  return profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN' ? true : 403;
+  return hasAdminAccess(profile, 'listings') ? { userId } : 403;
 }
+
+// Signed upload URLs cost storage: cap how many one account can request.
+const UPLOAD_URL_LIMIT = 60;
+const UPLOAD_URL_WINDOW_MS = 10 * 60 * 1000;
 
 const STATUS_MESSAGES: Record<401 | 403 | 404, string> = {
   401: 'Unauthorized',
@@ -78,8 +86,16 @@ export async function POST(
   try {
     const { id } = await params;
     const auth = await authorize(id);
-    if (auth !== true) {
+    if (typeof auth === 'number') {
       return NextResponse.json({ message: STATUS_MESSAGES[auth] }, { status: auth });
+    }
+
+    const limit = rateLimit(`upload-url:${auth.userId}`, UPLOAD_URL_LIMIT, UPLOAD_URL_WINDOW_MS);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { message: 'Too many uploads in a short time. Please wait a few minutes and try again.' },
+        { status: 429, headers: getRateLimitHeaders(limit, UPLOAD_URL_LIMIT) }
+      );
     }
 
     const body = await request.json().catch(() => null);
@@ -127,7 +143,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     const auth = await authorize(id);
-    if (auth !== true) {
+    if (typeof auth === 'number') {
       return NextResponse.json({ message: STATUS_MESSAGES[auth] }, { status: auth });
     }
 
