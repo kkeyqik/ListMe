@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Building, Bed, Square, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header, Footer } from '@/components/layout';
 import { Card, Badge, Button, Input, Select } from '@/components/ui';
+import { SaveButton } from '@/components/ui/SaveButton';
 import styles from './listings.module.css';
 
 // Params that must never be forwarded from the public URL to the API
@@ -388,7 +389,8 @@ function ListingsSearchContent() {
           ) : (
             <div className={styles.grid}>
               {listings.map((item, index) => (
-                <Link key={item.id} href={`/property/${item.id}`} className={styles.cardLink}>
+                <div key={item.id} className={styles.cardWrap}>
+                <Link href={`/property/${item.id}`} className={styles.cardLink}>
                 <Card
                   className={styles.propertyCard}
                   hoverable
@@ -448,6 +450,12 @@ function ListingsSearchContent() {
                   </div>
                 </Card>
                 </Link>
+                <SaveButton
+                  listingId={item.id}
+                  className={styles.saveButton}
+                  activeClassName={styles.saveButtonActive}
+                />
+                </div>
               ))}
             </div>
           )}

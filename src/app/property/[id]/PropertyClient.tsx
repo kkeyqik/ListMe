@@ -52,6 +52,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Header, Footer } from '@/components/layout';
 import { useToast, Card, Button, Badge } from '@/components/ui';
 import { PhoneVerificationModal } from '@/components/auth/PhoneVerificationModal';
+import { SaveButton } from '@/components/ui/SaveButton';
 import styles from '../property.module.css';
 
 interface PropertyClientProps {
@@ -925,6 +926,10 @@ export default function PropertyClient({ listingId, initialListing, breadcrumbs 
                     <Button variant="secondary" fullWidth disabled>
                       <Check size={16} /> Interest Expressed
                     </Button>
+                  )}
+
+                  {listing.status === 'ACTIVE' && (
+                    <SaveButton listingId={listing.id} withLabel className={styles.saveButton} activeClassName={styles.saveButtonActive} />
                   )}
                 </div>
               </div>

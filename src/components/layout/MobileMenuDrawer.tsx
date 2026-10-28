@@ -31,6 +31,7 @@ import {
   Key,
   LogOut,
   X,
+  Heart,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -157,6 +158,7 @@ const SUB_OPTIONS: SubOptionsType = {
       title: 'Activity',
       items: [
         { label: 'Contacted', icon: <PhoneCall size={20} color="#3182ce" />, bg: 'transparent', iconBg: 'transparent', href: '/dashboard/interests' },
+        { label: 'Saved', icon: <Heart size={20} color="#e11d48" />, bg: 'transparent', iconBg: 'transparent', href: '/dashboard/saved' },
         { label: 'My Listings', icon: <Building size={20} color="#ed8936" />, bg: 'transparent', iconBg: 'transparent', href: '/dashboard/listings' }
       ]
     },
