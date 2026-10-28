@@ -54,7 +54,7 @@ const cspReportOnly = [
   "base-uri 'self'",
   `form-action 'self' ${supabaseHttps} https://accounts.google.com`,
   "frame-ancestors 'none'",
-  "upgrade-insecure-requests",
+  // No upgrade-insecure-requests: browsers ignore it in a report-only policy and log an error.
 ].join("; ");
 
 // Small enforced policy: only directives that cannot break page functionality.
