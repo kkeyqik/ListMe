@@ -55,6 +55,12 @@ export default function Privacy() {
             and Vercel (frontend deployment hosting provider) to maintain and scale our service securely. 
             All data transfers use SSL/TLS encryption.
           </p>
+          <p>
+            <strong>Location:</strong> we only ask for your device location when you tap &quot;Use current
+            location&quot; in search. Your browser may then send the approximate coordinates to BigDataCloud, a
+            reverse-geocoding service, to work out your city. The coordinates are not sent to or stored on
+            ListMe&apos;s servers; only the detected city name is kept in your browser.
+          </p>
         </div>
       </main>
       <Footer />

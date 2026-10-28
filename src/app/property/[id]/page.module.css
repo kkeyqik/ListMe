@@ -1,21 +1,4 @@
 .breadcrumbBar {
-  max-width: 1280px;
-  margin: 16px auto 0;
-  padding: 0 16px;
-  padding-left: max(16px, env(safe-area-inset-left));
-  padding-right: max(16px, env(safe-area-inset-right));
-}
-
-@media (min-width: 640px) {
-  .breadcrumbBar {
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .breadcrumbBar {
-    padding-left: 32px;
-    padding-right: 32px;
-  }
+  /* Rendered inside PropertyClient's <main>, which already applies the header offset and gutters */
+  margin: 0 0 0.75rem;
 }

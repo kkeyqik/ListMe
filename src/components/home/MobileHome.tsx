@@ -3,18 +3,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { 
-  Search, 
-  Heart, 
-  Calculator, 
-  Percent, 
-  TrendingUp, 
-  Home, 
-  MapPin, 
-  Building, 
-  Key, 
-  PlaySquare, 
-  Lightbulb, 
+import {
+  Search,
+  Heart,
+  Calculator,
+  Percent,
+  TrendingUp,
+  Home,
+  MapPin,
+  Building,
+  Key,
+  PlaySquare,
+  Lightbulb,
   ArrowRight,
   Sparkles
 } from 'lucide-react';
@@ -22,6 +22,9 @@ import styles from './MobileHome.module.css';
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useToast } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
+
+const FAVORITES_KEY = 'listme_favorites';
 
 interface ListingItem {
   id: string;
@@ -76,7 +79,7 @@ const formatPrice = (price: number | string | null | undefined, listingFor?: str
   if (!price) return 'Price on Request';
   const numericPrice = typeof price === 'string' ? parseFloat(price) : Number(price);
   if (isNaN(numericPrice) || numericPrice <= 0) return 'Price on Request';
-  
+
   if (listingFor?.toUpperCase() === 'SALE') {
     if (numericPrice >= 10000000) {
       return `₹${(numericPrice / 10000000).toFixed(2)} Cr`;
@@ -97,6 +100,8 @@ export const MobileHome: React.FC = () => {
   const { openMenu, openSearch } = useMobileMenu();
   const { settings } = useSettings();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loadingListings, setLoadingListings] = useState(true);
@@ -139,12 +144,50 @@ export const MobileHome: React.FC = () => {
     };
   }, []);
 
+  // Saved properties are shared with the desktop home (same localStorage key)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FAVORITES_KEY);
+      const parsed: unknown = saved ? JSON.parse(saved) : null;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        setFavorites(parsed as Record<string, boolean>);
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, []);
+
+  const toggleFavorite = (id: string) => {
+    const nextState = !favorites[id];
+    const updated = { ...favorites, [id]: nextState };
+    setFavorites(updated);
+    try {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+    } catch {
+      // Ignore localStorage errors
+    }
+    if (user?.id) {
+      fetch('/api/users/shortlist', {
+        method: nextState ? 'POST' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listingId: id }),
+      }).catch((err) => console.warn('Shortlist sync failed:', err));
+    }
+    showToast(
+      nextState ? 'Saved' : 'Removed',
+      nextState
+        ? user?.id ? 'Property added to your shortlist.' : 'Property saved on this device. Log in to keep it across devices.'
+        : 'Property removed from your saved list.',
+      nextState ? 'success' : 'info'
+    );
+  };
+
   // Fetch live properties from database
   useEffect(() => {
     let isMounted = true;
     async function fetchLiveListings() {
       try {
-        const res = await fetch('/api/listings?limit=6');
+        const res = await fetch('/api/listings?limit=6&source=home');
         if (res.ok) {
           const data = await res.json();
           if (isMounted && Array.isArray(data.listings) && data.listings.length > 0) {
@@ -164,7 +207,8 @@ export const MobileHome: React.FC = () => {
   }, []);
 
   const heroImage = settings?.mobileHeroImage || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80';
-  const displayedProperties = listings.length > 0 ? listings : DEFAULT_PROPERTIES;
+  // Show skeleton cards while loading instead of flashing the sample cards first
+  const displayedProperties = listings.length > 0 ? listings : loadingListings ? [] : DEFAULT_PROPERTIES;
 
   return (
     <div className={styles.mobileHomeContainer}>
@@ -181,13 +225,15 @@ export const MobileHome: React.FC = () => {
         </div>
       </header>
 
+      <h1 className="visually-hidden">ListMe: buy, rent and sell property directly with owners</h1>
+
       {/* 1. Hero Search Area */}
       <section className={styles.heroSection} ref={heroRef}>
-        <Image 
-          src={heroImage} 
-          alt="ListMe Hero Property" 
-          width={800} 
-          height={400} 
+        <Image
+          src={heroImage}
+          alt="ListMe Hero Property"
+          width={800}
+          height={400}
           className={styles.heroImageEl}
           priority
         />
@@ -197,7 +243,7 @@ export const MobileHome: React.FC = () => {
 
       {/* Interactive Sticky Search Bar */}
       <div className={`${styles.stickySearchContainer} ${isSticky ? styles.isSticky : ''}`}>
-        <button 
+        <button
           type="button"
           onClick={(e) => {
             e.preventDefault();
@@ -218,7 +264,7 @@ export const MobileHome: React.FC = () => {
       <section className={`${styles.section} ${styles.getStartedSection}`}>
         <h2 className={styles.getStartedTitle}>Get started with</h2>
         <p className={styles.getStartedSubtitle}>Explore real estate options in top cities</p>
-        
+
         <div className={styles.navCardsRow}>
           <Link href="/listings?type=sale" className={styles.navCard}>
             <div className={styles.iconCircle}>
@@ -241,12 +287,12 @@ export const MobileHome: React.FC = () => {
             <span>New Projects</span>
           </Link>
 
-          <div className={styles.navCard} onClick={openMenu}>
+          <Link href="/blog" className={styles.navCard}>
             <div className={styles.iconCircle}>
               <Lightbulb size={22} color="#3182ce" />
             </div>
             <span>Insights</span>
-          </div>
+          </Link>
 
           <Link href="/listings?type=commercial" className={styles.navCard}>
             <div className={styles.iconCircle}>
@@ -255,15 +301,15 @@ export const MobileHome: React.FC = () => {
             <span>Commercial</span>
           </Link>
 
-          <div className={styles.navCard} onClick={openMenu}>
+          <button type="button" className={`${styles.navCard} ${styles.navCardButton}`} onClick={openMenu} aria-haspopup="dialog">
             <div className={styles.iconCircle}>
               <ArrowRight size={22} color="#3182ce" />
             </div>
-            <span style={{ color: '#3182ce' }}>View all</span>
-          </div>
+            <span style={{ color: '#2b6cb0' }}>View all</span>
+          </button>
         </div>
       </section>
-      
+
       {/* Quick Search Tags */}
       <div className={styles.recentSearchRowWrapper}>
         <div className={styles.recentSearchRow}>
@@ -295,8 +341,17 @@ export const MobileHome: React.FC = () => {
             View All →
           </Link>
         </div>
-        
-        <div className={styles.carousel}>
+
+        <div className={styles.carousel} aria-busy={loadingListings}>
+          {loadingListings && listings.length === 0 && [0, 1, 2].map((i) => (
+            <div key={`skeleton-${i}`} className={`${styles.propertyCard} ${styles.propertyCardSkeleton}`} aria-hidden="true">
+              <div className={styles.propertyImageWrapper} />
+              <div className={styles.propertyInfo}>
+                <span className={styles.skeletonLine} />
+                <span className={`${styles.skeletonLine} ${styles.skeletonLineShort}`} />
+              </div>
+            </div>
+          ))}
           {displayedProperties.map((property) => {
             const primaryImg = property.images?.[0]?.imageUrl || 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=400&q=80';
             const isLive = !property.id.startsWith('prop-');
@@ -305,24 +360,28 @@ export const MobileHome: React.FC = () => {
             return (
               <Link key={property.id} href={targetHref} className={styles.propertyCard}>
                 <div className={styles.propertyImageWrapper}>
-                  <Image 
+                  <Image
                     src={primaryImg}
-                    alt={property.title} 
+                    alt={property.title}
                     fill
                     sizes="(max-width: 768px) 80vw, 300px"
-                    className={styles.propertyImage} 
+                    className={styles.propertyImage}
                   />
-                  <button 
-                    className={styles.heartIcon} 
-                    onClick={(e) => { 
-                      e.preventDefault(); 
-                      e.stopPropagation(); 
-                      showToast('Shortlisted', 'Saved to your interested properties!', 'success');
-                    }}
-                    aria-label="Save Property"
-                  >
-                    <Heart size={16} />
-                  </button>
+                  {isLive && (
+                    <button
+                      type="button"
+                      className={styles.heartIcon}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFavorite(property.id);
+                      }}
+                      aria-label={favorites[property.id] ? `Remove ${property.title} from saved` : `Save ${property.title}`}
+                      aria-pressed={!!favorites[property.id]}
+                    >
+                      <Heart size={16} fill={favorites[property.id] ? 'currentColor' : 'none'} aria-hidden="true" />
+                    </button>
+                  )}
                   <div className={styles.priceTag}>
                     {formatPrice(property.askingPrice, property.listingFor)}
                   </div>
@@ -332,10 +391,10 @@ export const MobileHome: React.FC = () => {
                   <span className={styles.propertyMeta}>{property.locality}, {property.city}</span>
                   <div className={styles.propertyFooter}>
                     {property.bedrooms ? `${property.bedrooms} BHK • ` : ''}
-                    {property.carpetArea 
-                      ? `${property.carpetArea} sqft` 
-                      : property.builtUpArea 
-                      ? `${property.builtUpArea} sqft` 
+                    {property.carpetArea
+                      ? `${property.carpetArea} sqft`
+                      : property.builtUpArea
+                      ? `${property.builtUpArea} sqft`
                       : 'Ready to Move'}
                   </div>
                 </div>
@@ -370,12 +429,12 @@ export const MobileHome: React.FC = () => {
       {/* 4. Filter Pills */}
       <section className={styles.filterPillsSection}>
         <div className={styles.filterPillsRow}>
-          <Link href="/listings?bhk=2BHK" className={styles.filterPillCard}>
+          <Link href="/listings?bhk=2" className={styles.filterPillCard}>
             <Home className={styles.filterPillIcon} size={20} />
             <h4 className={styles.filterPillTitle}>BHK choice in mind?</h4>
             <span className={styles.filterPillSub}>1 BHK, 2 BHK, 3 BHK</span>
           </Link>
-          <Link href="/listings?owner=true" className={styles.filterPillCard}>
+          <Link href="/listings" className={styles.filterPillCard}>
             <MapPin className={styles.filterPillIcon} size={20} />
             <h4 className={styles.filterPillTitle}>Properties posted by</h4>
             <span className={styles.filterPillSub}>Direct Verified Owners</span>
@@ -475,29 +534,43 @@ export const MobileHome: React.FC = () => {
         <h2 className={styles.sectionTitle}>Use popular tools</h2>
         <p className={styles.sectionSubtitle}>Make informed decisions</p>
         <div className={styles.toolsRow}>
-          <div 
-            className={styles.toolCard} 
+          <button
+            type="button"
+            className={styles.toolCard}
             onClick={() => showToast('Budget Calculator', 'Interactive Calculator is coming soon in the next update!', 'info')}
-            style={{ cursor: 'pointer' }}
           >
             <div className={styles.toolIconWrapper}>
               <Calculator size={24} />
             </div>
             <span className={styles.toolTitle}>Budget Calculator</span>
-          </div>
+          </button>
 
-          <div 
-            className={styles.toolCard} 
+          <button
+            type="button"
+            className={styles.toolCard}
             onClick={() => showToast('EMI Calculator', 'Interactive EMI Calculator is coming soon in the next update!', 'info')}
-            style={{ cursor: 'pointer' }}
           >
             <div className={styles.toolIconWrapper}>
               <Percent size={24} />
             </div>
             <span className={styles.toolTitle}>EMI Calculator</span>
-          </div>
+          </button>
         </div>
       </section>
+
+      {/* 9. Compact footer: info and legal pages (the desktop Footer is hidden on phones) */}
+      <footer className={styles.mobileFooter}>
+        <nav aria-label="Site information" className={styles.mobileFooterLinks}>
+          <Link href="/about">About</Link>
+          <Link href="/faq">FAQ</Link>
+          <Link href="/blog">Blog</Link>
+          <Link href="/tips">Tips</Link>
+          <Link href="/contact">Contact</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </nav>
+        <p className={styles.mobileFooterCopy}>© {new Date().getFullYear()} ListMe</p>
+      </footer>
 
     </div>
   );

@@ -22,8 +22,8 @@
 
 .header {
   background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(10, 17, 40, 0.06);
   border-radius: var(--radius-2xl);
   padding: 0.75rem 1.75rem;
@@ -38,8 +38,8 @@
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
   padding: 32px 48px 0px 48px;
   width: 100%;
   max-width: 1600px;
@@ -150,7 +150,7 @@
 }
 
 .freeBadge {
-  background-color: #48BB78; /* Clean green matching the sample badge */
+  background-color: #2F855A; /* Darker green: white 8-10px text needs 4.5:1 contrast */
   color: #ffffff !important;
   font-size: 0.625rem; /* 10px */
   font-weight: 700;
@@ -289,6 +289,7 @@
   right: 0;
   bottom: 0;
   background-color: rgba(23, 23, 23, 0.4);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   z-index: var(--z-modal-backdrop);
   animation: fadeIn var(--transition-fast) forwards;
@@ -438,8 +439,8 @@
   justify-content: space-between;
   padding: 0.875rem 2.5rem;
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
   transition: box-shadow var(--transition-base), background-color var(--transition-base);
 }
@@ -501,8 +502,8 @@
 
   .ppHeaderScrolled {
     background: rgba(13, 89, 156, 0.96);
-    backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   }
 
@@ -792,8 +793,8 @@
   position: fixed;
   inset: 0;
   background-color: rgba(10, 17, 40, 0.35);
-  backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   z-index: var(--z-modal-backdrop);
   animation: fadeIn 0.15s ease forwards;
 }

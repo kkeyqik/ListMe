@@ -37,8 +37,8 @@
 }
 
 .warning {
-  background-color: var(--color-secondary-fade);
-  color: var(--color-secondary-dark);
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #92400e;
 }
 
 .error {
