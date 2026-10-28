@@ -1,8 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
+import { LISTING_IMAGES_BUCKET, LISTING_DOCUMENTS_BUCKET, LISTING_VIDEOS_BUCKET } from '@/lib/upload-rules';
 import { requireAdminModule, countOtherActiveSuperAdmins, getRequestIp } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { Role, UserStatus } from '@prisma/client';
 import { logAdminActivity } from '@/lib/activity-logger';
+
+/** Best-effort removal of deleted listings' files from Storage. */
+async function removeListingsFiles(listingIds: string[]) {
+  let supabase;
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    supabase = createAdminClient();
+  } catch (err) {
+    console.error('[admin/users DELETE] storage cleanup skipped:', err);
+    return;
+  }
+  const folders: Array<[string, string]> = [
+    [LISTING_IMAGES_BUCKET, 'images'],
+    [LISTING_DOCUMENTS_BUCKET, 'documents'],
+    [LISTING_VIDEOS_BUCKET, 'videos'],
+  ];
+  for (const listingId of listingIds) {
+    for (const [bucket, kind] of folders) {
+      const prefix = `properties/${listingId}/${kind}`;
+      try {
+        const { data, error } = await supabase.storage.from(bucket).list(prefix, { limit: 1000 });
+        if (error) throw error;
+        const paths = (data || []).filter((f) => f.name).map((f) => `${prefix}/${f.name}`);
+        if (paths.length > 0) {
+          const { error: removeError } = await supabase.storage.from(bucket).remove(paths);
+          if (removeError) throw removeError;
+        }
+      } catch (err) {
+        console.error(`[admin/users DELETE] storage cleanup failed for ${bucket}/${prefix}:`, err);
+      }
+    }
+  }
+}
 
 export async function PUT(
   request: NextRequest,
@@ -191,29 +225,15 @@ export async function DELETE(
       );
     }
 
-    // First delete from Supabase Auth
-    // We dynamically import the admin client to avoid issues if not configured correctly
-    const { createAdminClient } = await import('@/lib/supabase/admin');
-    const supabaseAdmin = createAdminClient();
-    
-    // Attempt to delete from Auth (might fail if it's a mock user in dev, so we catch)
-    try {
-      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
-      if (authError) {
-        console.warn('Failed to delete from Auth, continuing DB deletion:', authError.message);
-      }
-    } catch (authErr) {
-      console.warn('Exception deleting from Auth:', authErr);
-    }
-
     // Safe transactional deletion of all related child records in Prisma
+    let listingIds: string[] = [];
     await prisma.$transaction(async (tx) => {
       // 1. Find all listing IDs owned by this user
       const userListings = await tx.listing.findMany({
         where: { ownerId: id },
         select: { id: true },
       });
-      const listingIds = userListings.map((l) => l.id);
+      listingIds = userListings.map((l) => l.id);
 
       if (listingIds.length > 0) {
         // Delete listing sub-entities first
@@ -240,6 +260,29 @@ export async function DELETE(
       });
     });
 
+    // Remove the login only after the database rows are gone, so a failed
+    // transaction can no longer leave a profile that cannot sign in. A login
+    // that cannot be removed is reported back instead of being ignored.
+    let authDeleteFailed = false;
+    try {
+      const { createAdminClient } = await import('@/lib/supabase/admin');
+      const supabaseAdmin = createAdminClient();
+      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+      if (authError && authError.status !== 404) {
+        authDeleteFailed = true;
+        console.error('[admin/users DELETE] Auth user could not be deleted:', authError.message);
+      }
+    } catch (authErr) {
+      authDeleteFailed = true;
+      console.error('[admin/users DELETE] Exception deleting Auth user:', authErr);
+    }
+
+    // Listing photos, videos and ownership documents are removed after the
+    // response is sent (best effort; failures are logged).
+    if (listingIds.length > 0) {
+      after(() => removeListingsFiles(listingIds));
+    }
+
     // Log the admin activity
     const adminName = requesterProfile.name || 'Admin';
     const actionText = `${adminName} deleted user ${targetProfile.name || id} (${targetProfile.role})`;
@@ -249,8 +292,21 @@ export async function DELETE(
       action: actionText,
       entityType: 'USER_PROFILE',
       entityId: id,
-      metadata: { deletedUserRole: targetProfile.role, ip: getRequestIp(request) },
+      metadata: {
+        deletedUserRole: targetProfile.role,
+        deletedListings: listingIds.length,
+        authDeleteFailed,
+        ip: getRequestIp(request),
+      },
     });
+
+    if (authDeleteFailed) {
+      return NextResponse.json({
+        message:
+          'User data was deleted, but their login could not be removed. Remove it in Supabase Auth so the account cannot sign in again.',
+        authDeleteFailed: true,
+      });
+    }
 
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error: any) {

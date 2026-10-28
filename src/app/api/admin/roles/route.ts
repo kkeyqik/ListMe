@@ -5,10 +5,34 @@ import { requireAdminModule, countOtherActiveSuperAdmins, getRequestIp } from '@
 import { logAdminActivity } from '@/lib/activity-logger';
 import { ADMIN_MODULES, getAdminPermissions, type AdminModule } from '@/lib/admin-permissions';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const gate = await requireAdminModule('super');
     if (!gate.ok) return gate.response;
+
+    // ?userSearch=<text>: user picker for "Elevate User". Returns at most 20
+    // matching regular users instead of shipping every user to the browser.
+    const userSearch = new URL(request.url).searchParams.get('userSearch');
+    if (userSearch !== null) {
+      const term = userSearch.trim().slice(0, 100);
+      if (term.length < 2) {
+        return NextResponse.json({ regularUsers: [] });
+      }
+      const regularUsers = await prisma.profile.findMany({
+        where: {
+          role: 'USER',
+          OR: [
+            { name: { contains: term, mode: 'insensitive' } },
+            { email: { contains: term, mode: 'insensitive' } },
+            { phone: { contains: term } },
+          ],
+        },
+        orderBy: { name: 'asc' },
+        take: 20,
+        select: { id: true, name: true, email: true, phone: true },
+      });
+      return NextResponse.json({ regularUsers });
+    }
 
     // Fetch all admins and super admins
     const admins = await prisma.profile.findMany({
@@ -30,21 +54,8 @@ export async function GET() {
       },
     });
 
-    // Also fetch regular users to allow elevating them
-    const regularUsers = await prisma.profile.findMany({
-      where: {
-        role: 'USER',
-      },
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-      },
-    });
-
-    return NextResponse.json({ admins, regularUsers });
+    // Regular users are searched on demand (?userSearch=), not listed here.
+    return NextResponse.json({ admins, regularUsers: [] });
   } catch (error: unknown) {
     console.error('[admin/roles GET] Error:', error);
     return NextResponse.json(

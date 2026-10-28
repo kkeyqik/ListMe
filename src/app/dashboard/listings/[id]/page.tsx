@@ -292,7 +292,7 @@ export default function OwnerListingDetail({ params }: ListingDetailProps) {
                 <div key={interest.id} className={styles.interestItem} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontWeight: 700, fontSize: '0.937rem', color: 'var(--color-neutral-900)' }}>
-                      {interest.user.name || 'Anonymous User'}
+                      {interest.user?.name || 'Anonymous User'}
                     </div>
                     <Badge variant={interest.status === 'NEW' ? 'primary' : 'neutral'} size="sm">
                       {interest.status.replace('_', ' ')}

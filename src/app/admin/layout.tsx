@@ -66,7 +66,7 @@ export default function AdminLayout({
           </div>
           <div className={styles.adminControls}>
             <span className={styles.adminBadge}>
-              ADMIN
+              {profile?.role === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 'ADMIN'}
             </span>
             <Link
               href="/dashboard/profile"

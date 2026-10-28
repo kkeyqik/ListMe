@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   Building, 
@@ -25,44 +25,58 @@ export default function DashboardHome() {
   const [stats, setStats] = useState({ activeCount: 0, totalInterests: 0 });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        // 1. Fetch own listings
-        const listingsRes = await fetch('/api/listings?owner=true&limit=5');
-        const listingsData = await listingsRes.json();
-        
-        // 2. Fetch received interests
-        const interestsRes = await fetch('/api/interests?mode=received');
-        const interestsData = await interestsRes.json();
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-        if (listingsRes.ok && interestsRes.ok) {
-          const fetchedListings = listingsData.listings || [];
-          const fetchedInterests = interestsData.interests || [];
-          
-          setListings(fetchedListings);
-          setInterests(fetchedInterests.slice(0, 5)); // show only 5 recent
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadError(null);
+      // Run the requests in parallel. The active count comes from the server
+      // total (meta.total), not from the 5 recent listings shown here.
+      const [listingsRes, activeRes, interestsRes] = await Promise.all([
+        fetch('/api/listings?owner=true&limit=5'),
+        fetch('/api/listings?owner=true&status=ACTIVE&limit=1'),
+        fetch('/api/interests?mode=received'),
+      ]);
 
-          // Compute counts
-          const active = fetchedListings.filter((l: any) => l.status === 'ACTIVE').length;
-          setStats({
-            activeCount: active,
-            totalInterests: fetchedInterests.length,
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching dashboard info:', err);
-        showToast('Error', 'Failed to load dashboard data. Please try again.', 'error');
-      } finally {
-        setLoading(false);
+      if (!listingsRes.ok || !activeRes.ok || !interestsRes.ok) {
+        setLoadError('Some of your dashboard data could not be loaded.');
       }
-    };
 
+      if (listingsRes.ok) {
+        const listingsData = await listingsRes.json();
+        setListings(listingsData.listings || []);
+      }
+
+      let activeCount = 0;
+      if (activeRes.ok) {
+        const activeData = await activeRes.json();
+        activeCount = activeData.meta?.total ?? (activeData.listings || []).length;
+      }
+
+      let totalInterests = 0;
+      if (interestsRes.ok) {
+        const interestsData = await interestsRes.json();
+        const fetchedInterests = interestsData.interests || [];
+        setInterests(fetchedInterests.slice(0, 5)); // show only 5 recent
+        totalInterests = fetchedInterests.length;
+      }
+
+      setStats({ activeCount, totalInterests });
+    } catch (err) {
+      console.error('Error fetching dashboard info:', err);
+      setLoadError('Your dashboard could not be loaded. Check your connection and try again.');
+      showToast('Error', 'Failed to load dashboard data. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
     if (!authLoading && user) {
       fetchDashboardData();
     }
-  }, [user, authLoading, showToast]);
+  }, [user, authLoading, fetchDashboardData]);
 
   const formatPrice = (price: string) => {
     const val = parseFloat(price);
@@ -87,6 +101,15 @@ export default function DashboardHome() {
           Add New Listing
         </Button>
       </div>
+
+      {loadError && (
+        <div role="alert" className={styles.errorBanner}>
+          <span>{loadError}</span>
+          <Button variant="outline" size="sm" onClick={fetchDashboardData}>
+            Try again
+          </Button>
+        </div>
+      )}
 
       {/* Metrics Grid */}
       <div className={styles.statsGrid}>
@@ -217,13 +240,13 @@ export default function DashboardHome() {
               {interests.map((interest) => (
                 <div key={interest.id} className={styles.interestItem}>
                   <div className={styles.interestDetails}>
-                    <div className={styles.interestTitle}>{interest.user.name || 'Interested User'}</div>
+                    <div className={styles.interestTitle}>{interest.user?.name || 'Interested User'}</div>
                     <div style={{ fontSize: '0.812rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
                       {interest.listing.title}
                     </div>
                     <div className={styles.interestContact}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                        <Phone size={12} /> {interest.user.phone}
+                        <Phone size={12} /> {interest.user?.phone || 'No phone shared'}
                       </span>
                     </div>
                   </div>

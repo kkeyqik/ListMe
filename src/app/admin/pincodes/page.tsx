@@ -148,20 +148,30 @@ export default function AdminPincodes() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('pinCode')}>
-                  Pincode <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                <th className={styles.th} style={{ width: '20%' }} aria-sort={sortField === 'pinCode' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('pinCode')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Pincode <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} aria-hidden="true" />
+                  </button>
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('activeListings')}>
-                  Active Listings <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                <th className={styles.th} style={{ width: '20%' }} aria-sort={sortField === 'activeListings' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('activeListings')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Active Listings <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} aria-hidden="true" />
+                  </button>
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('avgAskingPrice')}>
-                  Avg Sale Price <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                <th className={styles.th} style={{ width: '20%' }} aria-sort={sortField === 'avgAskingPrice' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('avgAskingPrice')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Avg Sale Price <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} aria-hidden="true" />
+                  </button>
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('avgMonthlyRent')}>
-                  Avg Monthly Rent <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                <th className={styles.th} style={{ width: '20%' }} aria-sort={sortField === 'avgMonthlyRent' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('avgMonthlyRent')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Avg Monthly Rent <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} aria-hidden="true" />
+                  </button>
                 </th>
-                <th className={styles.th} style={{ cursor: 'pointer', width: '20%' }} onClick={() => handleSort('totalInterests')}>
-                  Seeker Interests <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} />
+                <th className={styles.th} style={{ width: '20%' }} aria-sort={sortField === 'totalInterests' ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('totalInterests')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Seeker Interests <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: '4px' }} aria-hidden="true" />
+                  </button>
                 </th>
               </tr>
             </thead>

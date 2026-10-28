@@ -51,6 +51,36 @@ export default function RoleManager() {
   // Add Admin Modal State
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState('');
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+
+  // Search regular users on the server for the "Elevate User" picker.
+  useEffect(() => {
+    if (!addModalOpen) return;
+    const term = userSearch.trim();
+    if (term.length < 2) {
+      setRegularUsers([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setUserSearchLoading(true);
+      try {
+        const res = await fetch(`/api/admin/roles?userSearch=${encodeURIComponent(term)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled) setRegularUsers(res.ok ? data.regularUsers || [] : []);
+      } catch {
+        if (!cancelled) setRegularUsers([]);
+      } finally {
+        if (!cancelled) setUserSearchLoading(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [userSearch, addModalOpen]);
 
   // Delete User Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -61,13 +91,17 @@ export default function RoleManager() {
     try {
       setLoading(true);
       const res = await fetch('/api/admin/roles');
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setAdmins(data.admins || []);
-        setRegularUsers(data.regularUsers || []);
+        setLoadError(null);
+      } else {
+        setLoadError(data.message || `Admins could not be loaded (error ${res.status}).`);
+        showToast('Error', data.message || 'Failed to load roles', 'error');
       }
     } catch (err) {
       console.error('Error fetching roles:', err);
+      setLoadError('Admins could not be loaded. Check your connection and try again.');
       showToast('Error', 'Failed to load roles', 'error');
     } finally {
       setLoading(false);
@@ -102,6 +136,8 @@ export default function RoleManager() {
 
   const handleAddClick = () => {
     setSelectedUserId('');
+    setUserSearch('');
+    setRegularUsers([]);
     setRole('ADMIN');
     setStatus('ACTIVE');
     setPermissions({
@@ -153,7 +189,12 @@ export default function RoleManager() {
       });
       
       if (res.ok) {
-        showToast('Success', 'Admin deleted successfully', 'success');
+        const data = await res.json().catch(() => ({}));
+        if (data.authDeleteFailed) {
+          showToast('Partly deleted', data.message, 'warning');
+        } else {
+          showToast('Success', 'Admin deleted successfully', 'success');
+        }
         setAdmins(prev => prev.filter(u => u.id !== adminToDelete.id));
         setDeleteModalOpen(false);
         setAdminToDelete(null);
@@ -317,6 +358,15 @@ export default function RoleManager() {
 
       {loading ? (
         <Card padding="md">Loading roles...</Card>
+      ) : loadError ? (
+        <Card padding="md">
+          <div role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <span>{loadError}</span>
+            <Button variant="outline" size="sm" onClick={() => fetchRoles()}>
+              Retry
+            </Button>
+          </div>
+        </Card>
       ) : (
         <div className={styles.tableContainer}>
           <table className={styles.table}>
@@ -441,13 +491,34 @@ export default function RoleManager() {
           
           {addModalOpen && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, fontFamily: 'var(--font-heading)' }}>Select User</label>
-              <select 
+              <label htmlFor="role-user-search" style={{ fontSize: '0.875rem', fontWeight: 600, fontFamily: 'var(--font-heading)' }}>Find User</label>
+              <input
+                id="role-user-search"
+                type="search"
+                value={userSearch}
+                onChange={(e) => {
+                  setUserSearch(e.target.value);
+                  setSelectedUserId('');
+                }}
+                placeholder="Type a name, email or phone (min. 2 characters)"
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-card)', fontSize: '0.875rem' }}
+              />
+              <label htmlFor="role-user-select" style={{ fontSize: '0.875rem', fontWeight: 600, fontFamily: 'var(--font-heading)' }}>Select User</label>
+              <select
+                id="role-user-select"
                 style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-card)', fontSize: '0.875rem' }}
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
               >
-                <option value="">-- Select a User --</option>
+                <option value="">
+                  {userSearchLoading
+                    ? 'Searching...'
+                    : userSearch.trim().length < 2
+                      ? '-- Search for a user above --'
+                      : regularUsers.length === 0
+                        ? '-- No matching users --'
+                        : `-- Select a User (${regularUsers.length} found) --`}
+                </option>
                 {regularUsers.map(u => (
                   <option key={u.id} value={u.id}>
                     {u.name || 'Unknown'} ({u.email || u.phone})

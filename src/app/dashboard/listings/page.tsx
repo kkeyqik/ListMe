@@ -23,6 +23,10 @@ export default function MyListings() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  // Search runs on the server across all pages (debounced), not just the loaded page.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
   
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -37,15 +41,22 @@ export default function MyListings() {
     try {
       const params = new URLSearchParams({ owner: 'true', limit: String(PAGE_SIZE), page: String(page) });
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
+      if (debouncedSearch.trim()) params.set('query', debouncedSearch.trim());
+      setLoadError(null);
 
       const res = await fetch(`/api/listings?${params.toString()}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setListings(data.listings || []);
         setTotalPages(Math.max(1, data.meta?.totalPages || 1));
+        setTotalCount(data.meta?.total || 0);
+      } else {
+        setListings([]);
+        setLoadError(data.message || `Your listings could not be loaded (error ${res.status}).`);
       }
     } catch (err) {
       console.error('Error fetching own listings:', err);
+      setLoadError('Your listings could not be loaded. Check your connection and try again.');
       showToast('Error', 'Failed to load property listings', 'error');
     } finally {
       setLoading(false);
@@ -53,8 +64,17 @@ export default function MyListings() {
   };
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     fetchListings();
-  }, [statusFilter, page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, page, debouncedSearch]);
 
   const handleStatusChange = async (listingId: string, status: 'PENDING_REVIEW' | 'DEACTIVATED') => {
     setStatusUpdatingId(listingId);
@@ -122,15 +142,8 @@ export default function MyListings() {
     return `₹${val.toLocaleString('en-IN')}`;
   };
 
-  // Filter listings by text search query
-  const filteredListings = listings.filter((l) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      l.title.toLowerCase().includes(searchLower) ||
-      l.city.toLowerCase().includes(searchLower) ||
-      l.locality.toLowerCase().includes(searchLower)
-    );
-  });
+  // Search and status filtering happen on the server.
+  const filteredListings = listings;
 
   return (
     <div>
@@ -138,7 +151,10 @@ export default function MyListings() {
       <div className={styles.header}>
         <div>
           <h1 className={styles.welcomeText}>My Properties</h1>
-          <p className={styles.subText}>Manage, edit, and track statuses of all your listed properties.</p>
+          <p className={styles.subText}>
+            Manage, edit, and track statuses of all your listed properties.
+            {!loading && !loadError && totalCount > 0 && ` ${totalCount} ${totalCount === 1 ? 'listing' : 'listings'}${searchQuery || statusFilter !== 'ALL' ? ' match' : ' in total'}.`}
+          </p>
         </div>
         <Button href="/dashboard/listings/new" variant="primary" leftIcon={<Plus size={18} />}>
           Add New Property
@@ -182,6 +198,13 @@ export default function MyListings() {
       {/* Listings Table */}
       {loading ? (
         <Card padding="md">Loading property listings...</Card>
+      ) : loadError ? (
+        <div className={styles.errorBanner} role="alert">
+          <span>{loadError}</span>
+          <Button variant="outline" size="sm" onClick={() => fetchListings()}>
+            Try again
+          </Button>
+        </div>
       ) : filteredListings.length === 0 ? (
         <div className={styles.emptyState}>
           <Building size={48} style={{ opacity: 0.3 }} />

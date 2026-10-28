@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   FileText, 
   Search, 
@@ -40,30 +40,66 @@ export default function AdminActivityLog() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const fetchLogs = async () => {
+  const [errorLogs, setErrorLogs] = useState<any[]>([]);
+  const [totals, setTotals] = useState<Record<string, number>>({});
+  const [limits, setLimits] = useState<Record<string, number>>({});
+  const [userActions, setUserActions] = useState<string[]>([]);
+  const [entityTypes, setEntityTypes] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Date range and action / entity filters run in the database, so older
+  // history is reachable instead of only the newest few hundred rows.
+  const serverUserAction = activeTab === 'seeker' && actionFilter !== 'ALL' ? actionFilter : '';
+  const serverEntityType = activeTab === 'operations' && actionFilter !== 'ALL' ? actionFilter : '';
+
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/activity');
+      setLoadError(null);
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      if (serverUserAction) params.set('userAction', serverUserAction);
+      if (serverEntityType) params.set('entityType', serverEntityType);
+      const res = await fetch(`/api/admin/activity?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setUserLogs(data.userLogs || []);
         setAdminLogs(data.adminLogs || []);
         setEmailLogs(data.emailLogs || []);
+        setErrorLogs(data.errorLogs || []);
+        setTotals(data.totals || {});
+        setLimits(data.limits || {});
+        setUserActions(data.userActions || []);
+        setEntityTypes(data.entityTypes || []);
       } else {
-        const data = await res.json();
+        setLoadError(data.message || `Logs could not be loaded (error ${res.status}).`);
         showToast('Error', data.message || 'Failed to fetch logs', 'error');
       }
     } catch (err) {
       console.error('Error fetching activity logs:', err);
+      setLoadError('Logs could not be loaded. Check your connection and try again.');
       showToast('Error', 'An unexpected error occurred while loading logs.', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate, serverUserAction, serverEntityType, showToast]);
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [fetchLogs]);
+
+  /** Note shown when the server returned only the newest part of the matches. */
+  const truncationNote = (key: string, shown: number) => {
+    const total = totals[key];
+    if (!total || total <= shown) return null;
+    return (
+      <div role="status" style={{ padding: '0.625rem 1rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', borderBottom: '1px solid var(--color-border)' }}>
+        Showing the newest {shown.toLocaleString('en-IN')} of {total.toLocaleString('en-IN')} matching entries
+        {limits[key] ? ` (limit ${limits[key]})` : ''}. Narrow the date range to see older ones.
+      </div>
+    );
+  };
 
   // GSAP animation for page elements
   useEffect(() => {
@@ -202,7 +238,6 @@ export default function AdminActivityLog() {
         Error: l.error || ''
       }));
     } else if (activeTab === 'errors') {
-      const errorLogs = userLogs.filter(l => l.action === 'SYSTEM_ERROR');
       exportData = errorLogs.map(l => ({
         ID: l.id,
         Timestamp: new Date(l.createdAt).toISOString(),
@@ -362,7 +397,7 @@ export default function AdminActivityLog() {
             setActionFilter('ALL');
           }}
         >
-          🚨 System Errors ({userLogs.filter(l => l.action === 'SYSTEM_ERROR').length})
+          🚨 System Errors ({totals.errorLogs ?? errorLogs.length})
         </button>
       </div>
 
@@ -397,16 +432,20 @@ export default function AdminActivityLog() {
                 {activeTab === 'seeker' ? (
                   <>
                     <option value="ALL">All Actions</option>
-                    <option value="VIEW_PROPERTY">Property Views</option>
-                    <option value="SEARCH">Searches</option>
-                    <option value="EXPRESS_INTEREST">Interest Expressions</option>
+                    {(userActions.length ? userActions : ['VIEW_PROPERTY', 'SEARCH', 'EXPRESS_INTEREST']).map((a) => (
+                      <option key={a} value={a}>
+                        {a.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
+                      </option>
+                    ))}
                   </>
                 ) : activeTab === 'operations' ? (
                   <>
                     <option value="ALL">All Entity Types</option>
-                    <option value="LISTING">Listings</option>
-                    <option value="SYSTEM_SETTINGS">Settings</option>
-                    <option value="USER_PROFILE">User Profiles</option>
+                    {(entityTypes.length ? entityTypes : ['LISTING', 'SYSTEM_SETTINGS', 'USER_PROFILE']).map((t) => (
+                      <option key={t} value={t}>
+                        {t.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
+                      </option>
+                    ))}
                   </>
                 ) : activeTab === 'emails' ? (
                   <>
@@ -446,12 +485,22 @@ export default function AdminActivityLog() {
 
       {/* Content Section */}
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }} role="status" aria-label="Loading logs">
           <div className="spinner" style={{ borderColor: 'var(--color-sage)' }}></div>
         </div>
+      ) : loadError ? (
+        <Card padding="md">
+          <div role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <span>{loadError}</span>
+            <Button variant="outline" size="sm" onClick={() => fetchLogs()}>
+              Retry
+            </Button>
+          </div>
+        </Card>
       ) : activeTab === 'seeker' ? (
         /* Tab 1: Seeker & Owner Activities */
         <Card className="animate-fade-in">
+          {truncationNote('userLogs', userLogs.length)}
           {filteredUserLogs.length === 0 ? (
             <div className={pageStyles.emptyState}>No matching user logs found.</div>
           ) : (
@@ -526,6 +575,7 @@ export default function AdminActivityLog() {
       ) : activeTab === 'operations' ? (
         /* Tab 2: Operations Audit Trail */
         <div className={`${pageStyles.timeline} animate-fade-in`}>
+          {truncationNote('adminLogs', adminLogs.length)}
           {filteredAdminLogs.length === 0 ? (
             <Card>
               <div className={pageStyles.emptyState}>No admin operations logs found.</div>
@@ -569,6 +619,7 @@ export default function AdminActivityLog() {
       ) : activeTab === 'emails' ? (
         /* Tab 3: Emails Sent (SMTP Audit) */
         <Card className="animate-fade-in">
+          {truncationNote('emailLogs', emailLogs.length)}
           {filteredEmailLogs.length === 0 ? (
             <div className={pageStyles.emptyState}>No matching email logs found.</div>
           ) : (
@@ -649,15 +700,16 @@ export default function AdminActivityLog() {
                 </tr>
               </thead>
               <tbody>
-                {userLogs.filter((l) => l.action === 'SYSTEM_ERROR').length === 0 ? (
+                {errorLogs.length === 0 ? (
                   <tr>
                     <td colSpan={5} className={pageStyles.emptyTd}>
-                      No system errors logged. Everything is running smoothly!
+                      {startDate || endDate
+                        ? 'No system errors were logged in the selected date range.'
+                        : 'No system errors have been logged.'}
                     </td>
                   </tr>
                 ) : (
-                  userLogs
-                    .filter((l) => l.action === 'SYSTEM_ERROR')
+                  errorLogs
                     .map((log) => (
                       <tr key={log.id} className={pageStyles.tr}>
                         <td className={pageStyles.td}>

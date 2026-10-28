@@ -144,18 +144,23 @@ export default function AdminUsers() {
     return () => window.removeEventListener('click', handleOutsideClick);
   }, [activeDropdownId]);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await fetch('/api/admin/users');
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setUsers(data.users || []);
       } else {
+        setLoadError(data.message || `Users could not be loaded (error ${res.status}).`);
         showToast('Error', data.message || `Failed to load users (error ${res.status})`, 'error');
       }
     } catch (err) {
       console.error('Error fetching users:', err);
+      setLoadError('Users could not be loaded. Check your connection and try again.');
       showToast('Error', 'Failed to load user directory logs', 'error');
     } finally {
       setLoading(false);
@@ -270,7 +275,12 @@ export default function AdminUsers() {
       });
       
       if (res.ok) {
-        showToast('Success', 'User and associated listings deleted successfully', 'success');
+        const data = await res.json().catch(() => ({}));
+        if (data.authDeleteFailed) {
+          showToast('Partly deleted', data.message, 'warning');
+        } else {
+          showToast('Success', 'User and associated listings deleted successfully', 'success');
+        }
         setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
         setDeleteModalOpen(false);
         setUserToDelete(null);
@@ -711,7 +721,16 @@ export default function AdminUsers() {
       </div>
 
       {/* Table List */}
-      {loading ? (
+      {loadError && !loading ? (
+        <div className={styles.emptyState} role="alert">
+          <Users size={48} style={{ opacity: 0.3 }} />
+          <h3>Users could not be loaded</h3>
+          <p>{loadError}</p>
+          <button type="button" className={styles.clearFilterBtn} style={{ marginTop: '0.75rem' }} onClick={() => fetchUsers()}>
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
         <Card padding="md">Loading user database...</Card>
       ) : sortedUsers.length === 0 ? (
         <div className={styles.emptyState}>
@@ -1245,7 +1264,7 @@ export default function AdminUsers() {
             {/* View properties link if has listings */}
             {selectedUserForDetails._count?.listings > 0 && (
               <Link
-                href={`/admin/listings?search=${encodeURIComponent(selectedUserForDetails.name || selectedUserForDetails.phone || '')}`}
+                href={`/admin/listings?owner=${encodeURIComponent(selectedUserForDetails.id)}`}
                 onClick={() => setSelectedUserForDetails(null)}
                 className={styles.userViewDetailsBtn}
                 style={{ width: '100%', textDecoration: 'none' }}

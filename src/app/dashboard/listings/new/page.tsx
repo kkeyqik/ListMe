@@ -32,7 +32,27 @@ import {
 } from '@/lib/upload';
 import styles from './new.module.css';
 
+import { RESIDENTIAL_PROPERTY_CATEGORIES, COMMERCIAL_PROPERTY_CATEGORIES, PROPERTY_CATEGORY_VALUES, isLandType, DOCUMENT_TYPE_OPTIONS } from '../property-types';
+import { PhotoThumb } from '../PhotoThumb';
+
 const MAX_PHOTOS = 20;
+const OPTIONAL_ATTRIBUTE_FIELDS = ['furnishing', 'facing', 'possession', 'ageOfProperty', 'ownership', 'parking', 'parkingCount', 'waterSupply', 'powerBackup'];
+
+/**
+ * Optional attribute selects default to "Not specified" (''), which is sent
+ * as null so the listing does not claim invented values (east-facing, full
+ * power backup, ...). Land has no furnishing.
+ */
+function optionalAttributes(formData: any) {
+  const out: Record<string, string | null> = {};
+  for (const key of OPTIONAL_ATTRIBUTE_FIELDS) {
+    const value = formData[key];
+    out[key] = value === undefined || value === null || value === '' ? null : String(value);
+  }
+  if (isLandType(formData.propertyType)) out.furnishing = null;
+  return out;
+}
+
 
 // Local, non-persisted id for a picked file (module counter keeps render pure)
 let localFileCounter = 0;
@@ -56,6 +76,7 @@ export default function NewListing() {
   const [loading, setLoading] = useState(false);
   // Set once POST /api/listings succeeds, so a retry after a failed upload reuses it
   const [createdListingId, setCreatedListingId] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<any>({
@@ -79,15 +100,15 @@ export default function NewListing() {
     maintenanceCharges: '',
     securityDeposit: '',
     priceNegotiable: false,
-    furnishing: 'UNFURNISHED',
-    facing: 'EAST',
-    possession: 'READY',
-    ageOfProperty: '0_1_YEARS',
-    ownership: 'FREEHOLD',
-    parking: 'BOTH',
-    parkingCount: '1',
-    waterSupply: 'CORP_WELL',
-    powerBackup: 'FULL',
+    furnishing: '',
+    facing: '',
+    possession: '',
+    ageOfProperty: '',
+    ownership: '',
+    parking: '',
+    parkingCount: '',
+    waterSupply: '',
+    powerBackup: '',
     reraNumber: '',
     videoUrl: '',
     selectedAmenities: [], // array of ids
@@ -149,7 +170,7 @@ export default function NewListing() {
       
       if (queryPropType) {
         const upperProp = queryPropType.toUpperCase();
-        const validProps = ['APARTMENT', 'HOUSE', 'VILLA', 'PLOT', 'OFFICE', 'SHOP', 'PG'];
+        const validProps = PROPERTY_CATEGORY_VALUES;
         if (validProps.includes(upperProp)) {
           prefilledData.propertyType = upperProp;
         } else if (upperProp === 'HOUSE_VILLA' || upperProp === 'HOUSE/VILLA') {
@@ -446,6 +467,7 @@ export default function NewListing() {
         id: nextLocalFileId(),
         name: file.name,
         file,
+        docType: 'OTHER',
         progress: 0,
         completed: true,
         uploaded: false,
@@ -551,7 +573,7 @@ export default function NewListing() {
       );
 
       documents.push({
-        docType: 'OTHER',
+        docType: doc.docType || 'OTHER',
         docName: doc.name,
         docUrl: path,
       });
@@ -713,6 +735,25 @@ export default function NewListing() {
   };
 
   // Form submission handler
+  // Warn before leaving with unsaved input (refresh, closing the tab, or a
+  // file dropped outside a dropzone opening in the tab).
+  const isDirty =
+    !submitted &&
+    (Boolean(formData.title || formData.description || formData.locality || formData.pinCode ||
+      formData.fullAddress || formData.askingPrice) ||
+      selectedPhotos.length > 0 ||
+      selectedDocs.length > 0 ||
+      Boolean(selectedVideo));
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
   const handleSubmit = async () => {
     let normalizedVideo = formData.videoUrl?.trim() || '';
     if (normalizedVideo && !/^[a-zA-Z]+:\/\//.test(normalizedVideo)) {
@@ -750,6 +791,7 @@ export default function NewListing() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...formData,
+            ...optionalAttributes(formData),
             // Don't save blank highlight bullets
             keyHighlights: (formData.keyHighlights || [])
               .map((h: unknown) => String(h ?? '').trim())
@@ -786,6 +828,7 @@ export default function NewListing() {
       }
 
       showToast('Success', 'Listing submitted successfully for moderation', 'success');
+      setSubmitted(true);
       router.push('/dashboard/listings');
     } catch (err) {
       console.error('Submit error:', err);
@@ -897,6 +940,15 @@ export default function NewListing() {
               <span>Step 1: Property Type & Title</span>
             </div>
 
+            <p
+              role="note"
+              style={{ fontSize: '0.8125rem', lineHeight: 1.5, color: 'var(--color-text-secondary)', background: 'var(--color-neutral-50, #f8fafc)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.625rem 0.875rem', margin: 0 }}
+            >
+              <strong>Who sees your details:</strong> your name is shown on the listing. Once it is approved,
+              your phone number (and email, if you added one) is shared with any phone-verified seeker who taps
+              &ldquo;I&apos;m Interested&rdquo;, so they can contact you directly. Your exact address stays private.
+            </p>
+
             <div className={styles.formGrid}>
               <Select
                 label="Listing For"
@@ -916,13 +968,16 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
-                <option value="APARTMENT">Apartment / Flat</option>
-                <option value="HOUSE">Independent House</option>
-                <option value="VILLA">Villa</option>
-                <option value="PLOT">Plot / Land</option>
-                <option value="OFFICE">Commercial Office</option>
-                <option value="SHOP">Shop / Retail Store</option>
-                <option value="PG">PG / Hostel</option>
+                <optgroup label="Residential">
+                  {RESIDENTIAL_PROPERTY_CATEGORIES.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Commercial">
+                  {COMMERCIAL_PROPERTY_CATEGORIES.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </optgroup>
               </Select>
             </div>
 
@@ -1127,7 +1182,7 @@ export default function NewListing() {
             </div>
 
             {/* Rooms, Balconies & Furnishing */}
-            {formData.propertyType !== 'PLOT' && (
+            {!isLandType(formData.propertyType) && (
               <>
                 <div className={styles.formGrid}>
                   <Select
@@ -1183,6 +1238,7 @@ export default function NewListing() {
                     onChange={handleInputChange}
                     fullWidth
                   >
+                    <option value="">Not specified</option>
                     <option value="FURNISHED">Fully Furnished</option>
                     <option value="SEMI_FURNISHED">Semi Furnished</option>
                     <option value="UNFURNISHED">Unfurnished</option>
@@ -1200,6 +1256,7 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="EAST">East</option>
                 <option value="NORTH">North</option>
                 <option value="WEST">West</option>
@@ -1217,6 +1274,7 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="READY">Ready to Move</option>
                 <option value="UNDER_CONSTRUCTION">Under Construction</option>
               </Select>
@@ -1231,6 +1289,7 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="0_1_YEARS">0-1 Years</option>
                 <option value="1_5_YEARS">1-5 Years</option>
                 <option value="5_10_YEARS">5-10 Years</option>
@@ -1244,6 +1303,7 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="FREEHOLD">Freehold</option>
                 <option value="LEASEHOLD">Leasehold</option>
                 <option value="COOPERATIVE">Co-operative Society</option>
@@ -1260,6 +1320,7 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="NONE">None</option>
                 <option value="COVERED">Covered</option>
                 <option value="OPEN">Open</option>
@@ -1273,6 +1334,7 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="0">0</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
@@ -1289,6 +1351,7 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="CORPORATION">Corporation / Municipal</option>
                 <option value="BOREWELL">Borewell</option>
                 <option value="CORP_WELL">Both Corporation & Borewell</option>
@@ -1301,6 +1364,7 @@ export default function NewListing() {
                 onChange={handleInputChange}
                 fullWidth
               >
+                <option value="">Not specified</option>
                 <option value="NONE">None</option>
                 <option value="PARTIAL">Partial</option>
                 <option value="FULL">Full 24x7</option>
@@ -1437,7 +1501,7 @@ export default function NewListing() {
                   {selectedPhotos.map((photo, index) => (
                     <div key={photo.id} className={styles.fileItem}>
                       <div className={styles.fileInfo}>
-                        <FileText size={16} />
+                        <PhotoThumb file={photo.file} name={photo.name} />
                         <span className={styles.fileName}>{photo.name}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1639,6 +1703,24 @@ export default function NewListing() {
                       <div className={styles.fileInfo}>
                         <FileText size={16} />
                         <span className={styles.fileName}>{doc.name}</span>
+                        <label htmlFor={`doc-type-${doc.id}`} className="visually-hidden">
+                          Document type for {doc.name}
+                        </label>
+                        <select
+                          id={`doc-type-${doc.id}`}
+                          value={doc.docType || 'OTHER'}
+                          disabled={loading && !doc.uploaded}
+                          onChange={(e) =>
+                            setSelectedDocs((prev) =>
+                              prev.map((d) => (d.id === doc.id ? { ...d, docType: e.target.value } : d))
+                            )
+                          }
+                          style={{ fontSize: '0.75rem', padding: '2px 4px', borderRadius: '6px', border: '1px solid var(--color-border)', maxWidth: '11rem' }}
+                        >
+                          {DOCUMENT_TYPE_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div className={styles.fileProgress}>
