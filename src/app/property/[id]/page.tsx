@@ -9,6 +9,7 @@ import { serializeJsonLd } from '@/lib/json-ld';
 import { absoluteUrl } from '@/lib/site-url';
 import { DEFAULT_OG_IMAGE } from '@/lib/page-metadata';
 import styles from './page.module.css';
+import { hasVerifiedMfaCookie } from '@/lib/admin-mfa';
 
 interface PropertyPageProps {
   params: Promise<{ id: string }>;
@@ -128,7 +129,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     let canPreview = !!viewerId && viewerId === listing.ownerId;
     if (viewerId && !canPreview) {
       const viewer = await prisma.profile.findUnique({ where: { id: viewerId }, select: { role: true } });
-      canPreview = viewer?.role === 'ADMIN' || viewer?.role === 'SUPER_ADMIN';
+      canPreview = (viewer?.role === 'ADMIN' || viewer?.role === 'SUPER_ADMIN') && (await hasVerifiedMfaCookie(viewerId));
     }
     if (!canPreview) {
       notFound();

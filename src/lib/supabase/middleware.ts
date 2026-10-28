@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { verifySessionToken } from '@/lib/session';
 import { isMockAuthEnabled } from '@/lib/mock-auth';
 import { hasAdminAccess, isAdminRole, requiredAccessForAdminPath } from '@/lib/admin-permissions';
+import { MFA_COOKIE_NAME, verifyMfaCookieToken } from '@/lib/mfa-cookie';
+
+const ADMIN_VERIFY_PATH = '/admin-verify';
 
 /**
  * Reads the current role, status and module permissions from the database
@@ -90,8 +93,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   const pathname = request.nextUrl.pathname;
-  const isProtectedPath = pathname.startsWith('/dashboard') || pathname.startsWith('/admin');
-  const isAdminPath = pathname.startsWith('/admin');
+  // /admin-verify (two-step verification page) sits outside /admin so the
+  // admin layout does not wrap it and the MFA check below cannot loop on it.
+  const isAdminVerifyPath = pathname === ADMIN_VERIFY_PATH || pathname.startsWith(`${ADMIN_VERIFY_PATH}/`);
+  const isAdminPath = !isAdminVerifyPath && (pathname === '/admin' || pathname.startsWith('/admin/'));
+  const isProtectedPath = pathname.startsWith('/dashboard') || isAdminPath || isAdminVerifyPath;
 
   // 4. Unauthenticated user accessing protected routes → redirect to login
   if (!user && isProtectedPath) {
@@ -116,7 +122,7 @@ export async function updateSession(request: NextRequest) {
       const response = NextResponse.redirect(url);
       // End the session so /login does not bounce the user straight back.
       for (const cookie of request.cookies.getAll()) {
-        if (cookie.name === 'listme-session' || cookie.name.startsWith('sb-')) {
+        if (cookie.name === 'listme-session' || cookie.name === MFA_COOKIE_NAME || cookie.name.startsWith('sb-')) {
           response.cookies.set(cookie.name, '', { path: '/', maxAge: 0 });
         }
       }
@@ -148,6 +154,30 @@ export async function updateSession(request: NextRequest) {
       } else if (!isAdminUser) {
         const url = request.nextUrl.clone();
         url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+      }
+
+      // Two-step verification: admin pages need a valid verified cookie
+      // for this exact user, otherwise go to /admin-verify first.
+      if (!verifyMfaCookieToken(request.cookies.get(MFA_COOKIE_NAME)?.value, user.id)) {
+        const url = request.nextUrl.clone();
+        url.pathname = ADMIN_VERIFY_PATH;
+        url.search = '';
+        url.searchParams.set('redirect', pathname + request.nextUrl.search);
+        return NextResponse.redirect(url);
+      }
+    }
+
+    // The verify page is only for admins.
+    if (isAdminVerifyPath) {
+      const isActiveAdmin =
+        dbProfile !== undefined
+          ? Boolean(dbProfile && isAdminRole(dbProfile.role) && dbProfile.status === 'ACTIVE')
+          : isAdminUser;
+      if (!isActiveAdmin) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/dashboard';
+        url.search = '';
         return NextResponse.redirect(url);
       }
     }

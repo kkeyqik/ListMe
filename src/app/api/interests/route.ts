@@ -6,6 +6,7 @@ import { logUserActivity } from '@/lib/activity-logger';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { isUuid, isSyntheticEmail } from '@/lib/ids';
 import { hasAdminAccess } from '@/lib/admin-permissions';
+import { hasVerifiedMfaCookie, mfaRequiredResponse } from '@/lib/admin-mfa';
 
 // Upper bounds on list sizes (the daily interest cap keeps a seeker's list far below this).
 const USER_MAX_ROWS = 500;
@@ -56,6 +57,9 @@ export async function GET(request: NextRequest) {
       // Module permission, not just the role (same rule as the /admin/interests page).
       if (!hasAdminAccess(userProfile, 'interests')) {
         return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+      }
+      if (!(await hasVerifiedMfaCookie(userId))) {
+        return mfaRequiredResponse();
       }
 
       const allInterests = await prisma.interest.findMany({

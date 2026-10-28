@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
 import { validateName, validatePhone, validateEmail, isPlaceholderEmail } from '@/lib/validation';
+import { toPublicProfile } from '@/lib/admin-mfa';
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: 'Profile created successfully',
-      profile,
+      profile: toPublicProfile(profile),
     });
   } catch (error: any) {
     console.error('[profile POST] Error:', error);
@@ -198,7 +199,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       message: 'Profile updated successfully',
-      profile: updatedProfile,
+      profile: toPublicProfile(updatedProfile),
     });
   } catch (error: any) {
     console.error('[profile PUT] Error:', error);
@@ -224,7 +225,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ profile });
+    return NextResponse.json({ profile: toPublicProfile(profile) });
   } catch (error: any) {
     console.error('[profile GET] Error:', error);
     return NextResponse.json(

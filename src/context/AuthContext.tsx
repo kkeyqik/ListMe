@@ -17,6 +17,8 @@ export interface DbProfile {
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
   status: 'ACTIVE' | 'SUSPENDED' | 'BANNED';
   roleMetadata?: { permissions?: Record<string, boolean> };
+  /** Admin has an authenticator app set up (the secret itself never reaches the browser). */
+  mfaEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

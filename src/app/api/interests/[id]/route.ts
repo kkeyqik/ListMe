@@ -5,6 +5,7 @@ import { InterestStatus, Prisma } from '@prisma/client';
 import { isUuid } from '@/lib/ids';
 import { hasAdminAccess } from '@/lib/admin-permissions';
 import { logAdminActivity, logUserActivity } from '@/lib/activity-logger';
+import { hasVerifiedMfaCookie } from '@/lib/admin-mfa';
 
 // commission_amount is Decimal(12,2).
 const MAX_COMMISSION = new Prisma.Decimal('9999999999.99');
@@ -65,7 +66,8 @@ export async function PUT(
       select: { role: true, name: true, roleMetadata: true },
     });
 
-    const isAdmin = hasAdminAccess(profile, 'interests');
+    // Admin powers also need two-step verification on this browser.
+    const isAdmin = hasAdminAccess(profile, 'interests') && (await hasVerifiedMfaCookie(userId));
     const isListingOwner = interest.listing.ownerId === userId;
     const isSeeker = interest.userId === userId;
 

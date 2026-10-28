@@ -5,6 +5,7 @@ import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { logAdminActivity } from '@/lib/activity-logger';
 import { hasAdminAccess, isAdminRole, isSuperAdminRole, type AdminAccess } from '@/lib/admin-permissions';
+import { hasVerifiedMfaCookie, mfaRequiredResponse } from '@/lib/admin-mfa';
 
 export interface AdminRequester {
   id: string;
@@ -50,6 +51,12 @@ export async function requireAdminModule(access: AdminAccess | null): Promise<Ad
         ? 'Forbidden: Super Admin only'
         : `Forbidden: your admin account does not have the '${access}' permission`;
     return { ok: false, response: NextResponse.json({ message }, { status: 403 }) };
+  }
+
+  // Two-step verification (authenticator app) is required for every admin
+  // API call. The cookie is set by /api/auth/mfa/verify and bound to this user.
+  if (!(await hasVerifiedMfaCookie(profile.id))) {
+    return { ok: false, response: mfaRequiredResponse() };
   }
 
   return {
