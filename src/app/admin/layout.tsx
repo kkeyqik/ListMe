@@ -40,6 +40,37 @@ export default function AdminLayout({
     }
   }, [user, isAdmin, loading, router]);
 
+  // Two-step verification lasts 12 hours. The proxy checks it on page loads;
+  // this catches it expiring while an admin page stays open (admin APIs then
+  // answer 403 `mfa_required`) and sends the admin to /admin-verify.
+  useEffect(() => {
+    if (loading || !user || !isAdmin) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await fetch('/api/auth/mfa/status', { cache: 'no-store' });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { verified?: boolean };
+        if (!cancelled && data.verified === false) {
+          const back = window.location.pathname + window.location.search;
+          window.location.replace(`/admin-verify?redirect=${encodeURIComponent(back)}`);
+        }
+      } catch {
+        // Network blip: the next check or the API's 403 will catch it.
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void check();
+    };
+    const interval = window.setInterval(check, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [loading, user, isAdmin]);
+
   return (
     <div className={styles.dashboardLayout}>
       {/* Admin Sidebar Navigation */}

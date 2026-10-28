@@ -16,6 +16,7 @@ import {
 import { isUuid } from '@/lib/ids';
 import { hasAdminAccess } from '@/lib/admin-permissions';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limiter';
+import { hasVerifiedMfaCookie } from '@/lib/admin-mfa';
 
 type UploadKind = 'images' | 'documents' | 'videos';
 
@@ -61,7 +62,7 @@ async function authorize(listingId: string): Promise<{ userId: string } | 401 | 
     where: { id: userId },
     select: { role: true, roleMetadata: true },
   });
-  return hasAdminAccess(profile, 'listings') ? { userId } : 403;
+  return hasAdminAccess(profile, 'listings') && (await hasVerifiedMfaCookie(userId)) ? { userId } : 403;
 }
 
 // Signed upload URLs cost storage: cap how many one account can request.

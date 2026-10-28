@@ -12,6 +12,7 @@ import {
 } from '@/lib/upload-rules';
 import { DocType } from '@prisma/client';
 import { hasAdminAccess } from '@/lib/admin-permissions';
+import { hasVerifiedMfaCookie } from '@/lib/admin-mfa';
 
 interface ImagePayload {
   imageUrl: string;
@@ -58,7 +59,7 @@ async function authorize(listingId: string): Promise<NextResponse | null> {
     where: { id: userId },
     select: { role: true, roleMetadata: true },
   });
-  if (hasAdminAccess(requesterProfile, 'listings')) {
+  if (hasAdminAccess(requesterProfile, 'listings') && (await hasVerifiedMfaCookie(userId))) {
     return null;
   }
   return NextResponse.json({ message: 'Forbidden' }, { status: 403 });

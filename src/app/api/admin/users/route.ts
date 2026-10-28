@@ -5,6 +5,7 @@ import { logAdminActivity } from '@/lib/activity-logger';
 import { prisma } from '@/lib/prisma';
 import { getSecurePassword } from '@/lib/auth-helpers';
 import { Role, UserStatus } from '@prisma/client';
+import { toPublicProfile } from '@/lib/admin-mfa';
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       request,
     });
 
-    return NextResponse.json({ users });
+    return NextResponse.json({ users: users.map(toPublicProfile) });
   } catch (error: any) {
     console.error('[admin/users GET] Error:', error);
     return NextResponse.json(
@@ -157,7 +158,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: 'User created successfully',
-      profile: createdProfile,
+      profile: toPublicProfile(createdProfile),
     });
   } catch (error: any) {
     console.error('[admin/users POST] Error:', error);

@@ -1,0 +1,185 @@
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--color-surface);
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.iconWrap {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  background: var(--color-secondary-fade);
+  color: var(--color-secondary-dark);
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  margin: 0;
+}
+
+.text {
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin: 0;
+  text-align: center;
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  margin: 0;
+  text-align: center;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.qr {
+  align-self: center;
+  width: 200px;
+  height: 200px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 8px;
+}
+
+.label {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.secret {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  letter-spacing: 0.05em;
+  text-align: center;
+  word-break: break-all;
+  user-select: all;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-100);
+  color: var(--color-text);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.codeInput input {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+.backupList {
+  list-style: none;
+  margin: 0;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-100);
+}
+
+.backupList code {
+  display: block;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  padding: 6px 0;
+  color: var(--color-text);
+  user-select: all;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 4px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--color-secondary-dark);
+  text-decoration: underline;
+  cursor: pointer;
+  align-self: center;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.footer a {
+  color: var(--color-secondary-dark);
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-secondary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

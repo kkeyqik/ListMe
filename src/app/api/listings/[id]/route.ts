@@ -11,6 +11,7 @@ import { isUuid, isSyntheticEmail } from '@/lib/ids';
 import { sendEmail } from '@/lib/email';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { LISTING_IMAGES_BUCKET, LISTING_DOCUMENTS_BUCKET, LISTING_VIDEOS_BUCKET } from '@/lib/upload-rules';
+import { hasVerifiedMfaCookie } from '@/lib/admin-mfa';
 
 // Statuses an owner may move their own listing to, keyed by the current status.
 // Everything else (approve, reject, expire) is an admin decision.
@@ -168,7 +169,7 @@ export async function GET(
           where: { id: userId! },
           select: { role: true },
         });
-        if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN')) {
+        if (requesterProfile && (requesterProfile.role === 'ADMIN' || requesterProfile.role === 'SUPER_ADMIN') && (await hasVerifiedMfaCookie(userId!))) {
           isOwnerOrAdmin = true;
         } else if (listing.status === ListingStatus.ACTIVE) {
           const interest = await prisma.interest.findFirst({
@@ -284,7 +285,7 @@ export async function PUT(
       where: { id: userId },
       select: { role: true, name: true, roleMetadata: true },
     });
-    if (hasAdminAccess(requesterProfile, 'listings')) {
+    if (hasAdminAccess(requesterProfile, 'listings') && (await hasVerifiedMfaCookie(userId))) {
       isAuthorized = true;
       isAdmin = true;
     } else if (userId === listing.ownerId) {
@@ -589,7 +590,7 @@ export async function DELETE(
       where: { id: userId },
       select: { role: true, name: true, roleMetadata: true },
     });
-    const isAdmin = hasAdminAccess(requesterProfile, 'listings');
+    const isAdmin = hasAdminAccess(requesterProfile, 'listings') && (await hasVerifiedMfaCookie(userId));
     const isOwner = userId === listing.ownerId;
 
     if (!isOwner && !isAdmin) {

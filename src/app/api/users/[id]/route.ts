@@ -3,6 +3,7 @@ import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { isPlaceholderEmail, sanitizeInput, validatePhone } from '@/lib/validation';
+import { hasVerifiedMfaCookie, toPublicProfile } from '@/lib/admin-mfa';
 
 export async function GET(
   request: NextRequest,
@@ -21,7 +22,11 @@ export async function GET(
     });
 
     const isSelf = userId === id;
-    const isAdmin = requesterProfile?.role === 'ADMIN' || requesterProfile?.role === 'SUPER_ADMIN';
+    // Reading another user's profile is an admin power: needs two-step verification too.
+    const isAdmin =
+      (requesterProfile?.role === 'ADMIN' || requesterProfile?.role === 'SUPER_ADMIN') &&
+      !isSelf &&
+      (await hasVerifiedMfaCookie(userId));
 
     if (!isSelf && !isAdmin) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
@@ -87,7 +92,7 @@ export async function GET(
       return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
     }
     
-    return NextResponse.json({ profile });
+    return NextResponse.json({ profile: toPublicProfile(profile) });
   } catch (error: any) {
     console.error('[users/id GET] Error:', error);
     return NextResponse.json(

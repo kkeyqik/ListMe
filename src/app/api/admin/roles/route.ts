@@ -4,6 +4,7 @@ import { Prisma, Role, UserStatus } from '@prisma/client';
 import { requireAdminModule, countOtherActiveSuperAdmins, getRequestIp } from '@/lib/admin-auth';
 import { logAdminActivity } from '@/lib/activity-logger';
 import { ADMIN_MODULES, getAdminPermissions, type AdminModule } from '@/lib/admin-permissions';
+import { toPublicProfile } from '@/lib/admin-mfa';
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,7 +56,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Regular users are searched on demand (?userSearch=), not listed here.
-    return NextResponse.json({ admins, regularUsers: [] });
+    // mfa (two-step secrets) is stripped; the page gets an mfaEnabled flag instead.
+    return NextResponse.json({ admins: admins.map(toPublicProfile), regularUsers: [] });
   } catch (error: unknown) {
     console.error('[admin/roles GET] Error:', error);
     return NextResponse.json(
@@ -160,7 +162,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       message: 'Role and permissions updated successfully',
-      profile: updatedProfile,
+      profile: toPublicProfile(updatedProfile),
     });
   } catch (error: unknown) {
     console.error('[admin/roles PUT] Error:', error);
