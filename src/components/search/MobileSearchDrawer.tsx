@@ -6,6 +6,7 @@ import { X, Search, LocateFixed, MapPin, ChevronRight, Clock } from 'lucide-reac
 import { useMobileMenu } from '@/context/MobileMenuContext';
 import styles from './MobileSearchDrawer.module.css';
 import { useBodyScrollLock, useDialogFocus, useCloseAboveBreakpoint } from '@/lib/use-dialog';
+import { usePlaceSuggestions, formatPlaceSecondary, type Place } from '@/components/ui/LocalityAutocomplete';
 
 type SearchTabType = 'Buy' | 'Rent/PG' | 'Commercial';
 
@@ -341,6 +342,21 @@ export const MobileSearchDrawer: React.FC = () => {
     router.push(`/listings?${params.toString()}`);
   };
 
+  // A locality picked from the India-wide suggestions: search that city + locality.
+  const handlePlaceClick = (place: Place) => {
+    const typeParam = getListingTypeParam(activeTab);
+    const locality = place.locality || place.name;
+    saveRecentSearch(place.city ? `${locality}, ${place.city}` : locality);
+
+    const params = new URLSearchParams();
+    params.set('type', typeParam);
+    if (place.city) params.set('city', place.city);
+    params.set('locality', locality);
+
+    closeSearch();
+    router.push(`/listings?${params.toString()}`);
+  };
+
   const handleRecentClick = (term: string) => {
     const typeParam = getListingTypeParam(activeTab);
     closeSearch();
@@ -445,6 +461,17 @@ export const MobileSearchDrawer: React.FC = () => {
       }
     }
   }
+
+  // India-wide localities from /api/places/autocomplete, after the popular matches above.
+  const { places: placeResults } = usePlaceSuggestions(searchQuery, {
+    city: selectedCity || undefined,
+    enabled: isSearchOpen && queryLower.length >= 2,
+  });
+  const shownLocalities = matchedLocalities.slice(0, 6);
+  const shownKeys = new Set(shownLocalities.map((m) => `${m.locality}|${m.city}`.toLowerCase()));
+  const remotePlaces = placeResults
+    .filter((p) => !shownKeys.has(`${p.locality || p.name}|${p.city}`.toLowerCase()))
+    .slice(0, 8);
 
   const currentLocalities = selectedCity ? POPULAR_LOCALITIES_BY_CITY[selectedCity] || [] : [];
 
@@ -566,9 +593,9 @@ export const MobileSearchDrawer: React.FC = () => {
         {/* Drawer Body */}
         <div className={styles.drawerBody}>
           {/* Real-time Query Suggestions */}
-          {queryLower.length >= 2 && matchedLocalities.length > 0 && (
+          {queryLower.length >= 2 && (shownLocalities.length > 0 || remotePlaces.length > 0) && (
             <div className={styles.suggestionsList} role="listbox" aria-label="Search suggestions">
-              {matchedLocalities.slice(0, 6).map((item, idx) => (
+              {shownLocalities.map((item, idx) => (
                 <button
                   key={`${item.city}-${item.locality}-${idx}`}
                   type="button"
@@ -591,6 +618,23 @@ export const MobileSearchDrawer: React.FC = () => {
                   <div className={styles.suggestionText}>
                     <span className={styles.suggestionPrimary}>{item.locality}</span>
                     <span className={styles.suggestionSecondary}>{item.city}</span>
+                  </div>
+                  <ChevronRight size={16} className={styles.suggestionArrow} aria-hidden="true" />
+                </button>
+              ))}
+              {remotePlaces.map((place) => (
+                <button
+                  key={place.id}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  className={styles.suggestionItem}
+                  onClick={() => handlePlaceClick(place)}
+                >
+                  <MapPin size={18} className={styles.suggestionIcon} aria-hidden="true" />
+                  <div className={styles.suggestionText}>
+                    <span className={styles.suggestionPrimary}>{place.name}</span>
+                    <span className={styles.suggestionSecondary}>{formatPlaceSecondary(place)}</span>
                   </div>
                   <ChevronRight size={16} className={styles.suggestionArrow} aria-hidden="true" />
                 </button>
