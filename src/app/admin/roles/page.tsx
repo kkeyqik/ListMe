@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, ShieldCheck, ShieldAlert, UserPlus, Search, Edit2, Settings, Users, Building2, Trash2, Download, AlertTriangle, ArrowUpDown, Heart } from 'lucide-react';
+import { Shield, ShieldCheck, ShieldAlert, ShieldOff, UserPlus, Search, Edit2, Settings, Users, Building2, Trash2, Download, AlertTriangle, ArrowUpDown, Heart } from 'lucide-react';
 import { useToast, Card, Badge, Input, Button, Modal } from '@/components/ui';
 import styles from '../admin.module.css';
 import { useAuth } from '@/context/AuthContext';
@@ -116,6 +116,30 @@ export default function RoleManager() {
       fetchRoles();
     }
   }, [profile, router]);
+
+  // Two-step verification reset (lost phone). The admin sets it up again on next sign-in.
+  const [resetMfaId, setResetMfaId] = useState<string | null>(null);
+  const handleResetMfa = async (admin: any) => {
+    const ok = window.confirm(
+      `Reset two-step verification for ${admin.name || 'this admin'}? They will have to set up their authenticator app again the next time they open the admin panel.`
+    );
+    if (!ok) return;
+    setResetMfaId(admin.id);
+    try {
+      const res = await fetch(`/api/admin/users/${admin.id}/reset-mfa`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast('Success', 'Two-step verification reset', 'success');
+        fetchRoles();
+      } else {
+        showToast('Error', data.message || 'Could not reset two-step verification', 'error');
+      }
+    } catch {
+      showToast('Error', 'Could not reset two-step verification', 'error');
+    } finally {
+      setResetMfaId(null);
+    }
+  };
 
   const handleEditClick = (admin: any) => {
     setEditingAdmin(admin);
@@ -403,6 +427,7 @@ export default function RoleManager() {
                         <div>
                           <div className={styles.titleText}>{admin.name || 'Unknown User'}</div>
                           <div className={styles.subTextInfo}>{admin.email || admin.phone}</div>
+                          <div className={styles.subTextInfo}>{admin.mfaEnabled ? 'Two-step: on' : 'Two-step: not set up'}</div>
                         </div>
                       </div>
                     </td>
@@ -453,6 +478,20 @@ export default function RoleManager() {
                           <Edit2 size={16} />
                         </Button>
                         
+                        {admin.mfaEnabled && admin.id !== profile?.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleResetMfa(admin)}
+                            disabled={resetMfaId === admin.id}
+                            style={{ padding: '0.25rem 0.5rem', minHeight: 'auto' }}
+                            title="Reset two-step verification"
+                            aria-label={`Reset two-step verification for ${admin.name || 'Admin'}`}
+                          >
+                            <ShieldOff size={16} />
+                          </Button>
+                        )}
+
                         {canDeleteAdmin(admin) && (
                           <Button 
                             variant="ghost" 

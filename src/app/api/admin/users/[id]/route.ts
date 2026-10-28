@@ -4,6 +4,7 @@ import { requireAdminModule, countOtherActiveSuperAdmins, getRequestIp } from '@
 import { prisma } from '@/lib/prisma';
 import { Role, UserStatus } from '@prisma/client';
 import { logAdminActivity } from '@/lib/activity-logger';
+import { toPublicProfile } from '@/lib/admin-mfa';
 
 /** Best-effort removal of deleted listings' files from Storage. */
 async function removeListingsFiles(listingIds: string[]) {
@@ -169,7 +170,7 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({ profile: updatedProfile });
+    return NextResponse.json({ profile: toPublicProfile(updatedProfile) });
   } catch (error: any) {
     console.error('[admin/users PUT] Error:', error);
     return NextResponse.json(

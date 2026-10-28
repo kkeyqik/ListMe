@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
+import { toPublicProfile } from '@/lib/admin-mfa';
 
 /**
  * GET /api/auth/me
@@ -34,7 +35,8 @@ export async function GET() {
       return NextResponse.json({ authenticated: false }, { status: 200 });
     }
 
-    return NextResponse.json({ authenticated: true, profile });
+    // roleMetadata.mfa (two-step secrets) must never reach the browser.
+    return NextResponse.json({ authenticated: true, profile: toPublicProfile(profile) });
   } catch (error) {
     console.error('[GET /api/auth/me] Error:', error);
     return NextResponse.json(

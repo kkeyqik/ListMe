@@ -8,6 +8,7 @@ import { isUuid } from '@/lib/ids';
 import { hasAdminAccess } from '@/lib/admin-permissions';
 import { listingCityWhere } from '@/lib/city-aliases';
 import { validateListingInput, toListingEnum, cleanKeyHighlights } from '@/lib/listing-input';
+import { hasVerifiedMfaCookie, mfaRequiredResponse } from '@/lib/admin-mfa';
 
 const ADMIN_MAX_LIMIT = 1000;
 // Listing creation is a moderation workload: cap bursts per account.
@@ -94,6 +95,9 @@ export async function GET(request: NextRequest) {
         // Module permission, not just the role (same rule as the /admin/listings page).
         if (!hasAdminAccess(userProfile, 'listings')) {
           return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+        }
+        if (!(await hasVerifiedMfaCookie(userId))) {
+          return mfaRequiredResponse();
         }
 
         const statusFilter = asEnum(ListingStatus, searchParams.get('status'));

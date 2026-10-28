@@ -3,6 +3,7 @@ import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { logAdminActivity } from '@/lib/activity-logger';
 import { hasAdminAccess } from '@/lib/admin-permissions';
+import { hasVerifiedMfaCookie, mfaRequiredResponse } from '@/lib/admin-mfa';
 
 export async function GET() {
   try {
@@ -39,6 +40,9 @@ export async function PUT(request: NextRequest) {
 
     if (!requesterProfile || (requesterProfile.role !== 'ADMIN' && requesterProfile.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    }
+    if (!(await hasVerifiedMfaCookie(userId))) {
+      return mfaRequiredResponse();
     }
 
     const body = await request.json().catch(() => null);

@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE_NAME } from '@/lib/session';
+import { MFA_COOKIE_NAME, getClearedMfaCookieOptions } from '@/lib/mfa-cookie';
 import { getAuthenticatedUserId } from '@/lib/server-auth';
 import { logUserActivity } from '@/lib/activity-logger';
 
@@ -25,6 +26,9 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
     });
+
+    // Clear the admin two-step verification cookie.
+    cookieStore.set(MFA_COOKIE_NAME, '', getClearedMfaCookieOptions());
 
     // Clear the mock user cookie used in dev/test.
     cookieStore.set('sb-mock-user-id', '', {
