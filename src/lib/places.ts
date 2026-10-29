@@ -5,26 +5,26 @@
  *  - Photon (OpenStreetMap, https://photon.komoot.io): default, free, no key.
  *  - Google Places API (New): used instead when GOOGLE_MAPS_API_KEY is set,
  *    with Photon as the fallback if Google fails or finds nothing.
- *  - India Post (src/lib/pincode.ts): merged in when the query is a 6-digit PIN.
- *
- * Fallbacks when Google/Photon fail or return too few results:
- *  - Localities of ACTIVE listings in our own database (read-only; also run on
+ *  - Localities of ACTIVE listings in our own database (read-only; run on
  *    every search so a real listing's locality is always findable).
- *  - India Post post-office search by name (api.postalpincode.in/postoffice/{name}).
  *
- * Preference order: Google > Photon > own listings > India Post.
+ * A 6-digit PIN is answered with the neighbourhoods / societies around that
+ * PIN (Photon reverse search); India Post is used only to name the city.
+ * Post-office names are never offered as places.
+ *
+ * Preference order: Google > Photon > own listings.
  *
  * searchPlaces() never throws: a failing provider is logged and skipped, and
  * whatever the other providers returned is still sent back.
  */
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { cleanLocalityName, lookupPinCode, normalizeCityName } from '@/lib/pincode';
+import { lookupPinCode, normalizeCityName } from '@/lib/pincode';
 
-export type PlaceSource = 'osm' | 'google' | 'listing' | 'indiapost';
+export type PlaceSource = 'osm' | 'google' | 'listing';
 
 export interface Place {
-  /** Stable id: "osm:N123", "google:<placeId>", "indiapost:560038:Indiranagar" */
+  /** Stable id: "osm:N123", "google:<placeId>", "listing:<locality>:..." */
   id: string;
   /** What the user picked (society, sector, neighbourhood, area, ...) */
   name: string;
@@ -35,7 +35,7 @@ export interface Place {
   city: string;
   state: string;
   pinCode?: string;
-  /** Null when the provider has no coordinates (India Post, or Google before details) */
+  /** Null when the provider has no coordinates (own listings, or Google before details) */
   lat: number | null;
   lng: number | null;
   source: PlaceSource;
@@ -49,6 +49,7 @@ export interface SearchPlacesOptions {
 
 const USER_AGENT = 'ListMe/1.0 (+https://listme-sable.vercel.app; Indian property portal locality search)';
 const PHOTON_URL = 'https://photon.komoot.io/api/';
+const PHOTON_REVERSE_URL = 'https://photon.komoot.io/reverse';
 const INDIA_BBOX = '68.1,6.5,97.4,35.7';
 const PROVIDER_TIMEOUT_MS = 3500;
 // A dead Photon must not hold up the dropdown: short timeout, then the circuit breaker skips it.
@@ -327,10 +328,27 @@ async function photonFetch(q: string, limit: number, city: string | undefined, p
     params.set('zoom', '10');
     params.set('location_bias_scale', '0.4');
   }
+  return photonRequest(`${PHOTON_URL}?${params.toString()}`);
+}
+
+/** Places around a point (Photon reverse search), area-like layers only. */
+async function photonReverse(lat: number, lon: number, limit: number, radiusKm: number): Promise<PhotonFeature[]> {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    limit: String(limit),
+    radius: String(radiusKm),
+    lang: 'en',
+  });
+  params.append('layer', 'district');
+  params.append('layer', 'locality');
+  return photonRequest(`${PHOTON_REVERSE_URL}?${params.toString()}`);
+}
+
+async function photonRequest(url: string): Promise<PhotonFeature[]> {
   // Fair use: while Photon is throttling or down, do not keep calling it.
   if (photonBackingOff()) throw new Error('Photon backing off after recent failures');
 
-  const url = `${PHOTON_URL}?${params.toString()}`;
   const get = () =>
     fetch(url, {
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
@@ -397,7 +415,14 @@ async function searchPhoton(q: string, city: string | undefined, limit: number):
     }
   }
 
+  // Typing a city's own name ("Gorakhpur") should offer that city first, not
+  // the villages and boundaries elsewhere that share the name.
+  const qNorm = normalizePlaceText(q);
+  const isCityHit = (p: Place) => normalizePlaceText(p.name) === qNorm && cityKey(p.city) === cityKey(p.name);
   ranked.sort((a, b) => {
+    const ha = isCityHit(a.place) ? 0 : 1;
+    const hb = isCityHit(b.place) ? 0 : 1;
+    if (ha !== hb) return ha - hb;
     if (city) {
       const ca = cityMatches(a.place.city, city) ? 0 : 1;
       const cb = cityMatches(b.place.city, city) ? 0 : 1;
@@ -541,109 +566,61 @@ export async function getPlaceDetails(id: string): Promise<Place | null> {
 }
 
 // ---------------------------------------------------------------------------
-// India Post (PIN code)
+// PIN code: neighbourhoods around it
 // ---------------------------------------------------------------------------
 
-async function searchIndiaPost(pin: string): Promise<Place[]> {
-  const result = await lookupPinCode(pin);
-  if (!result) return [];
-  return result.localities.map((name) => ({
-    id: `indiapost:${pin}:${name}`,
-    name,
-    locality: cleanLocalityName(name, result.district),
-    city: result.city,
-    state: result.state,
-    pinCode: result.pinCode,
-    lat: null,
-    lng: null,
-    source: 'indiapost' as const,
-  }));
-}
-
-interface IndiaPostOffice {
-  Name?: string;
-  BranchType?: string;
-  DeliveryStatus?: string;
-  District?: string;
-  State?: string;
-  Pincode?: string;
-}
-
 /**
- * India Post post-office search by name (fallback for name queries).
- * Post offices with the same clean name and PIN collapse into one; a delivery
- * office wins over a non-delivery one. Results matching the query's start and
- * the city bias come first.
+ * Neighbourhoods, sectors and societies around a 6-digit PIN. Photon gives the
+ * PIN's centre point; a reverse search around it lists the named areas there.
+ * India Post only supplies the city name (never its post-office names).
  */
-async function searchIndiaPostByName(q: string, city: string | undefined, limit: number): Promise<Place[]> {
-  // The API takes a plain name: keep letters, digits, spaces, dots and hyphens.
-  const name = q.replace(/[^A-Za-z0-9 .-]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (name.length < 3) return [];
+async function searchPinAreas(pin: string, limit: number): Promise<Place[]> {
+  const [features, pinInfo] = await Promise.all([
+    photonFetch(pin, 3, undefined, false),
+    lookupPinCode(pin).catch(() => null),
+  ]);
+  const centre = features.find(
+    (f) => clean(f.properties?.osm_value) === 'postcode' && validPin(f.properties?.name) === pin,
+  );
+  const coords = centre?.geometry?.coordinates;
+  if (!Array.isArray(coords)) return [];
 
-  const cacheKey = `postoffice|${name.toLowerCase()}`;
-  let offices = cacheGet<IndiaPostOffice[]>(cacheKey);
-  if (!offices) {
-    const res = await fetch(`https://api.postalpincode.in/postoffice/${encodeURIComponent(name)}`, {
-      headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(INDIA_POST_TIMEOUT_MS),
-      cache: 'no-store',
+  const lat = Number(coords[1]);
+  const lon = Number(coords[0]);
+  // `assumePin`: close by, an untagged place is taken to be in this PIN; further
+  // out it keeps no PIN unless the map says so.
+  const collect = (nearby: PhotonFeature[], assumePin: boolean) => {
+    const out: { place: Place; rank: number; i: number }[] = [];
+    nearby.forEach((f, i) => {
+      const r = { rank: 9 };
+      const place = photonPlace(f, r);
+      if (!place || place.id.endsWith(':area')) return;
+      // Skip places mapped with a different PIN (the search radius can cross a boundary).
+      if (place.pinCode && place.pinCode !== pin) return;
+      if (ADMIN_AREA_RE.test(place.name)) return;
+      out.push({
+        place: { ...place, pinCode: place.pinCode || (assumePin ? pin : undefined), city: place.city || pinInfo?.city || '', state: place.state || pinInfo?.state || '' },
+        rank: r.rank,
+        i,
+      });
     });
-    if (!res.ok) throw new Error(`India Post HTTP ${res.status}`);
-    const data = (await res.json()) as { Status?: string; PostOffice?: IndiaPostOffice[] | null }[];
-    const first = Array.isArray(data) ? data[0] : undefined;
-    // "Error" means no post office has that name: a valid, cacheable empty answer.
-    if (!first || (first.Status !== 'Success' && first.Status !== 'Error')) throw new Error('India Post: unexpected response');
-    offices = Array.isArray(first.PostOffice) ? first.PostOffice : [];
-    cacheSet(cacheKey, offices);
+    return out;
+  };
+
+  const fetchLimit = Math.min(25, limit * 2);
+  let ranked = collect(await photonReverse(lat, lon, fetchLimit, 4), true);
+  // Sparsely mapped towns: look a little wider before giving up.
+  if (ranked.length < 5) {
+    try {
+      const near = new Set(ranked.map((r) => r.place.id));
+      const wider = collect(await photonReverse(lat, lon, fetchLimit, 8), false).filter((r) => !near.has(r.place.id));
+      ranked = [...ranked, ...wider.map((r) => ({ ...r, i: r.i + 1000 }))];
+    } catch (err) {
+      console.error('[places] Wider PIN area search failed:', err instanceof Error ? err.message : err);
+    }
   }
-
-  const qLower = name.toLowerCase();
-  const byKey = new Map<string, { place: Place; delivery: boolean; order: number }>();
-  offices.forEach((po, order) => {
-    const district = clean(po.District);
-    const locality = cleanLocalityName(clean(po.Name), district);
-    const pinCode = validPin(po.Pincode);
-    if (!locality || locality.length < 2) return;
-    const key = `${normalizePlaceText(locality)}|${pinCode || ''}`;
-    const delivery = clean(po.DeliveryStatus).toLowerCase() === 'delivery';
-    const existing = byKey.get(key);
-    if (existing && (existing.delivery || !delivery)) return;
-    const state = clean(po.State);
-    byKey.set(key, {
-      delivery,
-      order: existing ? existing.order : order,
-      place: {
-        id: `indiapost:${pinCode || 'x'}:${locality}`,
-        name: locality,
-        locality,
-        city: normalizeCityName(district, state),
-        state,
-        pinCode,
-        lat: null,
-        lng: null,
-        source: 'indiapost',
-      },
-    });
-  });
-
-  return Array.from(byKey.values())
-    .map((e) => {
-      // Exact name, then whole-word prefix ("Baner Gaon"), then partial word ("Banera").
-      const n = e.place.name.toLowerCase();
-      const startScore =
-        n === qLower ? 0 : n.startsWith(qLower) ? (/[a-z0-9]/.test(n.charAt(qLower.length)) ? 2 : 1) : 3;
-      const cityScore = city && cityMatches(e.place.city, city) ? 0 : 1;
-      return { ...e, startScore, cityScore };
-    })
-    .sort(
-      (a, b) =>
-        a.cityScore - b.cityScore ||
-        a.startScore - b.startScore ||
-        Number(b.delivery) - Number(a.delivery) ||
-        a.order - b.order
-    )
-    .slice(0, limit)
-    .map((e) => e.place);
+  ranked.sort((a, b) => a.rank - b.rank || a.i - b.i);
+  return ranked.map((r) => r.place);
 }
 
 // ---------------------------------------------------------------------------
@@ -752,11 +729,19 @@ export async function searchPlacesDetailed({ q, city, limit = DEFAULT_LIMIT }: S
   const pin = /^\d{6}$/.test(query.replace(/\s/g, '')) ? query.replace(/\s/g, '') : null;
   let failed = false;
 
-  const geoQuery = pin ?? query;
   const geoSearch = async (): Promise<Place[]> => {
+    if (pin) {
+      try {
+        return await searchPinAreas(pin, MAX_LIMIT);
+      } catch (err) {
+        failed = true;
+        console.error('[places] PIN area search failed:', err instanceof Error ? err.message : err);
+        return [];
+      }
+    }
     if (google) {
       try {
-        const g = await searchGoogle(geoQuery, cityBias, max);
+        const g = await searchGoogle(query, cityBias, max);
         if (g.length > 0) return g;
       } catch (err) {
         failed = true;
@@ -764,21 +749,10 @@ export async function searchPlacesDetailed({ q, city, limit = DEFAULT_LIMIT }: S
       }
     }
     try {
-      return await searchPhoton(geoQuery, cityBias, max);
+      return await searchPhoton(query, cityBias, max);
     } catch (err) {
       failed = true;
       console.error('[places] Photon search failed:', err instanceof Error ? err.message : err);
-      return [];
-    }
-  };
-
-  const postSearch = async (): Promise<Place[]> => {
-    if (!pin) return [];
-    try {
-      return await searchIndiaPost(pin);
-    } catch (err) {
-      failed = true;
-      console.error('[places] India Post lookup failed:', err);
       return [];
     }
   };
@@ -795,22 +769,10 @@ export async function searchPlacesDetailed({ q, city, limit = DEFAULT_LIMIT }: S
     }
   };
 
-  const [geo, post, own] = await Promise.all([geoSearch(), postSearch(), listingSearch()]);
+  const [geo, own] = await Promise.all([geoSearch(), listingSearch()]);
 
-  // India Post name search only when the map providers failed or found too little.
-  let postByName: Place[] = [];
-  if (!pin && dedupe([...geo, ...own]).length < Math.ceil(max / 2)) {
-    try {
-      postByName = await searchIndiaPostByName(query, cityBias, max);
-    } catch (err) {
-      failed = true;
-      console.error('[places] India Post name search failed:', err instanceof Error ? err.message : err);
-    }
-  }
-
-  // Preference: Google/Photon, then our listings, then India Post. For a PIN,
-  // the map's area name comes first, then listings in that PIN, then the post offices.
-  const merged = dedupe([...geo, ...own, ...postByName, ...post]).slice(0, pin ? MAX_LIMIT : max);
+  // Map results first, then localities from our own listings.
+  const merged = dedupe([...geo, ...own]).slice(0, pin ? MAX_LIMIT : max);
 
   // Do not keep a provider outage in the cache for a day.
   const result: PlaceSearchResult = { places: merged, degraded: failed };

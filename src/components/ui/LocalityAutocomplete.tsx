@@ -15,7 +15,7 @@ export interface LocalityAutocompleteProps {
   onSelect: (place: Place) => void;
   /** Optional city to rank that city's localities first. */
   city?: string;
-  /** Extra local options shown before remote results, e.g. the post offices of a typed PIN. */
+  /** Extra local options shown before remote results, e.g. the selected city's known localities. */
   presetOptions?: string[];
   label?: string;
   subLabel?: string;
@@ -167,7 +167,7 @@ export default function LocalityAutocomplete({
   const [activeIndex, setActiveIndex] = useState(-1);
   const { places: remote, loading, cancel } = usePlaceSuggestions(value, { city, enabled: typing });
 
-  // Local options (PIN post offices) filtered by what is typed.
+  // Local options (the city's known localities) filtered by what is typed.
   const presetPlaces = useMemo<Place[]>(() => {
     const q = typing ? value.trim().toLowerCase() : '';
     return (presetOptions || [])
@@ -180,7 +180,7 @@ export default function LocalityAutocomplete({
         state: '',
         lat: null,
         lng: null,
-        source: 'indiapost' as const,
+        source: 'listing' as const,
       }));
   }, [presetOptions, typing, value, city]);
 
