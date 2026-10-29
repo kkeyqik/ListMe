@@ -53,13 +53,16 @@ function ForgotPasswordContent() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Cleared on unmount / close: otherwise reCAPTCHA keeps running against a
+    // removed container and throws "Cannot read properties of null (reading 'style')".
+    let verifier: RecaptchaVerifier | null = null;
     if (isFirebaseConfigured) {
       try {
         const auth = getFirebaseAuth();
         if (auth) {
           const container = document.getElementById('fp-recaptcha-container');
           if (container) container.innerHTML = '';
-          const verifier = new RecaptchaVerifier(auth, 'fp-recaptcha-container', {
+          verifier = new RecaptchaVerifier(auth, 'fp-recaptcha-container', {
             size: 'invisible',
             callback: () => {},
           });
@@ -68,6 +71,13 @@ function ForgotPasswordContent() {
         }
       } catch {}
     }
+    return () => {
+      try {
+        verifier?.clear();
+      } catch {
+        // already gone
+      }
+    };
   }, []);
 
   useEffect(() => {

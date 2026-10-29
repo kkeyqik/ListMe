@@ -72,13 +72,16 @@ function LoginContent() {
   const signupCountryDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Cleared on unmount / close: otherwise reCAPTCHA keeps running against a
+    // removed container and throws "Cannot read properties of null (reading 'style')".
+    let verifier: RecaptchaVerifier | null = null;
     if (isFirebaseConfigured) {
       try {
         const auth = getFirebaseAuth();
         if (auth) {
           const container = document.getElementById('recaptcha-container');
           if (container) container.innerHTML = '';
-          const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
             size: 'invisible',
             callback: () => {},
           });
@@ -89,6 +92,13 @@ function LoginContent() {
         console.error('Failed to init recaptcha', err);
       }
     }
+    return () => {
+      try {
+        verifier?.clear();
+      } catch {
+        // already gone
+      }
+    };
   }, []);
 
   // Click outside to close dropdowns

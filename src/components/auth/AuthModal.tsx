@@ -190,6 +190,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Initialize Recaptcha Verifier when view opens
   useEffect(() => {
+    // Cleared on unmount / close: otherwise reCAPTCHA keeps running against a
+    // removed container and throws "Cannot read properties of null (reading 'style')".
+    let verifier: RecaptchaVerifier | null = null;
     if (!isOpen) return;
 
     if (isFirebaseConfigured) {
@@ -202,7 +205,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             container.innerHTML = '';
           }
 
-          const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-auth', {
+          verifier = new RecaptchaVerifier(auth, 'recaptcha-container-auth', {
             size: 'invisible',
             callback: () => {
               // Recaptcha resolved
@@ -215,6 +218,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         console.error('Failed to initialize recaptcha verifier in AuthModal:', err);
       }
     }
+    return () => {
+      try {
+        verifier?.clear();
+      } catch {
+        // already gone
+      }
+    };
   }, [isOpen]);
 
   // Backdrop click
