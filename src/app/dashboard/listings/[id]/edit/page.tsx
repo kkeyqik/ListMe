@@ -335,7 +335,6 @@ export default function EditListing({ params }: EditListingProps) {
             if (data.success && isMounted) {
               lastResolvedPinRef.current = cleanPin;
               const resolvedCity = data.city || '';
-              const resolvedLocalities: string[] = data.localities || [];
 
               // Dynamically ensure city exists in cities dropdown
               if (resolvedCity) {
@@ -347,20 +346,13 @@ export default function EditListing({ params }: EditListingProps) {
                 });
               }
 
-              // Update localities list with clean, sanitized names
-              const cleanLocObjects = resolvedLocalities.map((loc) => ({
-                id: loc,
-                name: loc,
-                pinCode: cleanPin,
-              }));
-              setLocalities(cleanLocObjects);
+              // The PIN only fills the city: post-office names are not offered as localities.
 
-              // Auto-fill city and locality
+              // Auto-fill city
               prevCityRef.current = resolvedCity;
               setFormData((prev: any) => ({
                 ...prev,
                 city: resolvedCity || prev.city,
-                locality: resolvedLocalities.length === 1 ? resolvedLocalities[0] : prev.locality,
               }));
 
               showToast(

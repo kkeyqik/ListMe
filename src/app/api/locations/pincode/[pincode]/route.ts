@@ -39,11 +39,16 @@ export async function GET(
       );
     }
 
+    // Post-office names are deliberately not returned: the PIN only resolves
+    // the city / district / state. Localities come from the map search.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { localities, ...area } = result;
+
     // PIN code data rarely changes: let the CDN answer repeat lookups.
     return NextResponse.json(
       {
         success: true,
-        ...result,
+        ...area,
       },
       { headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' } }
     );
