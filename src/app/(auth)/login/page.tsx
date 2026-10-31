@@ -8,8 +8,8 @@ import { Phone, ArrowRight, Home, Mail, User, MapPin, ChevronDown, ShieldAlert, 
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
-import { getFirebaseAuth, isFirebaseConfigured, signOutFirebase } from '@/lib/firebase/client';
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { getFirebaseAuth, isFirebaseConfigured, sendPhoneOtp, signOutFirebase } from '@/lib/firebase/client';
+import { RecaptchaVerifier } from 'firebase/auth';
 import { createClient } from '@/lib/supabase/client';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 import { MIN_PASSWORD_LENGTH } from '@/lib/validation';
@@ -249,7 +249,7 @@ function LoginContent() {
           const auth = getFirebaseAuth();
           if (auth && recaptchaVerifier) {
             try {
-              const result = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
+              const result = await sendPhoneOtp(auth, phone, recaptchaVerifier);
               setConfirmationResult(result);
               setStep('otp');
               setTimer(30);
@@ -363,7 +363,7 @@ function LoginContent() {
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
           try {
-            const result = await signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier);
+            const result = await sendPhoneOtp(auth, finalIdentifier, recaptchaVerifier);
             setConfirmationResult(result);
             setStep('otp');
             setTimer(30);
@@ -487,7 +487,7 @@ function LoginContent() {
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
           try {
-            const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+            const result = await sendPhoneOtp(auth, formattedPhone, recaptchaVerifier);
             setConfirmationResult(result);
             setTimer(30);
           } catch (error: any) {
