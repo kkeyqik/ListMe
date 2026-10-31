@@ -22,9 +22,9 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Button, Input, OtpInput } from '@/components/ui';
 import { useSettings } from '@/context/SettingsContext';
-import { getFirebaseAuth, isFirebaseConfigured, signOutFirebase } from '@/lib/firebase/client';
+import { getFirebaseAuth, isFirebaseConfigured, sendPhoneOtp, signOutFirebase } from '@/lib/firebase/client';
 import { MIN_PASSWORD_LENGTH } from '@/lib/validation';
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { RecaptchaVerifier } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import styles from './AuthModal.module.css';
 
@@ -291,7 +291,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           const auth = getFirebaseAuth();
           if (auth && recaptchaVerifier) {
             try {
-              const result = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
+              const result = await sendPhoneOtp(auth, phone, recaptchaVerifier);
               setConfirmationResult(result);
               setView('otp');
               setTimer(30);
@@ -457,7 +457,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
           try {
-            const result = await signInWithPhoneNumber(auth, finalIdentifier, recaptchaVerifier);
+            const result = await sendPhoneOtp(auth, finalIdentifier, recaptchaVerifier);
             setConfirmationResult(result);
             setView('otp');
             setTimer(30);
@@ -619,7 +619,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const auth = getFirebaseAuth();
         if (auth && recaptchaVerifier) {
           try {
-            const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+            const result = await sendPhoneOtp(auth, formattedPhone, recaptchaVerifier);
             setConfirmationResult(result);
             setTimer(30);
           } catch (error: any) {
@@ -691,7 +691,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const auth = isFirebaseConfigured ? getFirebaseAuth() : null;
         if (auth && recaptchaVerifier && data.formattedPhone) {
           try {
-            const confirmation = await signInWithPhoneNumber(auth, data.formattedPhone, recaptchaVerifier);
+            const confirmation = await sendPhoneOtp(auth, data.formattedPhone, recaptchaVerifier);
             setConfirmationResult(confirmation);
           } catch (fbErr: any) {
             console.warn('[AuthModal FP] Firebase SMS failed:', fbErr?.message);

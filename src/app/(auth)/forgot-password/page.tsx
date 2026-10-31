@@ -7,8 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Home, Mail, Phone, ArrowRight, ArrowLeft, CheckCircle, Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { Button, Input, OtpInput } from '@/components/ui';
 import { useToast } from '@/components/ui';
-import { getFirebaseAuth, isFirebaseConfigured, signOutFirebase } from '@/lib/firebase/client';
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { getFirebaseAuth, isFirebaseConfigured, sendPhoneOtp, signOutFirebase } from '@/lib/firebase/client';
+import { RecaptchaVerifier } from 'firebase/auth';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 import { MIN_PASSWORD_LENGTH } from '@/lib/validation';
 import styles from '../auth.module.css';
@@ -150,7 +150,7 @@ function ForgotPasswordContent() {
           return;
         }
         try {
-          const confirmation = await signInWithPhoneNumber(auth, data.formattedPhone, recaptchaVerifier);
+          const confirmation = await sendPhoneOtp(auth, data.formattedPhone, recaptchaVerifier);
           setFirebaseConfirmation(confirmation);
         } catch (fbErr: any) {
           console.warn('[FP] Firebase SMS failed:', fbErr?.message);

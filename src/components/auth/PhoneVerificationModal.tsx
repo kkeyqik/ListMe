@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Phone, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast, Modal, Input, Button, OtpInput } from '../ui';
-import { getFirebaseAuth, isFirebaseConfigured, signOutFirebase } from '@/lib/firebase/client';
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { getFirebaseAuth, isFirebaseConfigured, sendPhoneOtp, signOutFirebase } from '@/lib/firebase/client';
+import { RecaptchaVerifier } from 'firebase/auth';
 import styles from './PhoneVerificationModal.module.css';
 
 interface PhoneVerificationModalProps {
@@ -128,7 +128,7 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
       const auth = getFirebaseAuth();
       if (auth && recaptchaVerifier) {
         try {
-          const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+          const result = await sendPhoneOtp(auth, formattedPhone, recaptchaVerifier);
           setConfirmationResult(result);
           setStep('otp');
           setTimer(30);
@@ -234,7 +234,7 @@ export const PhoneVerificationModal: React.FC<PhoneVerificationModalProps> = ({
       const auth = getFirebaseAuth();
       if (auth && recaptchaVerifier) {
         try {
-          const result = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+          const result = await sendPhoneOtp(auth, formattedPhone, recaptchaVerifier);
           setConfirmationResult(result);
           setTimer(30);
         } catch (error: any) {
